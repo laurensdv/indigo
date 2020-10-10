@@ -16,6 +16,7 @@ import indigo.shared.formats.TiledLayer
 import indigo.shared.formats.TileSet
 import indigo.shared.formats.TiledTerrain
 import indigo.shared.formats.TiledTerrainCorner
+import indigo.shared.formats.TiledFrame
 import indigo.shared.datatypes.FontChar
 
 @SuppressWarnings(
@@ -46,6 +47,7 @@ object Json extends JsonSupportFunctions {
     }
 
   implicit val tiledLayerRW: RW[TiledLayer]                 = macroRW
+  implicit val tiledFrameRW: RW[TiledFrame]                 = macroRW
   implicit val tiledTerrainCornerRW: RW[TiledTerrainCorner] = macroRW
   implicit val tiledTerrainRW: RW[TiledTerrain]             = macroRW
   implicit val tileSetRW: RW[TileSet]                       = macroRW
