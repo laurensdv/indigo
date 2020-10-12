@@ -15,7 +15,7 @@ http://doc.mapeditor.org/reference/tmx-map-format/
 
 This is not a full implementation. No doubt I'll be adding and tweaking as I go based on requirements.
  */
-
+ 
 final case class TiledMap(
                            width: Int,
                            height: Int,
@@ -68,12 +68,11 @@ final case class TiledMap(
     }
   }
 
-  def parseAnimations(assetName: AssetName): Option[List[Iterable[Option[Animation]]]] =
+  def parseAnimations(assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     TiledMap.parseAnimations(this, assetName)
 
   def toGroup(assetName: AssetName): Option[Group] =
     TiledMap.toGroup(this, assetName)
-
 }
 
 final case class TiledLayer(
@@ -117,14 +116,13 @@ object TiledMap {
       y = index / gridWidth
     )
 
-
-  def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[List[Iterable[Option[Animation]]]] =
+  def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
       tiledMap.tilesets.flatMap {
         tileset =>
           tileset.tiles.map(tile => {
-            tile.map {
+            tile.flatMap {
               tl => tl._2.animation.map { a =>
                 val framesSeq: Seq[Frame] = a.map { f =>
                   Frame(Rectangle(fromIndex(f.tileid - 1, tileSheetColumnCount) * tileSize, tileSize), Millis(f.duration.toLong))
@@ -162,7 +160,7 @@ object TiledMap {
                 {
                   if(animations.contains(i)) {
                     if(animations(i).nonEmpty) {
-                      val key = AnimationKey(i.toString)                      
+                      val key = AnimationKey(i.toString)
                       Sprite(BindingKey(i.toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
                     } else {
                       Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
