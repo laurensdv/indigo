@@ -8,6 +8,7 @@ import indigo.shared.events.FrameTick
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.events.GlobalEvent
 import indigoextras.TestFail._
+import indigo.shared.dice.Dice
 
 object WorkScheduleTests extends TestSuite {
 
@@ -27,12 +28,14 @@ object WorkScheduleTests extends TestSuite {
 
   val bindingKey: BindingKey = BindingKey("test")
 
+  val dice = Dice.loaded(1)
+
   val tests: Tests =
     Tests {
       "The WorkSchedule" - {
 
         "should allow you to create an empty work schedule" - {
-          WorkSchedule[SampleActor, Unit](bindingKey).jobStack ==> Nil
+          WorkSchedule[SampleActor, SampleContext](bindingKey).jobStack ==> Nil
         }
 
         "should generate new local jobs when the stack is empty" - {
@@ -41,11 +44,11 @@ object WorkScheduleTests extends TestSuite {
           val context: SampleContext = SampleContext(false)
           val expected: List[Job]    = WanderTo(100) :: Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, Nil)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
 
           val gameTime = new GameTime(0, 0, GameTime.FPS(0))
 
-          val actual = workSchedule.update(gameTime, actor, context)(SampleActor.worker)(FrameTick).workSchedule.jobStack
+          val actual = workSchedule.update(gameTime, dice, actor, context)(FrameTick).state.workSchedule.jobStack
 
           actual ==> expected
 
@@ -57,10 +60,10 @@ object WorkScheduleTests extends TestSuite {
           val context: SampleContext = SampleContext(false)
           val jobs                   = Fishing(0) :: Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, jobs)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, jobs)
           val gameTime     = new GameTime(0, 0, GameTime.FPS(0))
 
-          workSchedule.update(gameTime, actor, context)(SampleActor.worker)(FrameTick).workSchedule.jobStack.headOption match {
+          workSchedule.update(gameTime, dice, actor, context)(FrameTick).state.workSchedule.jobStack.headOption match {
             case Some(j @ Fishing(done)) =>
               done ==> SampleActor.defaultFishingSpeed
 
@@ -77,13 +80,14 @@ object WorkScheduleTests extends TestSuite {
           val context: SampleContext = SampleContext(false)
           val expected: List[Job]    = Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, Nil)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
           val gameTime     = new GameTime(0, 0, GameTime.FPS(0))
 
           val allocationId = bindingKey
 
           val actual = workSchedule
-            .update(gameTime, actor, context)(SampleActor.worker)(UnrelatedEvent("ignored!"))
+            .update(gameTime, dice, actor, context)(UnrelatedEvent("ignored!"))
+            .state
             .workSchedule
             .jobStack
 
@@ -96,13 +100,14 @@ object WorkScheduleTests extends TestSuite {
           val jobToAllocate: Fishing = Fishing(0)
           val expected: List[Job]    = jobToAllocate :: Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, Nil)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
           val gameTime     = new GameTime(0, 0, GameTime.FPS(0))
 
           val allocationId = bindingKey
 
           val actual = workSchedule
-            .update(gameTime, actor, context)(SampleActor.worker)(JobMarketEvent.Allocate(allocationId, jobToAllocate))
+            .update(gameTime, dice, actor, context)(JobMarketEvent.Allocate(allocationId, jobToAllocate))
+            .state
             .workSchedule
             .jobStack
 
@@ -114,13 +119,14 @@ object WorkScheduleTests extends TestSuite {
           val context: SampleContext = SampleContext(false)
           val expected: List[Job]    = WanderTo(100) :: Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, Nil)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
           val gameTime     = new GameTime(0, 0, GameTime.FPS(0))
 
           val allocationId = bindingKey
 
           val actual = workSchedule
-            .update(gameTime, actor, context)(SampleActor.worker)(JobMarketEvent.NothingFound(allocationId))
+            .update(gameTime, dice, actor, context)(JobMarketEvent.NothingFound(allocationId))
+            .state
             .workSchedule
             .jobStack
 
@@ -132,9 +138,9 @@ object WorkScheduleTests extends TestSuite {
           val globalJob                      = CantHave()
           val expected: List[JobMarketEvent] = JobMarketEvent.Post(globalJob) :: Nil
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, List(globalJob))
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, List(globalJob))
 
-          val actual = workSchedule.destroy().events
+          val actual = workSchedule.destroy().globalEvents
 
           actual ==> expected
 
@@ -151,10 +157,10 @@ object WorkScheduleTests extends TestSuite {
             WanderTo(30)
           )
 
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, jobList)
+          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, jobList)
 
           "Check the current" - {
-            workSchedule.current match {
+            workSchedule.currentJob match {
               case Some(WanderTo(position)) =>
                 position ==> 10
 
@@ -165,10 +171,10 @@ object WorkScheduleTests extends TestSuite {
 
           val gameTime = new GameTime(0, 0, GameTime.FPS(0))
 
-          val workSchedule2 = workSchedule.update(gameTime, actor, context)(SampleActor.worker)(FrameTick).workSchedule
+          val workSchedule2 = workSchedule.update(gameTime, dice, actor, context)(FrameTick).state.workSchedule
 
           "Arrived, move onto next job" - {
-            workSchedule2.current match {
+            workSchedule2.currentJob match {
               case Some(Fishing(done)) =>
                 done ==> 10
 
@@ -179,25 +185,33 @@ object WorkScheduleTests extends TestSuite {
 
           val workSchedule3 =
             workSchedule2
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //20
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //30
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //40
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //50
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //60
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //70
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //80
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule //90
 
           "Nearly done" - {
-            workSchedule3.current match {
+            workSchedule3.currentJob match {
               case Some(Fishing(done)) =>
                 done ==> 90
 
@@ -208,15 +222,18 @@ object WorkScheduleTests extends TestSuite {
 
           val workSchedule4 =
             workSchedule3
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule // 100
-              .update(gameTime, actor, context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor, context)(FrameTick)
+              .state
               .workSchedule // Complete fishing job, onJobComplete creates WanderTo(0) which is prepended.
-              .update(gameTime, actor.copy(position = 0), context)(SampleActor.worker)(FrameTick)
+              .update(gameTime, dice, actor.copy(position = 0), context)(FrameTick)
+              .state
               .workSchedule // WanderTo(0) complete, now back to the original job list.
 
           "Moving on.." - {
-            workSchedule4.current match {
+            workSchedule4.currentJob match {
               case Some(WanderTo(position)) =>
                 position ==> 30
 
@@ -232,7 +249,7 @@ object WorkScheduleTests extends TestSuite {
             Fishing(100)
           )
 
-          val actual = WorkSchedule[SampleActor, SampleContext](bindingKey, jobList).current
+          val actual = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, jobList).currentJob
 
           actual match {
             case Some(Fishing(done)) =>
@@ -245,17 +262,6 @@ object WorkScheduleTests extends TestSuite {
 
       }
 
-      "The UpdatedWorkSchedule" - {
-
-        "should be able to add events" - {
-          val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, Nil)
-
-          val updated = UpdatedWorkSchedule(workSchedule, SampleActor(10, likesFishing = false))
-
-          updated.addEvents(List(FrameTick)).events ==> List(FrameTick)
-        }
-
-      }
     }
 
 }

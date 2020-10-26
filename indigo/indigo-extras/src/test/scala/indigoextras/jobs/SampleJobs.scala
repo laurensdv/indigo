@@ -2,6 +2,8 @@ package indigoextras.jobs
 
 import indigo.shared.time.GameTime
 import indigoextras.jobs.SampleJobs.Fishing
+import indigo.shared.Outcome
+import indigo.shared.dice.Dice
 
 sealed trait SampleJobs extends Job
 object SampleJobs {
@@ -9,6 +11,7 @@ object SampleJobs {
   case class Fishing(workUnitsCompleted: Int) extends SampleJobs {
     val jobName: JobName = JobName("fishing")
     val isLocal: Boolean = true
+    val priority: Int    = 10
 
     def doWork(numberOfUnit: Int): Fishing =
       this.copy(workUnitsCompleted = Math.max(0, workUnitsCompleted + numberOfUnit))
@@ -20,17 +23,19 @@ object SampleJobs {
   case class WanderTo(position: Int) extends SampleJobs {
     val jobName: JobName = JobName("wander to")
     val isLocal: Boolean = true
+    val priority: Int    = 50
   }
 
   case class CantHave() extends SampleJobs {
     val jobName: JobName = JobName("can't have this job")
     val isLocal: Boolean = false
+    val priority: Int    = 100
   }
 
 }
 
-case class SampleActor(position: Int, likesFishing: Boolean) {
-  val fishingSpeed: Int = SampleActor.defaultFishingSpeed
+final case class SampleActor(position: Int, likesFishing: Boolean) {
+  def fishingSpeed: Int = SampleActor.defaultFishingSpeed
 }
 object SampleActor {
 
@@ -41,42 +46,46 @@ object SampleActor {
 
   implicit val worker: Worker[SampleActor, SampleContext] =
     new Worker[SampleActor, SampleContext] {
-      def isJobComplete(actor: SampleActor): Job => Boolean = {
+      def isJobComplete(context: WorkContext[SampleActor, SampleContext]): Job => Boolean = {
         case SampleJobs.Fishing(completed) =>
           completed == Fishing.totalWorkUnits
 
         case SampleJobs.WanderTo(target) =>
-          actor.position == target
+          context.actor.position == target
 
         case _ =>
           true
       }
 
-      def onJobComplete(actor: SampleActor, context: SampleContext): Job => JobComplete = {
+      def onJobComplete(context: WorkContext[SampleActor, SampleContext]): Job => Outcome[(List[Job], SampleActor)] = {
         case SampleJobs.Fishing(_) =>
-          JobComplete(List(SampleJobs.WanderTo(0)), Nil)
+          Outcome((List(SampleJobs.WanderTo(0)), context.actor), Nil)
 
         case SampleJobs.WanderTo(_) =>
-          JobComplete.empty
+          Outcome((Nil, context.actor))
 
         case _ =>
-          JobComplete.empty
+          Outcome((Nil, context.actor))
       }
 
-      def workOnJob(gameTime: GameTime, actor: SampleActor, context: SampleContext): Job => (Job, SampleActor) = {
+      def workOnJob(context: WorkContext[SampleActor, SampleContext]): Job => (Job, SampleActor) = {
         case j @ SampleJobs.Fishing(_) =>
-          (j.doWork(actor.fishingSpeed), actor.copy(likesFishing = context.predicate))
+          (
+            j.doWork(context.actor.fishingSpeed),
+            context.actor.copy(likesFishing = context.context.predicate)
+          )
 
         case j @ SampleJobs.WanderTo(_) =>
-          (j, actor)
+          (j, context.actor)
 
         case job =>
-          (job, actor)
+          (job, context.actor)
       }
 
-      def generateJobs: () => List[Job] = () => List(SampleJobs.WanderTo(100))
+      def generateJobs(context: WorkContext[SampleActor, SampleContext]): List[Job] =
+        List(SampleJobs.WanderTo(100))
 
-      def canTakeJob(actor: SampleActor): Job => Boolean = {
+      def canTakeJob(context: WorkContext[SampleActor, SampleContext]): Job => Boolean = {
         case SampleJobs.CantHave() =>
           false
 

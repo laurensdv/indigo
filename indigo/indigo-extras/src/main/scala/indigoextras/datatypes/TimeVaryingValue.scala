@@ -4,97 +4,191 @@ import indigo.shared.time.Seconds
 import indigo.shared.EqualTo
 import indigo.shared.EqualTo._
 
-final case class TimeVaryingValue[@specialized(Int, Long, Float, Double) T](value: T, startValue: T, createdAt: Seconds)(implicit vot: ValueOverTime[T]) {
+/**
+  * Represents one of the type of values that changes over time.
+  */
+sealed trait TimeVaryingValue {
 
-  def increase(unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.increase(this, unitsPerSecond, runningTime)
+  /**
+    * The current value
+    *
+    * @return Double
+    */
+  val value: Double
 
-  def increaseTo(limit: T, unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.increaseTo(this, limit, unitsPerSecond, runningTime)
+  /**
+    * The rate of change
+    *
+    * @return Double
+    */
+  val unitsPerSecond: Double
 
-  def increaseWrapAt(limit: T, unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.increaseWrapAt(this, limit, unitsPerSecond, runningTime)
+  /**
+    * Value as an Int
+    *
+    * @return Int
+    */
+  def toInt: Int = value.toInt
 
-  def decrease(unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.decrease(this, unitsPerSecond, runningTime)
+  /**
+    * Value as an Long
+    *
+    * @return Long
+    */
+  def toLong: Long = value.toLong
 
-  def decreaseTo(limit: T, unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.decreaseTo(this, limit, unitsPerSecond, runningTime)
+  /**
+    * Value as an Float
+    *
+    * @return Float
+    */
+  def toFloat: Float = value.toFloat
 
-  def decreaseWrapAt(limit: T, unitsPerSecond: T, runningTime: Seconds): TimeVaryingValue[T] =
-    TimeVaryingValue.decreaseWrapAt(this, limit, unitsPerSecond, runningTime)
+  /**
+    * Value as an Double
+    *
+    * @return Double
+    */
+  def toDouble: Double = value
+
+  /**
+    * Update the time varying value based on a time delta
+    *
+    * @param timeDelta the time delta typically supplied from GameTime(..).delta
+    * @return TimeVaryingValue
+    */
+  def update(timeDelta: Seconds): TimeVaryingValue
+  
+}
+
+/**
+  * A value that increases over time.
+  *
+  * @param value The current value
+  * @param unitsPerSecond The rate of change
+  */
+final case class Increasing(value: Double, unitsPerSecond: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): Increasing =
+    this.copy(
+      value = value + unitsPerSecond * timeDelta.value
+    )
+}
+
+/**
+  * A value that increases over time until it hits a limit.
+  *
+  * @param value The current value
+  * @param unitsPerSecond The rate of change
+  * @param limit The upper limit
+  */
+final case class IncreaseTo(value: Double, unitsPerSecond: Double, limit: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): IncreaseTo =
+    this.copy(
+      value = value + unitsPerSecond * timeDelta.value match {
+        case x if x === limit || x > limit =>
+          limit
+
+        case x =>
+          x
+      }
+    )
+}
+
+/**
+  * A value that increases over time and wraps back to zero when it hits the limit
+  *
+  * @param value The current/starting value
+  * @param unitsPerSecond The rate of change
+  * @param limit The upper limit
+  */
+final case class IncreaseWrapAt(value: Double, unitsPerSecond: Double, limit: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): IncreaseWrapAt =
+    this.copy(
+      value = (value + unitsPerSecond * timeDelta.value) % (limit + 1.0d)
+    )
+}
+object IncreaseWrapAt {
+
+  /**
+    * Constructor for a value that increases over time and wraps back to zero when it hits the limit.
+    * This constructor assumes the start value is zero.
+    *
+    * @param unitsPerSecond The rate of change
+    * @param limit The upper limit
+    * @return IncreaseWrapAt
+    */
+  def apply(unitsPerSecond: Double, limit: Double): IncreaseWrapAt =
+    IncreaseWrapAt(0, unitsPerSecond, limit)
 
 }
+
+/**
+  * A value that decreases over time.
+  *
+  * @param value The current value
+  * @param unitsPerSecond The rate of change
+  */
+final case class Decreasing(value: Double, unitsPerSecond: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): Decreasing =
+    this.copy(
+      value = value - unitsPerSecond * timeDelta.value
+    )
+}
+
+/**
+  * A value that decreases over time until it hits a limit.
+  *
+  * @param value The current value
+  * @param unitsPerSecond The rate of change
+  * @param limit The lower limit
+  */
+final case class DecreaseTo(value: Double, unitsPerSecond: Double, limit: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): DecreaseTo =
+    this.copy(
+      value = value - unitsPerSecond * timeDelta.value match {
+        case x if x === limit || x < limit =>
+          limit
+
+        case x =>
+          x
+      }
+    )
+}
+
+/**
+  * A value that decreases over time and wraps back to zero when it hits the limit
+  *
+  * @param value The current/starting value
+  * @param unitsPerSecond The rate of change
+  * @param limit The lower limit
+  */
+final case class DecreaseWrapAt(value: Double, unitsPerSecond: Double, limit: Double) extends TimeVaryingValue {
+  def update(timeDelta: Seconds): DecreaseWrapAt =
+    this.copy(
+      value = (value - unitsPerSecond * timeDelta.value) % (limit + 1.0d)
+    )
+}
+object DecreaseWrapAt {
+
+  /**
+    * Constructor for a value that decreases over time and wraps back to zero when it hits the limit.
+    * This constructor assumes the start value is zero.
+    *
+    * @param value The current value
+    * @param unitsPerSecond The rate of change
+    * @param limit The lower limit
+    * @return DecreaseWrapAt
+    */
+  def apply(unitsPerSecond: Double, limit: Double): DecreaseWrapAt =
+    DecreaseWrapAt(0, unitsPerSecond, limit)
+
+}
+
 object TimeVaryingValue {
 
-  implicit def eqTimeVaryingValue[@specialized(Int, Long, Float, Double) T](implicit vot: ValueOverTime[T]): EqualTo[TimeVaryingValue[T]] =
-    EqualTo.create[TimeVaryingValue[T]] { (a, b) =>
-      vot.equal(a.value, b.value) && vot.equal(a.startValue, b.startValue) && a.createdAt === b.createdAt
+  implicit def eqTimeVaryingValue: EqualTo[TimeVaryingValue] =
+    EqualTo.create[TimeVaryingValue] { (a, b) =>
+      a.value === b.value
     }
-
-  import ValueOverTime._
-
-  def apply[@specialized(Int, Long, Float, Double) T](value: T, createdAt: Seconds)(implicit vot: ValueOverTime[T]): TimeVaryingValue[T] =
-    TimeVaryingValue(value, value, createdAt)
-
-  def withStartingValue[@specialized(Int, Long, Float, Double) T](value: T, startValue: T, createdAt: Seconds)(implicit vot: ValueOverTime[T]): TimeVaryingValue[T] =
-    TimeVaryingValue(value, startValue, createdAt)
-
-  def modifyValue[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], newValue: T)(implicit vot: ValueOverTime[T]): TimeVaryingValue[T] =
-    TimeVaryingValue(newValue, timeVaryingValue.startValue, timeVaryingValue.createdAt)
-
-  def increase[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    modifyValue(
-      timeVaryingValue,
-      timeVaryingValue.startValue + vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt)
-    )
-
-  def increaseTo[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], limit: T, unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    timeVaryingValue.startValue + vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt) match {
-      case x if x === limit || x > limit =>
-        modifyValue(timeVaryingValue, limit)
-
-      case x =>
-        modifyValue(timeVaryingValue, x)
-    }
-
-  def increaseWrapAt[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], limit: T, unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    modifyValue(
-      timeVaryingValue,
-      (timeVaryingValue.startValue + vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt)) % (limit + vot.one)
-    )
-
-  def decrease[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    modifyValue(
-      timeVaryingValue,
-      timeVaryingValue.startValue - vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt)
-    )
-
-  def decreaseTo[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], limit: T, unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    timeVaryingValue.startValue - vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt) match {
-      case x if x === limit || x < limit =>
-        modifyValue(timeVaryingValue, limit)
-
-      case x =>
-        modifyValue(timeVaryingValue, x)
-    }
-
-  def decreaseWrapAt[@specialized(Int, Long, Float, Double) T](timeVaryingValue: TimeVaryingValue[T], limit: T, unitsPerSecond: T, runningTime: Seconds)(
-      implicit vot: ValueOverTime[T]
-  ): TimeVaryingValue[T] =
-    modifyValue(
-      timeVaryingValue,
-      (timeVaryingValue.startValue - vot.changeAmount(runningTime, unitsPerSecond, timeVaryingValue.createdAt)) % (limit + vot.one)
-    )
 
 }
