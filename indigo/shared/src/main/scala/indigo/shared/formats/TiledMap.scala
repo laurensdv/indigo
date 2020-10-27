@@ -71,6 +71,9 @@ final case class TiledMap(
   def parseAnimations(assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     TiledMap.parseAnimations(this, assetName)
 
+  def parseObjects(): List[TiledMapObject] =
+    TiledMap.parseObjects(this) 
+
   def toGroup(assetName: AssetName): Option[Group] =
     TiledMap.toGroup(this, assetName)
 }
@@ -84,8 +87,34 @@ final case class TiledLayer(
                              height: Int,
                              opacity: Double,
                              `type`: String, // tilelayer, objectgroup, or imagelayer
-                             visible: Boolean
+                             visible: Boolean,
+                             objects: Option[List[TiledMapObject]],
                            )
+
+object TiledLayer {
+  def apply(name: String,
+             data: List[Int],
+             x: Int,
+             y: Int,
+             width: Int,
+             height: Int,
+             opacity: Double,
+             `type`: String, // tilelayer, objectgroup, or imagelayer
+             visible: Boolean): TiledLayer =
+    new TiledLayer(name, data, x, y, width, height, opacity, `type`, visible, Some(List[TiledMapObject]()))
+}
+
+final case class TiledMapObject(
+  gid: Int,
+  height: Int,
+  id: Int,
+  rotation: Int,
+  `type`: Option[String],
+  visible: Boolean,
+  width: Int,
+  x: Int,
+  y: Int
+)
 
 final case class TileSet(
                           columns: Option[Int],
@@ -137,6 +166,11 @@ object TiledMap {
             }
           })
       }
+    }
+
+  def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
+    tiledMap.layers.filter(_.`type`==="objectgroup").flatMap { layer =>
+      layer.objects.getOrElse(List())
     }
 
   def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
