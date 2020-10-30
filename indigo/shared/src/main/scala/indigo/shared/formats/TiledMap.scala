@@ -158,7 +158,7 @@ object TiledMap {
             tile.flatMap {
               tl => tl.animation.map { a =>
                 val framesSeq: Seq[Frame] = a.map { f =>
-                  Frame(Rectangle(fromIndex(f.tileid - 1, tileSheetColumnCount) * tileSize, tileSize), Millis(f.duration.toLong))
+                  Frame(Rectangle(fromIndex(f.tileid, tileSheetColumnCount) * tileSize, tileSize), Millis(f.duration.toLong))
                 }
                 Animation(
                   AnimationKey(tl.id.toString),
@@ -191,10 +191,10 @@ object TiledMap {
               tiles ++ Map(
                 i ->
                   {
-                    if(animations.contains(i)) {
-                      if(animations(i).nonEmpty) {
-                        val key = AnimationKey(i.toString)
-                        Sprite(BindingKey(i.toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
+                    if(animations.contains(i - 1)) {
+                      if(animations(i - 1).nonEmpty) {
+                        val key = AnimationKey((i - 1).toString)
+                        Sprite(BindingKey((i - 1).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
                       } else {
                         Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
                           .withCrop(
