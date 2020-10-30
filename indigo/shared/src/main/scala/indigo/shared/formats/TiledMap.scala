@@ -96,7 +96,7 @@ object TiledLayer {
              data: List[Int],
              x: Int,
              y: Int,
-             width: Int,
+             width:Int,
              height: Int,
              opacity: Double,
              `type`: String, // tilelayer, objectgroup, or imagelayer
@@ -105,15 +105,14 @@ object TiledLayer {
 }
 
 final case class TiledMapObject(
-  gid: Int,
-  height: Int,
+  height: Double,
   id: Int,
-  rotation: Int,
+  rotation: Double,
   `type`: Option[String],
   visible: Boolean,
-  width: Int,
-  x: Int,
-  y: Int
+  width: Double,
+  x: Double,
+  y: Double
 )
 
 final case class TileSet(
@@ -128,14 +127,14 @@ final case class TileSet(
                           terrains: Option[List[TiledTerrain]],
                           tilecount: Option[Int],
                           tileheight: Option[Int],
-                          tiles: Option[Map[String, TiledTerrainCorner]],
+                          tiles: Option[List[TiledTerrainCorner]],
                           tilewidth: Option[Int],
                           source: Option[String]
                         )
 
 final case class TiledTerrain(name: String, tile: Int)
 final case class TiledFrame(duration: Int, tileid: Int)
-final case class TiledTerrainCorner(terrain: Option[List[Int]], animation: Option[List[TiledFrame]])
+final case class TiledTerrainCorner(id: Int, animation: Option[List[TiledFrame]])
 
 object TiledMap {
 
@@ -145,19 +144,24 @@ object TiledMap {
       y = index / gridWidth
     )
 
-  def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
+    def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
+    tiledMap.layers.filter(_.`type`==="objectgroup").flatMap { layer =>
+      layer.objects.getOrElse(List())
+    }
+
+    def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
       tiledMap.tilesets.flatMap {
         tileset =>
           tileset.tiles.map(tile => {
             tile.flatMap {
-              tl => tl._2.animation.map { a =>
+              tl => tl.animation.map { a =>
                 val framesSeq: Seq[Frame] = a.map { f =>
                   Frame(Rectangle(fromIndex(f.tileid - 1, tileSheetColumnCount) * tileSize, tileSize), Millis(f.duration.toLong))
                 }
                 Animation(
-                  AnimationKey(tl._1),
+                  AnimationKey(tl.id.toString),
                   Material.Textured(assetName),
                   frameOne = framesSeq.headOption.getOrElse(Frame(Rectangle(fromIndex(0, tileSheetColumnCount) * tileSize, tileSize), Millis(0))),
                   frames = framesSeq.drop(1): _*
@@ -168,70 +172,65 @@ object TiledMap {
       }
     }
 
-  def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
-    tiledMap.layers.filter(_.`type`==="objectgroup").flatMap { layer =>
-      layer.objects.getOrElse(List())
-    }
-
-  def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
-    tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
-      val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
-      val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({
-        tileset =>
-          tileset.tiles.flatMap(tile => {
-            Option(tile.map {
-              case (t, tiledTerrainCorner) if tiledTerrainCorner.animation.nonEmpty =>
-                (t.toInt, tiledTerrainCorner.animation)
+    def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
+      tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
+        val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
+        val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({
+          tileset =>
+            tileset.tiles.flatMap(tile => {
+              Option(tile.map {
+                case tiledTerrainCorner: TiledTerrainCorner if tiledTerrainCorner.animation.nonEmpty =>
+                  (tiledTerrainCorner.id, tiledTerrainCorner.animation)
+              })
             })
-          })
-      }).flatten.toMap
+        }).flatten.toMap
 
-      val layers = tiledMap.layers.map { layer =>
-        val tilesInUse: Map[Int, Renderable] =
-          layer.data.toSet.foldLeft(Map.empty[Int, Renderable]) { (tiles, i) =>
-            tiles ++ Map(
-              i ->
-                {
-                  if(animations.contains(i)) {
-                    if(animations(i).nonEmpty) {
-                      val key = AnimationKey(i.toString)
-                      Sprite(BindingKey(i.toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
+        val layers = tiledMap.layers.filter(_.`type`==="tilelayer").map { layer =>
+          val tilesInUse: Map[Int, Renderable] =
+            layer.data.toSet.foldLeft(Map.empty[Int, Renderable]) { (tiles, i) =>
+              tiles ++ Map(
+                i ->
+                  {
+                    if(animations.contains(i)) {
+                      if(animations(i).nonEmpty) {
+                        val key = AnimationKey(i.toString)
+                        Sprite(BindingKey(i.toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
+                      } else {
+                        Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
+                          .withCrop(
+                            Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
+                          )
+                      }
                     } else {
                       Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
                         .withCrop(
                           Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
                         )
                     }
-                  } else {
-                    Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
-                      .withCrop(
-                        Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
-                      )
                   }
-                }
 
-            )
-          }
+              )
+            }
 
-        Group(
-          layer.data.zipWithIndex.flatMap {
-            case (tileIndex, positionIndex) =>
-              if (tileIndex === 0) Nil
-              else
-                tilesInUse
-                  .get(tileIndex)
-                  .map(g => g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize))
-                  .map {
-                    case g:Sprite => List(g.play())
-                    case g:Renderable => List(g)
-                  }
-                  .getOrElse(Nil)
-          }
-        )
+          Group(
+            layer.data.zipWithIndex.flatMap {
+              case (tileIndex, positionIndex) =>
+                if (tileIndex === 0) Nil
+                else
+                  tilesInUse
+                    .get(tileIndex)
+                    .map(g => g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize))
+                    .map {
+                      case g:Sprite => List(g.play())
+                      case g:Renderable => List(g)
+                    }
+                    .getOrElse(Nil)
+            }
+          )
+        }
+
+        Group(layers)
       }
-
-      Group(layers)
-    }
 
 }
 
