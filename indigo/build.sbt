@@ -3,7 +3,7 @@ import scala.language.postfixOps
 
 lazy val indigoVersion = IndigoVersion.getVersion
 
-val scala2 = "2.13.3"
+val scala2 = "2.13.4"
 
 lazy val commonSettings = Seq(
   version := indigoVersion,
@@ -56,7 +56,7 @@ lazy val sandbox =
     )
     .dependsOn(indigo)
     .dependsOn(indigoExtras)
-    .dependsOn(indigoJsonUPickle)
+    .dependsOn(indigoJsonCirce)
 
 lazy val perf =
   project
@@ -187,24 +187,8 @@ lazy val indigoJsonCirce =
       name := "indigo-json-circe",
       libraryDependencies ++= Seq(
         "io.circe" %%% "circe-core",
-        "io.circe" %%% "circe-generic",
         "io.circe" %%% "circe-parser"
       ).map(_ % "0.13.0")
-    )
-    .dependsOn(indigoExtras)
-
-// uPickle
-lazy val indigoJsonUPickle =
-  project
-    .in(file("indigo-json-upickle"))
-    .enablePlugins(ScalaJSPlugin)
-    .settings(commonSettings: _*)
-    .settings(publishSettings: _*)
-    .settings(
-      name := "indigo-json-upickle",
-      libraryDependencies ++= Seq(
-        "com.lihaoyi" %%% "upickle" % "1.2.0"
-      )
     )
     .dependsOn(indigoExtras)
 
