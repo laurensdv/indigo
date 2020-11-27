@@ -146,7 +146,7 @@ object TiledMap {
 
     def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
     tiledMap.layers.filter(_.`type`==="objectgroup").flatMap { layer =>
-      layer.objects.getOrElse(List())
+      layer.objects.getOrElse(List[TiledMapObject]())
     }
 
     def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
@@ -181,6 +181,7 @@ object TiledMap {
               Option(tile.map {
                 case tiledTerrainCorner: TiledTerrainCorner if tiledTerrainCorner.animation.nonEmpty =>
                   (tiledTerrainCorner.id, tiledTerrainCorner.animation)
+                case tiledTerrainCorner: TiledTerrainCorner => (tiledTerrainCorner.id, None)
               })
             })
         }).flatten.toMap

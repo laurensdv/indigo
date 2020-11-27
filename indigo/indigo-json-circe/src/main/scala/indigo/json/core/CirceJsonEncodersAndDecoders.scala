@@ -6,6 +6,7 @@ import indigo.shared.formats.TileSet
 import indigo.shared.formats.TiledLayer
 import indigo.shared.formats.TiledTerrain
 import indigo.shared.formats.TiledTerrainCorner
+import indigo.shared.formats.TiledFrame
 import indigo.shared.formats.Aseprite
 import indigo.shared.formats.AsepriteFrame
 import indigo.shared.formats.AsepriteMeta
@@ -96,8 +97,18 @@ object CirceJsonEncodersAndDecoders {
     new Decoder[TiledTerrainCorner] {
       final def apply(c: HCursor): Decoder.Result[TiledTerrainCorner] =
         for {
-          terrain <- c.downField("terrain").as[List[Int]]
-        } yield TiledTerrainCorner(terrain)
+          id <- c.downField("id").as[Int]
+          animation <- c.downField("animation").as[Option[List[TiledFrame]]]
+        } yield TiledTerrainCorner(id, animation)
+    }
+
+    implicit val decodeTiledFrame: Decoder[TiledFrame] =
+    new Decoder[TiledFrame] {
+      final def apply(c: HCursor): Decoder.Result[TiledFrame] =
+        for {
+          tileid <- c.downField("tileid").as[Int]
+          duration <- c.downField("duration").as[Int]
+        } yield TiledFrame(tileid, duration)
     }
 
   implicit val decodeTileSet: Decoder[TileSet] =
@@ -115,7 +126,7 @@ object CirceJsonEncodersAndDecoders {
           terrains    <- c.downField("terrains").as[Option[List[TiledTerrain]]]
           tilecount   <- c.downField("tilecount").as[Option[Int]]
           tileheight  <- c.downField("tileheight").as[Option[Int]]
-          tiles       <- c.downField("tiles").as[Option[Map[String, TiledTerrainCorner]]]
+          tiles       <- c.downField("tiles").as[Option[List[TiledTerrainCorner]]]
           tilewidth   <- c.downField("tilewidth").as[Option[Int]]
           source      <- c.downField("source").as[Option[String]]
         } yield TileSet(
