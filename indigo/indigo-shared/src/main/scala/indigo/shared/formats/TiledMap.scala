@@ -34,7 +34,6 @@ final case class TiledMap(
                            staggerindex: Option[String],   // For staggered and hexagonal maps, determines whether the "even" or "odd" indexes along the staggered axis are shifted.
                            backgroundcolor: Option[String] // #AARRGGBB
                          ) {
-
   def toGrid[A](mapper: Int => A): Option[TiledGridMap[A]] = {
 
     def toGridLayer(tiledLayer: TiledLayer): TiledGridLayer[A] =
@@ -132,9 +131,11 @@ final case class TileSet(
                           source: Option[String]
                         )
 
-final case class TiledTerrain(name: String, tile: Int)
 final case class TiledFrame(duration: Int, tileid: Int)
+
 final case class TiledTerrainCorner(id: Int, animation: Option[List[TiledFrame]])
+
+final case class TiledTerrain(name: String, tile: Int)
 
 object TiledMap {
 
@@ -144,12 +145,12 @@ object TiledMap {
       y = index / gridWidth
     )
 
-    def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
+  private def parseObjects(tiledMap: TiledMap): List[TiledMapObject] =
     tiledMap.layers.filter(_.`type`==="objectgroup").flatMap { layer =>
       layer.objects.getOrElse(List[TiledMapObject]())
     }
 
-    def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
+  private def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
       tiledMap.tilesets.flatMap {
@@ -172,7 +173,7 @@ object TiledMap {
       }
     }
 
-    def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
+  private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
       tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
         val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
         val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({
