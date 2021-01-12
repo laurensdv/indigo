@@ -9,21 +9,22 @@ import indigo.shared.datatypes.Radians
 /**
   * A Signal is function t: Seconds -> A
   */
-final class Signal[A](val f: Seconds => A) extends AnyVal {
+final class Signal[A](val run: Seconds => A) extends AnyVal {
 
   def at(t: Seconds): A =
-    f(t)
+    run(t)
 
   def merge[B, C](other: Signal[B])(f: (A, B) => C): Signal[C] =
     Signal.merge(this, other)(f)
 
   def |>[B](sf: SignalFunction[A, B]): Signal[B] =
     pipe(sf)
-
   def pipe[B](sf: SignalFunction[A, B]): Signal[B] =
     sf.run(this)
 
   def |*|[B](other: Signal[B]): Signal[(A, B)] =
+    combine(other)
+  def combine[B](other: Signal[B]): Signal[(A, B)] =
     Signal.product(this, other)
 
   def clampTime(from: Seconds, to: Seconds): Signal[A] =
@@ -108,7 +109,7 @@ object Signal {
         )
 
       Signal { t =>
-        val time   = t.toDouble / over.toDouble
+        val time   = Math.max(0.0d, Math.min(1.0d, t.toDouble / over.toDouble))
         val interp = linear(time, from.toVector, to.toVector).toPoint
 
         Point(
@@ -116,6 +117,12 @@ object Signal {
           y = if (from.y === to.y) from.y else interp.y
         )
       }
+    }
+
+  def Linear(over: Seconds): Signal[Double] =
+    Signal { t =>
+      val time = Math.max(0.0d, Math.min(1.0d, t.toDouble / over.toDouble))
+      (time - t.toDouble) * 0.0 + time * 1.0d
     }
 
   @inline private def easeInOut(t: Double): Double =

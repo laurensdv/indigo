@@ -4,14 +4,13 @@ import indigo.shared.EqualTo
 
 import scala.annotation.tailrec
 import indigo.shared.datatypes.Rectangle
-import indigoextras.geometry.IntersectionResult.IntersectionVertex
 
 final case class BoundingBox(position: Vertex, size: Vertex) {
-  val x: Double         = position.x
-  val y: Double         = position.y
-  val width: Double     = size.x
-  val height: Double    = size.y
-  lazy val hash: String = s"${x.toString()}${y.toString()}${width.toString()}${height.toString()}"
+  lazy val x: Double      = position.x
+  lazy val y: Double      = position.y
+  lazy val width: Double  = size.x
+  lazy val height: Double = size.y
+  lazy val hash: String   = s"${x.toString()}${y.toString()}${width.toString()}${height.toString()}"
 
   lazy val left: Double   = x
   lazy val right: Double  = x + width
@@ -31,19 +30,29 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
   lazy val corners: List[Vertex] =
     List(topLeft, topRight, bottomRight, bottomLeft)
 
-  def isVertexWithin(pt: Vertex): Boolean =
-    pt.x >= left && pt.x < right && pt.y >= top && pt.y < bottom
+  def contains(vertex: Vertex): Boolean =
+    vertex.x >= left && vertex.x < right && vertex.y >= top && vertex.y < bottom
 
-  def isVertexWithin(x: Double, y: Double): Boolean = isVertexWithin(Vertex(x, y))
+  def contains(x: Double, y: Double): Boolean =
+    contains(Vertex(x, y))
 
   def +(rect: BoundingBox): BoundingBox = BoundingBox(x + rect.x, y + rect.y, width + rect.width, height + rect.height)
-  def +(i: Double): BoundingBox         = BoundingBox(x + i, y + i, width + i, height + i)
+  def +(d: Double): BoundingBox         = BoundingBox(x + d, y + d, width + d, height + d)
   def -(rect: BoundingBox): BoundingBox = BoundingBox(x - rect.x, y - rect.y, width - rect.width, height - rect.height)
-  def -(i: Double): BoundingBox         = BoundingBox(x - i, y - i, width - i, height - i)
+  def -(d: Double): BoundingBox         = BoundingBox(x - d, y - d, width - d, height - d)
   def *(rect: BoundingBox): BoundingBox = BoundingBox(x * rect.x, y * rect.y, width * rect.width, height * rect.height)
-  def *(i: Double): BoundingBox         = BoundingBox(x * i, y * i, width * i, height * i)
+  def *(d: Double): BoundingBox         = BoundingBox(x * d, y * d, width * d, height * d)
   def /(rect: BoundingBox): BoundingBox = BoundingBox(x / rect.x, y / rect.y, width / rect.width, height / rect.height)
-  def /(i: Double): BoundingBox         = BoundingBox(x / i, y / i, width / i, height / i)
+  def /(d: Double): BoundingBox         = BoundingBox(x / d, y / d, width / d, height / d)
+
+  def sdf(vertex: Vertex): Double = {
+    val p: Vertex = vertex - center
+    val d: Vertex     = p.abs - halfSize
+    d.max(0.0).length + Math.min(Math.max(d.x, d.y), 0.0)
+  }
+
+  def distanceToBoundary(vertex: Vertex): Double =
+    sdf(vertex)
 
   def expandToInclude(other: BoundingBox): BoundingBox =
     BoundingBox.expandToInclude(this, other)
@@ -56,9 +65,13 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
 
   def moveBy(amount: Vertex): BoundingBox =
     this.copy(position = position + amount)
+  def moveBy(x: Double, y: Double): BoundingBox =
+    moveBy(Vertex(x, y))
 
   def moveTo(newPosition: Vertex): BoundingBox =
     this.copy(position = newPosition)
+  def moveTo(x: Double, y: Double): BoundingBox =
+    moveTo(Vertex(x, y))
 
   def resize(newSize: Vertex): BoundingBox =
     this.copy(size = newSize)
@@ -66,8 +79,14 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
   def toRectangle: Rectangle =
     Rectangle(position.toPoint, size.toPoint)
 
+  def toBoundingCircle: BoundingCircle =
+    BoundingCircle.fromBoundingBox(this)
+
   def toLineSegments: List[LineSegment] =
     BoundingBox.toLineSegments(this)
+
+  def lineIntersects(line: LineSegment): Boolean =
+    BoundingBox.lineIntersects(this, line)
 
   def lineIntersectsAt(line: LineSegment): Option[Vertex] =
     BoundingBox.lineIntersectsAt(this, line)
@@ -84,7 +103,8 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
 
 object BoundingBox {
 
-  val zero: BoundingBox = BoundingBox(0, 0, 0, 0)
+  val zero: BoundingBox =
+    BoundingBox(0, 0, 0, 0)
 
   def apply(x: Double, y: Double, width: Double, height: Double): BoundingBox =
     BoundingBox(Vertex(x, y), Vertex(width, height))
@@ -123,6 +143,9 @@ object BoundingBox {
 
   def fromRectangle(rectangle: Rectangle): BoundingBox =
     BoundingBox(Vertex.fromPoint(rectangle.position), Vertex.fromPoint(rectangle.size))
+
+  def fromBoundingCircle(boundingCircle: BoundingCircle): BoundingBox =
+    boundingCircle.toBoundingBox
 
   def toLineSegments(boundingBox: BoundingBox): List[LineSegment] =
     List(
@@ -166,30 +189,32 @@ object BoundingBox {
   def overlapping(a: BoundingBox, b: BoundingBox): Boolean =
     Math.abs(a.center.x - b.center.x) < a.halfSize.x + b.halfSize.x && Math.abs(a.center.y - b.center.y) < a.halfSize.y + b.halfSize.y
 
-  def lineIntersectsAt(boundingBox: BoundingBox, line: LineSegment): Option[Vertex] = {
-    val verts =
-      boundingBox.toLineSegments
-        .flatMap { bbLine =>
-          bbLine.intersectWith(line) match {
-            case r @ IntersectionVertex(_, _) =>
-              val v = r.toVertex
+  def lineIntersects(boundingBox: BoundingBox, line: LineSegment): Boolean = {
+    @tailrec
+    def rec(remaining: List[LineSegment]): Boolean =
+      remaining match {
+        case Nil =>
+          false
 
-              if (line.containsVertex(v) && bbLine.containsVertex(v))
-                Some(v)
-              else
-                None
-            case _ =>
-              None
-          }
-        }
+        case x :: _ if x.intersectsAt(line).isDefined =>
+          true
 
-    verts
+        case _ :: xs =>
+          rec(xs)
+      }
+
+    rec(boundingBox.toLineSegments)
+  }
+
+  def lineIntersectsAt(boundingBox: BoundingBox, line: LineSegment): Option[Vertex] =
+    boundingBox.toLineSegments
+      .map(_.intersectsAt(line))
+      .collect { case Some(v) => v }
       .foldLeft((Option.empty[Vertex], Double.MaxValue)) { (acc, v) =>
         val dist = v.distanceTo(line.start)
         if (dist < acc._2) (Some(v), dist)
         else acc
       }
       ._1
-  }
 
 }

@@ -1,308 +1,170 @@
 package indigoextras.geometry
 
 import indigo.shared.datatypes.Vector2
-import indigoextras.geometry.IntersectionResult._
-import indigoextras.geometry.LineProperties._
-import indigo.shared.EqualTo._
 
-import utest._
+class LineSegmentTests extends munit.FunSuite {
 
-object LineSegmentTests extends TestSuite {
+  test("moving the whole line segment") {
+    val actual =
+      LineSegment(Vertex(10, 10), Vertex(20, -30)).moveTo(-5, 50)
 
-  /*
-  y = mx + b
+    val expected =
+      LineSegment(Vertex(-5, 50), Vertex(5, 10))
 
-  We're trying to calculate m and b where
-  m is the slope i.e. number of y units per x unit
-  b is the y-intersect i.e. the point on the y-axis where the line passes through it
-   */
+    assertEquals(actual, expected)
+  }
 
-  val tests: Tests =
-    Tests {
-      "calculating line components" - {
+  test("normals.should calculate the normal for a horizontal line (Left -> Right)") {
+    val start: Vertex = Vertex(-10, 1)
+    val end: Vertex   = Vertex(10, 1)
+    val line          = LineSegment(start, end)
 
-        "should correctly calculate the line components" - {
+    assertEquals(line.normal === Vector2(0, 1), true)
+  }
 
-          "(0, 0) -> (2, 2)" - {
-            val expected: LineComponents = LineComponents(1, 0)
+  test("normals.should calculate the normal for a horizontal line (Right -> Left)") {
+    val start: Vertex = Vertex(5, 2)
+    val end: Vertex   = Vertex(-5, 2)
+    val line          = LineSegment(start, end)
 
-            LineSegment.calculateLineComponents(Vertex(0, 0), Vertex(2, 2)) ==> expected
-          }
+    assertEquals(line.normal === Vector2(0, -1), true)
+  }
 
-          "(2, 1) -> (3, 4)" - {
-            val expected: LineComponents = LineComponents(3, -5)
+  test("normals.should calculate the normal for a vertical line (Top -> Bottom") {
+    val start: Vertex = Vertex(-1, 10)
+    val end: Vertex   = Vertex(-1, -10)
+    val line          = LineSegment(start, end)
 
-            LineSegment.calculateLineComponents(Vertex(2, 1), Vertex(3, 4)) ==> expected
-          }
+    assertEquals(line.normal === Vector2(1, 0), true)
+  }
 
-          "(2, 2) -> (2, -3)" - {
-            // Does not work because you can't have m of 0 or b of infinity)
-            // i.e. lines parallel to x or y axis
-            // We're also getting a divide by 0 because ... / x - x = 0
-            val expected = ParallelToAxisY
+  test("normals.should calculate the normal for a vertical line (Bottom -> Top") {
+    val start: Vertex = Vertex(1, -10)
+    val end: Vertex   = Vertex(1, 10)
+    val line          = LineSegment(start, end)
 
-            LineSegment.calculateLineComponents(Vertex(2, 2), Vertex(2, -3)) ==> expected
-          }
+    assertEquals(line.normal === Vector2(-1, 0), true)
+  }
 
-        }
+  test("normals.should calculate the normal for a diagonal line") {
+    val start: Vertex = Vertex(2, 2)
+    val end: Vertex   = Vertex(-2, -2)
+    val line          = LineSegment(start, end)
 
-        "should correctly identify a line parallel to the y-axis" - {
-          //b = Infinity (or -Infinity)
-          LineSegment.calculateLineComponents(Vertex(1, 2), Vertex(1, -3)) ==> ParallelToAxisY
-        }
+    assertEquals(line.normal === Vector2(1, -1), true)
+  }
 
-      }
+  test("Vertexs & Lines.Facing a vertex.facing") {
+    val line: LineSegment = LineSegment((1d, 5d), (9d, 5d))
+    val vertex: Vertex    = Vertex(5, 20)
 
-      "line intersections" - {
+    assertEquals(line.isFacingVertex(vertex), true)
+  }
 
-        "should not intersect with a parallel lines" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((-3d, 3d), (2d, 3d)),
-            LineSegment((1d, 1d), (-2d, 1d))
-          )
+  test("Vertexs & Lines.Facing a vertex.not facing") {
+    val line: LineSegment = LineSegment((1d, 5d), (9d, 5d))
+    val vertex: Vertex    = Vertex(5, 2)
 
-          val expected = NoIntersection
+    assertEquals(line.isFacingVertex(vertex), false)
+  }
 
-          actual ==> expected
-        }
+  //TODO: Can do a property based check here. Forall vertices on a line
+  // (i.e. start vertex * slope m < end vertex)
+  test("Vertex on a line.should be able to check if a vertex is on a line.horizontal") {
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 10d))
+    val vertex: Vertex    = Vertex(15, 10)
 
-        "should intersect lines at right angles to each other" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((2d, 2d), (2d, -3d)),
-            LineSegment((-1d, -2d), (3d, -2d))
-          )
+    assert(line.contains(vertex))
+  }
 
-          val expected: IntersectionVertex = IntersectionVertex(2, -2)
+  test("Vertex on a line.should be able to check if a vertex is on a line.vertical") {
+    val line: LineSegment = LineSegment((10d, 10d), (10d, 20d))
+    val vertex: Vertex    = Vertex(10, 15)
 
-          actual ==> expected
-        }
+    assert(line.contains(vertex))
+  }
 
-        "should intersect diagonally right angle lines" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((1d, 1d), (5d, 5d)),
-            LineSegment((1d, 5d), (4d, 2d))
-          )
+  test("Vertex on a line.should be able to check if a vertex is on a line.diagonal") {
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
+    val vertex: Vertex    = Vertex(15, 15)
 
-          val expected: IntersectionVertex = IntersectionVertex(3, 3)
+    assert(line.contains(vertex))
+  }
 
-          actual ==> expected
-        }
+  test("Vertex on a line.should be able to check if a vertex is NOT on a line") {
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
+    val vertex: Vertex    = Vertex(1, 5)
 
-        "should intersect diagonally non-right angle lines" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((1d, 5d), (3d, 1d)),
-            LineSegment((1d, 2d), (4d, 5d))
-          )
+    assert(!line.contains(vertex))
+  }
 
-          val expected: IntersectionVertex = IntersectionVertex(2, 3)
+  test("moveTo | moveBy | moveStartTo | moveStartBy | moveEndTo | moveEndBy") {
 
-          actual ==> expected
-        }
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
 
-        "should intersect where one line is parallel to the y-axis" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((4d, 1d), (4d, 4d)),
-            LineSegment((2d, 1d), (5d, 4d))
-          )
+    assertEquals(line.moveTo(1, 2), LineSegment((1d, 2d), (11d, 12d)))
+    assertEquals(line.moveBy(1, 2), LineSegment((11d, 12d), (21d, 22d)))
 
-          val expected: IntersectionVertex = IntersectionVertex(4, 3)
+    assertEquals(line.moveStartTo(1, 2), LineSegment((1d, 2d), (20d, 20d)))
+    assertEquals(line.moveStartBy(1, 2), LineSegment((11d, 12d), (20d, 20d)))
 
-          actual ==> expected
-        }
+    assertEquals(line.moveEndTo(1, 2), LineSegment((10d, 10d), (1d, 2d)))
+    assertEquals(line.moveEndBy(1, 2), LineSegment((10d, 10d), (21d, 22d)))
+  }
 
-        "should intersect where one line is parallel to the x-axis" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((1d, 2d), (5d, 2d)),
-            LineSegment((2d, 4d), (5d, 1d))
-          )
+  test("invert | flip") {
+    assertEquals(LineSegment((10d, 10d), (20d, 20d)).invert, LineSegment((20d, 20d), (10d, 10d)))
+    assertEquals(LineSegment((10d, 10d), (20d, 20d)).flip, LineSegment((20d, 20d), (10d, 10d)))
+  }
 
-          val expected: IntersectionVertex = IntersectionVertex(4, 2)
+  test("Finding the closet vertex on the line to a vertex") {
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
 
-          actual ==> expected
-        }
+    // before line
+    assertEquals(line.closestPointOnLine(Vertex(1, 1)), Some(line.start))
+    assertEquals(line.closestPointOnLine(Vertex(10, 10)), Some(line.start))
 
-        "should give the same intersection regardless of order" - {
-          val actual1: IntersectionResult = LineSegment.intersection(
-            LineSegment((0d, 15d), (50d, 15d)),
-            LineSegment((10d, 10d), (10d, 30d))
-          )
+    // some where in the middle
+    assertEquals(line.closestPointOnLine(Vertex(15, 10)), Some(Vertex(12.5, 12.5)))
+    assertEquals(line.closestPointOnLine(Vertex(15, 15)), Some(Vertex(15, 15)))
+    assertEquals(line.closestPointOnLine(Vertex(15, 20)), Some(Vertex(17.5, 17.5)))
 
-          val actual2: IntersectionResult = LineSegment.intersection(
-            LineSegment((0d, 15d), (50d, 15d)),
-            LineSegment((10d, 10d), (10d, 30d))
-          )
+    // past line
+    assertEquals(line.closestPointOnLine(Vertex(20, 20)), Some(line.end))
+    assertEquals(line.closestPointOnLine(Vertex(27, 21)), Some(line.end))
+  }
 
-          val expected: IntersectionVertex = IntersectionVertex(10, 15)
+  test("signed distance function") {
+    val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
 
-          actual1 ==> expected
-          actual2 ==> expected
-          actual1 ==> actual2
-        }
+    // start
+    assertEquals(line.sdf(Vertex(0, 10)), 10.0d)
 
-        "should intersect diagonally right angle lines (again)" - {
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((0d, 0d), (5d, 5d)),
-            LineSegment((0d, 5d), (5d, 0d))
-          )
+    assertEquals(line.sdf(Vertex(15, 10)), Vertex(15, 10).distanceTo(Vertex(12.5, 12.5)))
+    assertEquals(line.sdf(Vertex(15, 15)), 0.0d)
+    assertEquals(line.sdf(Vertex(15, 20)), Vertex(15, 20).distanceTo(Vertex(17.5, 17.5)))
 
-          val expected: IntersectionVertex = IntersectionVertex(2.5f, 2.5f)
+    // end
+    assertEquals(line.sdf(Vertex(25, 25)), Math.sqrt(5 * 5 + 5 * 5))
+  }
 
-          actual ==> expected
-        }
-        
-        "Intersection use case A" - {
 
-          val actual: IntersectionResult = LineSegment.intersection(
-            LineSegment((0.0, 0.0), (5.0, 5.0)),
-            LineSegment((0.0, 3.0), (5.0, 3.0))
-          )
+  test("line intersections.Intersection use case A") {
 
-          val expected: IntersectionVertex = IntersectionVertex(3d, 3d)
+    val lineA = LineSegment((0.0, 0.0), (5.0, 5.0))
+    val lineB = LineSegment((0.0, 3.0), (5.0, 3.0))
 
-          actual ==> expected
+    assert(lineA.intersectsWithLine(lineB))
+    assertEquals(lineA.intersectsAt(lineB), Some(Vertex(3d, 3d)))
 
-        }
+  }
 
-        "Intersection use case B" - {
-          val lineA = LineSegment((0.0, 0.0), (0.0, 5.0))
-          val lineB = LineSegment((0.0, 0.5), (5.0, 3.0))
+  test("line intersections.Intersection use case B") {
+    val lineA = LineSegment((0.0, 0.0), (0.0, 5.0))
+    val lineB = LineSegment((0.0, 0.5), (5.0, 3.0))
 
-          val actual: IntersectionResult = LineSegment.intersection(
-            lineA,
-            lineB
-          )
-
-          val expected: IntersectionVertex = IntersectionVertex(0.0, 0.5)
-
-          actual ==> expected
-
-          lineA.intersectWithLine(lineB) ==> true
-        }
-
-      }
-
-      "normals" - {
-        "should calculate the normal for a horizontal line (Left -> Right)" - {
-          val start: Vertex = Vertex(-10, 1)
-          val end: Vertex   = Vertex(10, 1)
-
-          LineSegment.calculateNormal(start, end) === Vector2(0, 1) ==> true
-        }
-
-        "should calculate the normal for a horizontal line (Right -> Left)" - {
-          val start: Vertex = Vertex(5, 2)
-          val end: Vertex   = Vertex(-5, 2)
-
-          LineSegment.calculateNormal(start, end) === Vector2(0, -1) ==> true
-        }
-
-        "should calculate the normal for a vertical line (Top -> Bottom" - {
-          val start: Vertex = Vertex(-1, 10)
-          val end: Vertex   = Vertex(-1, -10)
-
-          LineSegment.calculateNormal(start, end) === Vector2(1, 0) ==> true
-        }
-
-        "should calculate the normal for a vertical line (Bottom -> Top" - {
-          val start: Vertex = Vertex(1, -10)
-          val end: Vertex   = Vertex(1, 10)
-
-          LineSegment.calculateNormal(start, end) === Vector2(-1, 0) ==> true
-        }
-
-        "should calculate the normal for a diagonal line" - {
-          val start: Vertex = Vertex(2, 2)
-          val end: Vertex   = Vertex(-2, -2)
-
-          LineSegment.calculateNormal(start, end) === Vector2(1, -1) ==> true
-        }
-
-      }
-
-      "Normalising a point" - {
-
-        "should be able to normalise a point" - {
-
-          "10, 10" - {
-            LineSegment.normaliseVertex(Vector2(10, 10)) === Vector2(1, 1) ==> true
-          }
-
-          "-10, -10" - {
-            LineSegment.normaliseVertex(Vector2(-10, -10)) === Vector2(-1, -1) ==> true
-          }
-
-          "10, 0" - {
-            LineSegment.normaliseVertex(Vector2(10, 0)) === Vector2(1, 0) ==> true
-          }
-
-          "0, 10" - {
-            LineSegment.normaliseVertex(Vector2(0, 10)) === Vector2(0, 1) ==> true
-          }
-
-          "-50, 1000" - {
-            LineSegment.normaliseVertex(Vector2(-50, 1000)) === Vector2(-1, 1) ==> true
-          }
-
-        }
-
-      }
-
-      "Vertexs & Lines" - {
-
-        "Facing a point" - {
-
-          val line: LineSegment = LineSegment((1d, 5d), (9d, 5d))
-
-          "facing" - {
-            val point: Vertex = Vertex(5, 20)
-
-            line.isFacingVertex(point) ==> true
-          }
-
-          "not facing" - {
-            val point: Vertex = Vertex(5, 2)
-
-            line.isFacingVertex(point) ==> false
-          }
-
-        }
-
-        "Vertex on a line" - {
-
-          //TODO: Can do a property based check here. Forall points on a line
-          // (i.e. start point * slope m < end point)
-          "should be able to check if a point is on a line" - {
-            "horizontal" - {
-              val line: LineSegment = LineSegment((10d, 10d), (20d, 10d))
-              val point: Vertex     = Vertex(15, 10)
-
-              LineSegment.lineContainsVertex(line, point) ==> true
-            }
-
-            "vertical" - {
-              val line: LineSegment = LineSegment((10d, 10d), (10d, 20d))
-              val point: Vertex     = Vertex(10, 15)
-
-              LineSegment.lineContainsVertex(line, point) ==> true
-            }
-
-            "diagonal" - {
-              val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
-              val point: Vertex     = Vertex(15, 15)
-
-              LineSegment.lineContainsVertex(line, point) ==> true
-            }
-          }
-
-          "should be able to check if a point is NOT on a line" - {
-            val line: LineSegment = LineSegment((10d, 10d), (20d, 20d))
-            val point: Vertex     = Vertex(1, 5)
-
-            LineSegment.lineContainsVertex(line, point) ==> false
-          }
-
-        }
-      }
-    }
+    assert(lineA.intersectsWithLine(lineB))
+    assertEquals(lineA.intersectsAt(lineB), Some(Vertex(0.0, 0.5)))
+  }
 
 }

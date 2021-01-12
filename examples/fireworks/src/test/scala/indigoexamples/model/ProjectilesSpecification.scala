@@ -27,7 +27,7 @@ class ProjectilesSpecification extends Properties("Projectiles") {
       (1080 / 6) * 5
     )
 
-  property("toScreenSpace should always put vertices on the screen") = Prop.forAll(vertexClamped(-1, 1, 0, 1)) { vertex: Vertex =>
+  property("toScreenSpace should always put vertices on the screen") = Prop.forAll(vertexClamped(-1, 1, 0, 1)) { (vertex: Vertex) =>
     val position: Point =
       Projectiles.toScreenSpace(screenDimensions)(vertex)
 
@@ -87,7 +87,7 @@ class ProjectilesSpecification extends Properties("Projectiles") {
           "\n-- target: " + target.toString() +
           "\n-- Point: " + point.toString() +
           "\n-- Time: " + time.toString() +
-          "" |: true =? (bounds + BoundingBox(0, 0, 1, 1)).isVertexWithin(signal.at(time))
+          "" |: true =? (bounds + BoundingBox(0, 0, 1, 1)).contains(signal.at(time))
     }
   }
 
@@ -118,7 +118,7 @@ class ProjectilesSpecification extends Properties("Projectiles") {
     }
   }
 
-  property("able to generate a flight time") = Prop.forAll { dice: Dice =>
+  property("able to generate a flight time") = Prop.forAll { (dice: Dice) =>
     Prop.forAll(nowNextSeconds(-10, 10)) {
       case (min, max) =>
         val flightTime: Seconds =

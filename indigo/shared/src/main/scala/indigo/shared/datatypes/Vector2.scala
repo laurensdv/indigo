@@ -11,14 +11,45 @@ final case class Vector2(x: Double, y: Double) {
   def withY(newY: Double): Vector2 =
     this.copy(y = newY)
 
+  def abs: Vector2 =
+    Vector2(Math.abs(x), Math.abs(y))
+
+  def min(other: Vector2): Vector2 =
+    Vector2(Math.min(other.x, x), Math.min(other.y, y))
+  def min(value: Double): Vector2 =
+    Vector2(Math.min(value, x), Math.min(value, y))
+
+  def max(other: Vector2): Vector2 =
+    Vector2(Math.max(other.x, x), Math.max(other.y, y))
+  def max(value: Double): Vector2 =
+    Vector2(Math.max(value, x), Math.max(value, y))
+
+  def clamp(min: Double, max: Double): Vector2 =
+    Vector2(Math.min(max, Math.max(min, x)), Math.min(max, Math.max(min, y)))
+
+  def length: Double =
+    distanceTo(Vector2.zero)
+
   def invert: Vector2 =
     Vector2(-x, -y)
 
   def translate(vec: Vector2): Vector2 =
     Vector2.add(this, vec)
 
-  def scale(vec: Vector2): Vector2 =
+  def moveTo(newPosition: Vector2): Vector2 =
+    newPosition
+  def moveTo(x: Double, y: Double): Vector2 =
+    moveTo(Vector2(x, y))
+
+  def moveBy(amount: Vector2): Vector2 =
+    Vector2.add(this, amount)
+  def moveBy(x: Double, y: Double): Vector2 =
+    moveBy(Vector2(x, y))
+
+  def scaleBy(vec: Vector2): Vector2 =
     Vector2.multiply(this, vec)
+  def scaleBy(amount: Double): Vector2 =
+    scaleBy(Vector2(amount))
 
   def round: Vector2 =
     Vector2(Math.round(x).toDouble, Math.round(y).toDouble)
@@ -76,8 +107,8 @@ object Vector2 {
     }
   }
 
-  def apply(i: Int): Vector2 =
-    Vector2(i.toDouble, i.toDouble)
+  def apply(d: Double): Vector2 =
+    Vector2(d, d)
 
   val zero: Vector2     = Vector2(0d, 0d)
   val one: Vector2      = Vector2(1d, 1d)
@@ -85,6 +116,9 @@ object Vector2 {
 
   def fromPoints(start: Point, end: Point): Vector2 =
     Vector2((end.x - start.x).toDouble, (end.y - start.y).toDouble)
+
+  def fromPoint(point: Point): Vector2 =
+    Vector2(point.x.toDouble, point.y.toDouble)
 
   @inline def add(vec1: Vector2, vec2: Vector2): Vector2 =
     Vector2(vec1.x + vec2.x, vec1.y + vec2.y)

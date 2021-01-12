@@ -12,13 +12,15 @@ Documentation can be found on [indigoengine.io](https://indigoengine.io).
 
 ## Full local build and test instructions
 
+> Updated! The 0.5.0 release was Scala 2 only, the master branch is now built primarily against the Scala 3 compiler. Though we intend to publish to Scala 2 & 3 in the short term, as soon as is viable Scala 2 support will be dropped.
+
 ### Build requirements
 
 You will need:
 
 - Mill
 - SBT
-- JDK 1.8
+- JDK (Update: 1.8 works, 11 should be fine too and is an LTS version)
 - [glslang validator](https://github.com/KhronosGroup/glslang) - can be installed with your favorite package manager.
 
 ### Running the build
@@ -31,7 +33,7 @@ bash build.sh
 
 > Windows users: Most of the things in the script mentioned above should work, but Indigo is not routinely built on Windows machines so we currently offer no guarantees or support. We hope to in the future.
 
-There is also another script which is faster since it doesn't build the examples, demos, or IndigoJS.
+There is also another script which is faster since it doesn't build the examples or demos.
 
 ```bash
 bash localpublish.sh

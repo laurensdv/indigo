@@ -22,8 +22,6 @@ sealed trait Polygon {
   lazy val lineSegments: List[LineSegment] =
     Polygon.toLineSegments(this)
 
-  //TODO: Propatage line segment-type functions to lines.
-
   def addVertex(vertex: Vertex): Polygon =
     this match {
       case Polygon.Open(vs) =>
@@ -39,11 +37,11 @@ sealed trait Polygon {
         false
 
       case p @ Polygon.Closed(_) =>
-        bounds.isVertexWithin(vertex) && p.lineSegments.forall(l => !l.isFacingVertex(vertex))
+        bounds.contains(vertex) && p.lineSegments.forall(l => !l.isFacingVertex(vertex))
     }
 
   def lineIntersectCheck(lineSegment: LineSegment): Boolean =
-    lineSegments.exists(_.intersectWithLine(lineSegment))
+    lineSegments.exists(_.intersectsWithLine(lineSegment))
 
   def rectangleIntersectCheck(rectangle: Rectangle): Boolean =
     Polygon.fromRectangle(rectangle).lineSegments.exists(lineIntersectCheck)

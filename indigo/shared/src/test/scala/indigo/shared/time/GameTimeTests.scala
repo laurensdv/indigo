@@ -1,26 +1,13 @@
 package indigo.shared.time
 
-import utest._
+class GameTimeTests extends munit.FunSuite {
 
-object GameTimeTests extends TestSuite {
+  test("GameTime should be able to calculate the frame duration of the game") {
 
-  import GameTime._
-  import indigo.shared.EqualTo._
+    val gameTime: GameTime = GameTime(Seconds.zero, Seconds.zero, targetFPS = GameTime.FPS(30))
 
-  val tests: Tests =
-    Tests {
+    assertEquals(Math.round(gameTime.frameDuration.toDouble), 33L)
 
-      "GameTime" - {
-
-        "should be able to calculate the frame duration of the game" - {
-
-          val gameTime: GameTime = GameTime(Seconds.zero, Seconds.zero, targetFPS = FPS(30))
-
-          Math.round(gameTime.frameDuration.value) ==> 33
-
-        }
-
-      }
-    }
+  }
 
 }

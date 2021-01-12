@@ -13,14 +13,53 @@ final case class Vertex(x: Double, y: Double) {
   def withY(newY: Double): Vertex =
     this.copy(y = newY)
 
+  /**
+    * Dot product. Here for convenience but really this is vector operation.
+    */
+  def dot(other: Vertex): Double =
+    Vertex.dotProduct(this, other)
+
+  def abs: Vertex =
+    Vertex(Math.abs(x), Math.abs(y))
+
+  def min(other: Vertex): Vertex =
+    Vertex(Math.min(other.x, x), Math.min(other.y, y))
+  def min(value: Double): Vertex =
+    Vertex(Math.min(value, x), Math.min(value, y))
+
+  def max(other: Vertex): Vertex =
+    Vertex(Math.max(other.x, x), Math.max(other.y, y))
+  def max(value: Double): Vertex =
+    Vertex(Math.max(value, x), Math.max(value, y))
+
+  def clamp(min: Double, max: Double): Vertex =
+    Vertex(Math.min(max, Math.max(min, x)), Math.min(max, Math.max(min, y)))
+  def clamp(min: Vertex, max: Vertex): Vertex =
+    Vertex(Math.min(max.x, Math.max(min.x, x)), Math.min(max.y, Math.max(min.y, y)))
+
+  def length: Double =
+    distanceTo(Vertex.zero)
+
   def invert: Vertex =
     Vertex(-x, -y)
 
   def translate(vec: Vertex): Vertex =
     Vertex.add(this, vec)
 
-  def scale(vec: Vertex): Vertex =
+  def moveTo(newPosition: Vertex): Vertex =
+    newPosition
+  def moveTo(x: Double, y: Double): Vertex =
+    moveTo(Vertex(x, y))
+
+  def moveBy(amount: Vertex): Vertex =
+    Vertex.add(this, amount)
+  def moveBy(x: Double, y: Double): Vertex =
+    moveBy(Vertex(x, y))
+
+  def scaleBy(vec: Vertex): Vertex =
     Vertex.multiply(this, vec)
+  def scaleBy(amount: Double): Vertex =
+    scaleBy(Vertex(amount))
 
   def round: Vertex =
     Vertex(Math.round(x).toDouble, Math.round(y).toDouble)
@@ -112,8 +151,11 @@ object Vertex {
         val aa = x2.toDouble - x1.toDouble
         val bb = y2.toDouble - y1.toDouble
 
-        Math.sqrt(Math.abs((aa * aa) + (bb * bb)))
+        Math.sqrt(Math.abs(aa * aa + bb * bb))
     }
+
+  def dotProduct(vec1: Vertex, vec2: Vertex): Double =
+    (vec1.x * vec2.x) + (vec1.y * vec2.y)
 
   def equalEnough(v1: Vertex, v2: Vertex, tolerance: Double): Boolean =
     v1.x >= v2.x - tolerance &&

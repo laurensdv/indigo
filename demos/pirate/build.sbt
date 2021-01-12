@@ -1,6 +1,9 @@
 //-----------------------------------
 // The essentials.
 //-----------------------------------
+
+val dottyVersion    = "3.0.0-M2"
+
 lazy val pirate =
   (project in file("."))
     .enablePlugins(
@@ -10,14 +13,15 @@ lazy val pirate =
     .settings( // Standard SBT settings
       name := "pirate",
       version := "0.0.1",
-      scalaVersion := "2.13.4",
+      scalaVersion := dottyVersion,
       organization := "pirate",
       libraryDependencies ++= Seq(
-        "com.lihaoyi"    %%% "utest"      % "0.7.4"  % "test",
-        "org.scalacheck" %%% "scalacheck" % "1.14.3" % "test"
+        "org.scalameta" %%% "munit" % "0.7.19" % Test,
+        "org.scalacheck" %%% "scalacheck" % "1.15.1" % "test"
       ),
-      testFrameworks += new TestFramework("utest.runner.Framework"),
-      wartremoverWarnings in (Compile, compile) ++= Warts.unsafe
+      testFrameworks += new TestFramework("munit.Framework"),
+      // wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,
+      Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
     )
     .settings( // Indigo specific settings
       showCursor := true,
