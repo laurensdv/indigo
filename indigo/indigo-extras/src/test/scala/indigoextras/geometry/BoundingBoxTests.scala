@@ -5,13 +5,18 @@ import indigo.shared.datatypes.Point
 
 class BoundingBoxTests extends munit.FunSuite {
 
+  test("approx equal") {
+    assert(BoundingBox(5.0, 5.0, 5.0, 5.0) ~== BoundingBox(4.999999, 5.00001, 4.999999, 5.00001))
+    assert(!(BoundingBox(5.0, 5.0, 5.0, 5.0) ~== BoundingBox(4.98, 5.00001, 4.98, 5.00001)))
+  }
+
   test("creating rectangles.should be able to construct a bounding box from two vertices") {
     val pt1 = Vertex(5, 6)
     val pt2 = Vertex(1, 3)
 
     val expected = BoundingBox(1, 3, 4, 3)
 
-    assertEquals(BoundingBox.fromTwoVertices(pt1, pt2) === expected, true)
+    assertEquals(BoundingBox.fromTwoVertices(pt1, pt2) == expected, true)
   }
 
   test("creating rectangles.should be able to construct a bounding box from a cloud of vertices") {
@@ -28,12 +33,14 @@ class BoundingBoxTests extends munit.FunSuite {
       )
 
     val expected: BoundingBox =
-      BoundingBox(0, 7, 6, 6)
+      BoundingBox(0, 7, 6.001, 6.001)
 
     val actual: BoundingBox =
       BoundingBox.fromVertexCloud(vertices)
 
-    assertEquals(actual === expected, true)
+    assertEquals(actual == expected, true)
+
+    assert(vertices.forall(actual.contains))
   }
 
   test("creating rectangles.should be able to construct a bounding box from a rectangle") {
@@ -53,14 +60,14 @@ class BoundingBoxTests extends munit.FunSuite {
     val a = BoundingBox(10, 20, 100, 200)
     val b = BoundingBox(20, 20, 50, 50)
 
-    assertEquals(BoundingBox.expandToInclude(a, b) === a, true)
+    assertEquals(BoundingBox.expandToInclude(a, b) == a, true)
   }
 
   test("Expand to include two bounding boxes.should expand to meet the bounds of both") {
     val a = BoundingBox(10, 10, 20, 20)
     val b = BoundingBox(100, 100, 100, 100)
 
-    assertEquals(BoundingBox.expandToInclude(a, b) === BoundingBox(10, 10, 190, 190), true)
+    assertEquals(BoundingBox.expandToInclude(a, b) == BoundingBox(10, 10, 190, 190), true)
   }
 
   test("intersecting vertices.should be able to detect if the point is inside the BoundingBox") {
@@ -154,8 +161,8 @@ class BoundingBoxTests extends munit.FunSuite {
     val a = BoundingBox(10, 10, 20, 20)
     val b = BoundingBox(0, 10, 100, 5)
 
-    assertEquals(BoundingBox.expand(a, 10) === BoundingBox(0, 0, 40, 40), true)
-    assertEquals(BoundingBox.expand(b, 50) === BoundingBox(-50, -40, 200, 105), true)
+    assertEquals(BoundingBox.expand(a, 10) == BoundingBox(0, 0, 40, 40), true)
+    assertEquals(BoundingBox.expand(b, 50) == BoundingBox(-50, -40, 200, 105), true)
   }
 
   test("signed distance function") {

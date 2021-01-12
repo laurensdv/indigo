@@ -44,11 +44,9 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
 
   @SuppressWarnings(
     Array(
-      "org.wartremover.warts.NonUnitStatements",
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.Null",
-      "org.wartremover.warts.Equals",
-      "org.wartremover.warts.Var"
+      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.asInstanceOf",
+      "scalafix:DisableSyntax.var"
     )
   )
   def createNamedCanvas(width: Int, height: Int, name: String, appendToParent: Option[Element]): html.Canvas = {
@@ -87,12 +85,9 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
 
   @SuppressWarnings(
     Array(
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.IsInstanceOf",
-      "org.wartremover.warts.Equals",
-      "org.wartremover.warts.Null",
-      "org.wartremover.warts.Throw",
-      "org.wartremover.warts.Var"
+      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.asInstanceOf",
+      "scalafix:DisableSyntax.throw"
     )
   )
   private def getContext(canvas: html.Canvas, antiAliasing: Boolean): (WebGLRenderingContext, RenderingTechnology) = {
@@ -124,12 +119,10 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
 
   @SuppressWarnings(
     Array(
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.IsInstanceOf",
-      "org.wartremover.warts.Equals",
-      "org.wartremover.warts.Null",
-      "org.wartremover.warts.Throw",
-      "org.wartremover.warts.Var"
+      "scalafix:DisableSyntax.var",
+      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.asInstanceOf",
+      "scalafix:DisableSyntax.throw"
     )
   )
   private def chooseRenderingTechnology(usersPreference: RenderingTechnology, args: Dynamic): Either[RenderingTechnology.WebGL1.type, RenderingTechnology.WebGL2.type] = {
@@ -177,11 +170,8 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
 
   @SuppressWarnings(
     Array(
-      "org.wartremover.warts.AsInstanceOf",
-      "org.wartremover.warts.IsInstanceOf",
-      "org.wartremover.warts.Throw",
-      "org.wartremover.warts.Null",
-      "org.wartremover.warts.Equals"
+      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.asInstanceOf"
     )
   )
   private def isWebGL2ReallySupported(gl2: raw.WebGLRenderingContext): Boolean = {

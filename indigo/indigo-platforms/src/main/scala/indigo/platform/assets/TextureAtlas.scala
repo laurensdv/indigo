@@ -3,7 +3,6 @@ package indigo.platform.assets
 import indigo.shared.PowerOfTwo
 import indigo.shared.datatypes.Point
 import indigo.shared.IndigoLogger
-import indigo.shared.EqualTo
 
 import org.scalajs.dom
 import org.scalajs.dom.{html, raw}
@@ -48,10 +47,11 @@ object TextureAtlas {
 
 // Output
 final case class TextureAtlas(atlases: Map[AtlasId, Atlas], legend: Map[String, AtlasIndex]) {
-  def +(other: TextureAtlas): TextureAtlas = TextureAtlas(
-    this.atlases ++ other.atlases,
-    this.legend ++ other.legend
-  )
+  def +(other: TextureAtlas): TextureAtlas =
+    TextureAtlas(
+      this.atlases ++ other.atlases,
+      this.legend ++ other.legend
+    )
 
   def lookUpByName(name: String): Option[AtlasLookupResult] =
     legend.get(name).flatMap { i =>
@@ -63,7 +63,9 @@ final case class TextureAtlas(atlases: Map[AtlasId, Atlas], legend: Map[String, 
   def report: String = {
     val atlasRecordToString: Map[String, AtlasIndex] => ((AtlasId, Atlas)) => String = leg =>
       at => {
-        val relevant = leg.filter(k => implicitly[EqualTo[AtlasId]].equal(k._2.id, at._1))
+        val relevant = leg.filter { (k: (String, AtlasIndex)) =>
+          k._2.id == at._1
+        }
 
         s"Atlas [${at._1.id}] [${at._2.size.value.toString()}] contains images: ${relevant.toList.map(_._1).mkString(", ")}"
       }
@@ -78,65 +80,13 @@ final case class TextureAtlas(atlases: Map[AtlasId, Atlas], legend: Map[String, 
 
 }
 
-final class AtlasId(val id: String) extends AnyVal
-object AtlasId {
+final case class AtlasId(id: String) extends AnyVal
 
-  implicit val equalTo: EqualTo[AtlasId] = {
-    val eqS = implicitly[EqualTo[String]]
+final case class AtlasIndex(id: AtlasId, offset: Point)
 
-    EqualTo.create { (a, b) =>
-      eqS.equal(a.id, b.id)
-    }
-  }
+final case class Atlas(size: PowerOfTwo, imageData: Option[raw.ImageData]) // Yuk. Only optional so that testing is bearable.
 
-}
-
-final class AtlasIndex(val id: AtlasId, val offset: Point)
-object AtlasIndex {
-
-  implicit val equalTo: EqualTo[AtlasIndex] = {
-    val eqId = implicitly[EqualTo[AtlasId]]
-    val eqPt = implicitly[EqualTo[Point]]
-
-    EqualTo.create { (a, b) =>
-      eqId.equal(a.id, b.id) && eqPt.equal(a.offset, b.offset)
-    }
-  }
-
-}
-
-final class Atlas(val size: PowerOfTwo, val imageData: Option[raw.ImageData]) // Yuk. Only optional so that testing is bearable.
-object Atlas {
-
-  implicit val equalTo: EqualTo[Atlas] = {
-    val eqP2 = implicitly[EqualTo[PowerOfTwo]]
-    val eqB  = implicitly[EqualTo[Boolean]]
-
-    EqualTo.create { (a, b) =>
-      eqP2.equal(a.size, b.size) && eqB.equal(a.imageData.isDefined, b.imageData.isDefined)
-    }
-  }
-
-}
-
-final class AtlasLookupResult(val name: String, val atlasId: AtlasId, val atlas: Atlas, val offset: Point)
-object AtlasLookupResult {
-
-  implicit val equalTo: EqualTo[AtlasLookupResult] = {
-    val eqS  = implicitly[EqualTo[String]]
-    val eqId = implicitly[EqualTo[AtlasId]]
-    val eqAt = implicitly[EqualTo[Atlas]]
-    val eqPt = implicitly[EqualTo[Point]]
-
-    EqualTo.create { (a, b) =>
-      eqS.equal(a.name, b.name) &&
-      eqId.equal(a.atlasId, b.atlasId) &&
-      eqAt.equal(a.atlas, b.atlas) &&
-      eqPt.equal(a.offset, b.offset)
-    }
-  }
-
-}
+final case class AtlasLookupResult(name: String, atlasId: AtlasId, atlas: Atlas, offset: Point)
 
 object TextureAtlasFunctions {
 
@@ -157,49 +107,57 @@ object TextureAtlasFunctions {
       .sortBy(_.size.value)
       .reverse
 
-  def groupTexturesIntoAtlasBuckets(max: PowerOfTwo): List[TextureDetails] => List[List[TextureDetails]] = list => {
-    val runningTotal: List[TextureDetails] => Int = _.map(_.size.value).sum
+  def groupTexturesIntoAtlasBuckets(max: PowerOfTwo): List[TextureDetails] => List[List[TextureDetails]] =
+    list => {
+      val runningTotal: List[TextureDetails] => Int = _.map(_.size.value).sum
 
-    @tailrec
-    def createBuckets(remaining: List[TextureDetails], current: List[TextureDetails], rejected: List[TextureDetails], acc: List[List[TextureDetails]], maximum: PowerOfTwo): List[List[TextureDetails]] =
-      (remaining, rejected) match {
-        case (Nil, Nil) =>
-          current :: acc
+      @tailrec
+      def createBuckets(
+          remaining: List[TextureDetails],
+          current: List[TextureDetails],
+          rejected: List[TextureDetails],
+          acc: List[List[TextureDetails]],
+          maximum: PowerOfTwo
+      ): List[List[TextureDetails]] =
+        (remaining, rejected) match {
+          case (Nil, Nil) =>
+            current :: acc
 
-        case (Nil, x :: xs) =>
-          createBuckets(x :: xs, Nil, Nil, current :: acc, maximum)
+          case (Nil, x :: xs) =>
+            createBuckets(x :: xs, Nil, Nil, current :: acc, maximum)
 
-        case (x :: xs, _) if x.size >= maximum =>
-          createBuckets(xs, current, rejected, List(x) :: acc, maximum)
+          case (x :: xs, _) if x.size >= maximum =>
+            createBuckets(xs, current, rejected, List(x) :: acc, maximum)
 
-        case (x :: xs, _) if runningTotal(current) + x.size.value > maximum.value * 2 =>
-          createBuckets(xs, current, x :: rejected, acc, maximum)
+          case (x :: xs, _) if runningTotal(current) + x.size.value > maximum.value * 2 =>
+            createBuckets(xs, current, x :: rejected, acc, maximum)
 
-        case (x :: xs, _) =>
-          createBuckets(xs, x :: current, rejected, acc, maximum)
+          case (x :: xs, _) =>
+            createBuckets(xs, x :: current, rejected, acc, maximum)
 
+        }
+
+      // @tailrec
+      // def splitByTags(remaining: List[TextureDetails]): List[List[TextureDetails]] =
+      //   remaining.sortBy(_.tag.getOrElse("")) match {
+
+      //   }
+
+      def sortAndGroupByTag: List[TextureDetails] => List[(String, List[TextureDetails])] =
+        _.groupBy(_.tag.getOrElse("")).toList.sortBy(_._1)
+
+      // val x: List[List[TextureDetails]] =
+      sortAndGroupByTag(list).flatMap {
+        case (_, tds) =>
+          createBuckets(tds, Nil, Nil, Nil, max)
       }
 
-    // @tailrec
-    // def splitByTags(remaining: List[TextureDetails]): List[List[TextureDetails]] = 
-    //   remaining.sortBy(_.tag.getOrElse("")) match {
-        
-    //   }
+      // x
 
-    def sortAndGroupByTag: List[TextureDetails] => List[(String, List[TextureDetails])] =
-      _.groupBy(_.tag.getOrElse("")).toList.sortBy(_._1)
-
-    // val x: List[List[TextureDetails]] = 
-    sortAndGroupByTag(list).flatMap { case (_, tds) =>
-      createBuckets(tds, Nil, Nil, Nil, max)
+      // createBuckets(list, Nil, Nil, Nil, max)
     }
 
-    // x
-
-    // createBuckets(list, Nil, Nil, Nil, max)
-  }
-
-  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   private def createCanvas(width: Int, height: Int): html.Canvas = {
     val canvas: html.Canvas = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
     // Handy if you want to draw the atlas to the page...
@@ -210,7 +168,7 @@ object TextureAtlasFunctions {
     canvas
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   val createAtlasData: (TextureMap, String => Option[LoadedImageAsset]) => Atlas = (textureMap, lookupByName) => {
     val canvas: html.Canvas = createCanvas(textureMap.size.value, textureMap.size.value)
     val ctx                 = canvas.getContext("2d")
@@ -241,9 +199,7 @@ object TextureAtlasFunctions {
             val textureMap = n.toTextureMap
 
             val legend: Map[String, AtlasIndex] =
-              textureMap.textureCoords.foldLeft(Map.empty[String, AtlasIndex])(
-                (m, t) => m ++ Map(t.imageRef.name.value -> new AtlasIndex(atlasId, t.coords))
-              )
+              textureMap.textureCoords.foldLeft(Map.empty[String, AtlasIndex])((m, t) => m ++ Map(t.imageRef.name.value -> new AtlasIndex(atlasId, t.coords)))
 
             val atlas = createAtlasFunc(textureMap, lookupByName)
 
@@ -345,7 +301,6 @@ final case class AtlasQuadNode(size: PowerOfTwo, atlas: AtlasSum) extends AtlasQ
     if (size < requiredSize) false
     else atlas.canAccommodate(requiredSize)
 
-  @SuppressWarnings(Array("org.wartremover.warts.Recursion"))
   def insert(tree: AtlasQuadTree): AtlasQuadTree =
     this.copy(atlas = atlas match {
       case AtlasTexture(_) => this.atlas

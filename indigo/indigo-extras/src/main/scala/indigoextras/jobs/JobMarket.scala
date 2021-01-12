@@ -25,8 +25,8 @@ final case class JobMarket(availableJobs: List[Job]) extends SubSystem {
     case _                 => None
   }
 
-  val initialModel: List[Job] =
-    availableJobs
+  val initialModel: Outcome[List[Job]] =
+    Outcome(availableJobs)
 
   def update(frameContext: SubSystemFrameContext, jobs: List[Job]): JobMarketEvent => Outcome[List[Job]] = {
     case JobMarketEvent.Post(job) =>
@@ -47,8 +47,8 @@ final case class JobMarket(availableJobs: List[Job]) extends SubSystem {
       Outcome(jobs)
   }
 
-  def present(frameContext: SubSystemFrameContext, jobs: List[Job]): SceneUpdateFragment =
-    SceneUpdateFragment.empty
+  def present(frameContext: SubSystemFrameContext, jobs: List[Job]): Outcome[SceneUpdateFragment] =
+    Outcome(SceneUpdateFragment.empty)
 }
 
 object JobMarket {

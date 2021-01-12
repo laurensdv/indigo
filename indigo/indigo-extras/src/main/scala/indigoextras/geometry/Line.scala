@@ -1,18 +1,19 @@
 package indigoextras.geometry
 
-import indigo.shared.EqualTo._
-
 /**
- * Defines a line in terms of y = mx + b
- */
-sealed trait Line
+  * Defines a line in terms of y = mx + b
+  */
+sealed trait Line {
+  def intersectsWith(other: Line): Boolean
+  def intersectsAt(other: Line): Option[Vertex]
+}
 object Line {
   final case class Components(m: Double, b: Double) extends Line {
 
     def slopeComparison(vertex: Vertex, tolerance: Double): Boolean = {
       // This is a slope comparison.. Any point on the line should have the same slope as the line.
       val m2: Double =
-        if (vertex.x === 0) 0
+        if (vertex.x == 0) 0
         else (b - vertex.y) / (0 - vertex.x)
 
       val mDelta: Double =
@@ -21,9 +22,67 @@ object Line {
       mDelta >= -tolerance && mDelta <= tolerance
     }
 
+    def intersectsWith(other: Line): Boolean =
+      other match {
+        case Components(m2, _) if m == m2 =>
+          false
+
+        case Components(_, _) =>
+          true
+
+        case ParallelToAxisY(_) =>
+          true
+
+        case InvalidLine =>
+          false
+      }
+
+    def intersectsAt(other: Line): Option[Vertex] =
+      other match {
+        case Components(m2, _) if m == m2 =>
+          None
+
+        case Components(m2, b2) =>
+          val x: Double = (b2 - b) / (m - m2)
+          Some(Vertex(x, (m * x) + b))
+
+        case ParallelToAxisY(x) =>
+          Some(Vertex(x, (m * x) + b))
+
+        case _ =>
+          None
+      }
+
   }
-  final case class ParallelToAxisY(xPosition: Double) extends Line
-  case object InvalidLine                             extends Line
+
+  final case class ParallelToAxisY(xPosition: Double) extends Line {
+
+    def intersectsWith(other: Line): Boolean =
+      other match {
+        case _: Components =>
+          true
+
+        case _ =>
+          false
+      }
+
+    def intersectsAt(other: Line): Option[Vertex] =
+      other match {
+        case Components(m, b) =>
+          Some(Vertex(xPosition, (m * xPosition) + b))
+
+        case _ =>
+          None
+      }
+  }
+
+  case object InvalidLine extends Line {
+    def intersectsWith(other: Line): Boolean =
+      false
+
+    def intersectsAt(other: Line): Option[Vertex] =
+      None
+  }
 
   /*
   y = mx + b
@@ -34,10 +93,10 @@ object Line {
    */
   def fromLineSegment(lineSegment: LineSegment): Line =
     (lineSegment.start, lineSegment.end) match {
-      case (Vertex(x1, y1), Vertex(x2, y2)) if x1 === x2 && y1 === y2 =>
+      case (Vertex(x1, y1), Vertex(x2, y2)) if x1 == x2 && y1 == y2 =>
         Line.InvalidLine
 
-      case (Vertex(x1, _), Vertex(x2, _)) if x1 === x2 =>
+      case (Vertex(x1, _), Vertex(x2, _)) if x1 == x2 =>
         Line.ParallelToAxisY(x1)
 
       case (Vertex(x1, y1), Vertex(x2, y2)) =>
@@ -52,7 +111,7 @@ object Line {
     x-intercept = -b/m   (i.e. x = -b/m where y is moved to 0)
      */
     (l1, l2) match {
-      case (Line.Components(m1, _), Line.Components(m2, _)) if m1 === m2 =>
+      case (Line.Components(m1, _), Line.Components(m2, _)) if m1 == m2 =>
         // Same slope, so parallel
         LineIntersectionResult.NoIntersection
 
@@ -86,6 +145,7 @@ object Line {
 sealed trait LineIntersectionResult {
   def toOption: Option[Vertex]
   def toList: List[Vertex]
+  def hasIntersected: Boolean
 }
 object LineIntersectionResult {
   final case class IntersectionVertex(x: Double, y: Double) extends LineIntersectionResult {
@@ -97,9 +157,13 @@ object LineIntersectionResult {
 
     def toList: List[Vertex] =
       List(toVertex)
+
+    def hasIntersected: Boolean =
+      true
   }
   case object NoIntersection extends LineIntersectionResult {
     def toOption: Option[Vertex] = None
     def toList: List[Vertex]     = Nil
+    def hasIntersected: Boolean  = false
   }
 }

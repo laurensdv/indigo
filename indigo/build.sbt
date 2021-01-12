@@ -3,21 +3,30 @@ import scala.language.postfixOps
 
 lazy val indigoVersion = IndigoVersion.getVersion
 
-val dottyVersion    = "3.0.0-M2"
+val dottyVersion    = "3.0.0-M3"
 val scala213Version = "2.13.4"
 
-lazy val commonSettings = Seq(
+lazy val scalaFixSettings: Seq[sbt.Def.Setting[_]] =
+  Seq(
+    scalacOptions ++= (
+      if (isDotty.value) Nil else Seq(s"-P:semanticdb:targetroot:${baseDirectory.value}/target/.semanticdb", "-Yrangepos")
+    ),
+    scalafixOnCompile := (if (isDotty.value) false else true)
+  )
+
+lazy val commonSettings: Seq[sbt.Def.Setting[_]] = Seq(
   version := indigoVersion,
   scalaVersion := dottyVersion,
   crossScalaVersions := Seq(dottyVersion, scala213Version),
   organization := "io.indigoengine",
   libraryDependencies ++= Seq(
-    "org.scalameta" %%% "munit" % "0.7.19" % Test
+    "org.scalameta" %%% "munit" % "0.7.20" % Test
   ),
   testFrameworks += new TestFramework("munit.Framework"),
   Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
-  crossScalaVersions := Seq(dottyVersion, scala213Version)
-)
+  crossScalaVersions := Seq(dottyVersion, scala213Version),
+  libraryDependencies ++= (if (isDotty.value) Nil else Seq(compilerPlugin(scalafixSemanticdb)))
+) ++ scalaFixSettings
 
 lazy val publishSettings = {
   import xerial.sbt.Sonatype._
@@ -63,7 +72,9 @@ lazy val perf =
       name := "indigo-perf",
       showCursor := true,
       title := "Perf",
-      gameAssetsDirectory := "assets"
+      gameAssetsDirectory := "assets",
+      windowStartWidth := 800,
+      windowStartHeight := 600
     )
     .settings(
       publish := {},
@@ -83,10 +94,10 @@ lazy val indigoCore =
     .settings(
       name := "indigo-core",
       libraryDependencies ++= Seq(
-        ("org.scalacheck" %% "scalacheck" % "1.14.3" % "test").withDottyCompat(scalaVersion.value)
+        "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
       )
     )
-    .dependsOn(shared)
+    .dependsOn(indigoShared)
     .dependsOn(indigoPlatforms)
 
 // Indigo Extensions
@@ -96,10 +107,10 @@ lazy val indigoExtras =
     .enablePlugins(ScalaJSPlugin)
     .settings(commonSettings: _*)
     .settings(publishSettings: _*)
-    .dependsOn(shared)
+    .dependsOn(indigoShared)
     .settings(
       name := "indigo-extras",
-      libraryDependencies += ("org.scalacheck" %% "scalacheck" % "1.14.3" % "test").withDottyCompat(scalaVersion.value)
+      libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
     )
 
 // Indigo Game
@@ -112,17 +123,17 @@ lazy val indigo =
     .dependsOn(indigoCore)
     .settings(
       name := "indigo",
-      libraryDependencies += ("org.scalacheck" %% "scalacheck" % "1.14.3" % "test").withDottyCompat(scalaVersion.value)
+      libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
     )
 
 // Indigo Facades
-lazy val facades =
+lazy val indigoFacades =
   project
-    .in(file("facades"))
+    .in(file("indigo-facades"))
     .enablePlugins(ScalaJSPlugin)
     .settings(publishSettings: _*)
     .settings(
-      name := "facades",
+      name := "indigo-facades",
       version := indigoVersion,
       scalaVersion := dottyVersion,
       crossScalaVersions := Seq(dottyVersion, scala213Version),
@@ -142,7 +153,7 @@ lazy val indigoPlatforms =
     .settings(
       name := "indigo-platforms",
       libraryDependencies ++= Seq(
-        ("org.scalacheck" %% "scalacheck"  % "1.14.3" % "test").withDottyCompat(scalaVersion.value),
+        "org.scalacheck" %%% "scalacheck"  % "1.15.2" % "test",
         ("org.scala-js"  %%% "scalajs-dom" % "1.1.0").withDottyCompat(scalaVersion.value)
       )
     )
@@ -157,18 +168,19 @@ lazy val indigoPlatforms =
         cachedFun(IO.listFiles((baseDirectory.value / "shaders")).toSet).toSeq
       }.taskValue
     )
-    .dependsOn(shared)
-    .dependsOn(facades)
+    .dependsOn(indigoShared)
+    .dependsOn(indigoFacades)
 
 // Shared
-lazy val shared =
+lazy val indigoShared =
   project
+    .in(file("indigo-shared"))
     .enablePlugins(ScalaJSPlugin)
     .settings(commonSettings: _*)
     .settings(publishSettings: _*)
     .settings(
-      name := "shared",
-      libraryDependencies += ("org.scalacheck" %%% "scalacheck" % "1.14.3" % "test").withDottyCompat(scalaVersion.value)
+      name := "indigo-shared",
+      libraryDependencies += "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
     )
 
 // Circe
@@ -181,9 +193,9 @@ lazy val indigoJsonCirce =
     .settings(
       name := "indigo-json-circe",
       libraryDependencies ++= Seq(
-        ("io.circe" %%% "circe-core"   % "0.13.0").withDottyCompat(scalaVersion.value),
-	("io.circe" %%% "circe-generic" % "0.13.0").withDottyCompat(scalaVersion.value),
-        ("io.circe" %%% "circe-parser" % "0.13.0").withDottyCompat(scalaVersion.value)
+        ("io.circe" %%% "circe-core"   % "0.14.0-M3"),
+	("io.circe" %%% "circe-generic" % "0.14.0-M3"),
+        ("io.circe" %%% "circe-parser" % "0.14.0-M3")
       )
     )
     .dependsOn(indigoExtras)
@@ -195,18 +207,18 @@ lazy val indigoProject =
     .settings(commonSettings: _*)
     .settings(
       code := { "code ." ! },
-      openshareddocs := { "open -a Firefox shared/.jvm/target/scala-3.0.0-M2/api/indigo/index.html" ! },
-      openindigodocs := { "open -a Firefox indigo/.jvm/target/scala-3.0.0-M2/api/indigo/index.html" ! },
-      openindigoextsdocs := { "open -a Firefox indigo-exts/.jvm/target/scala-3.0.0-M2/api/indigoexts/index.html" ! }
+      openshareddocs := { "open -a Firefox indigo-shared/.jvm/target/scala-3.0.0-M3/api/indigo/index.html" ! },
+      openindigodocs := { "open -a Firefox indigo/.jvm/target/scala-3.0.0-M3/api/indigo/index.html" ! },
+      openindigoextsdocs := { "open -a Firefox indigo-exts/.jvm/target/scala-3.0.0-M3/api/indigoexts/index.html" ! }
     )
     .aggregate(
-      shared,
+      indigoShared,
       indigoPlatforms,
       indigoJsonCirce,
       indigoCore,
       indigoExtras,
       indigo,
-      facades,
+      indigoFacades,
       sandbox,
       perf
     )

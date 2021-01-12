@@ -1,10 +1,10 @@
 package indigo.platform.renderer.webgl1
 
 import indigo.shared.display.DisplayObject
-import indigo.shared.EqualTo._
+
 import indigo.platform.renderer.Renderer
 import indigo.shared.platform.RendererConfig
-import indigo.shared.datatypes.Matrix4
+import indigo.shared.datatypes.mutable.CheapMatrix4
 import indigo.shared.datatypes.RGBA
 import indigo.shared.platform.ProcessedSceneData
 import indigo.shared.display.DisplayEntity
@@ -28,7 +28,6 @@ import indigo.platform.events.GlobalEventStream
 import indigo.shared.events.ViewportResize
 import indigo.shared.config.GameViewport
 
-@SuppressWarnings(Array("org.wartremover.warts.MutableDataStructures"))
 final class RendererWebGL1(
     config: RendererConfig,
     loadedTextureAssets: List[LoadedTextureAsset],
@@ -36,16 +35,16 @@ final class RendererWebGL1(
     globalEventStream: GlobalEventStream
 ) extends Renderer {
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var resizeRun: Boolean = false
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var lastWidth: Int = 0
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var lastHeight: Int = 0
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
-  var orthographicProjectionMatrix: Matrix4 = Matrix4.identity
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
-  var orthographicProjectionMatrixNoMag: Matrix4 = Matrix4.identity
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
+  var orthographicProjectionMatrix: CheapMatrix4 = CheapMatrix4.identity
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
+  var orthographicProjectionMatrixNoMag: CheapMatrix4 = CheapMatrix4.identity
 
   def screenWidth: Int  = lastWidth
   def screenHeight: Int = lastWidth
@@ -66,17 +65,17 @@ final class RendererWebGL1(
   private val lightingShaderProgram = WebGLHelper.shaderProgramSetup(gl, "Lighting", WebGL1StandardLightingPixelArt)
   private val mergeShaderProgram    = WebGLHelper.shaderProgramSetup(gl, "Merge", WebGL1StandardMerge)
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var gameFrameBuffer: FrameBufferComponents.SingleOutput =
     FrameBufferFunctions.createFrameBufferSingle(gl, cNc.canvas.width, cNc.canvas.height)
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var lightingFrameBuffer: FrameBufferComponents.SingleOutput =
     FrameBufferFunctions.createFrameBufferSingle(gl, cNc.canvas.width, cNc.canvas.height)
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var uiFrameBuffer: FrameBufferComponents.SingleOutput =
     FrameBufferFunctions.createFrameBufferSingle(gl, cNc.canvas.width, cNc.canvas.height)
 
-  @SuppressWarnings(Array("org.wartremover.warts.Null"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
   def init(): Unit = {
     // some basic set up.
     gl.disable(DEPTH_TEST)
@@ -156,13 +155,13 @@ final class RendererWebGL1(
     )
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.Null"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
   def drawLayer(
       displayEntities: mutable.ListBuffer[DisplayEntity],
       frameBufferComponents: Option[FrameBufferComponents],
       clearColor: RGBA,
       shaderProgram: WebGLProgram,
-      projectionMatrix: Matrix4,
+      projectionMatrix: CheapMatrix4,
       isMerge: Boolean
   ): Unit = {
 
@@ -185,10 +184,9 @@ final class RendererWebGL1(
     // Attribute locations
 
     // Uniform locations (vertex)
-    val transformLocation         = gl.getUniformLocation(shaderProgram, "u_transform")
-    val dimensions                = gl.getUniformLocation(shaderProgram, "u_dimensions")
-    val rotationAlphaFlipLocation = gl.getUniformLocation(shaderProgram, "u_rotationAlphaFlipHFlipV")
-    val frameTransform            = gl.getUniformLocation(shaderProgram, "u_frameTransform")
+    val transformMatrixLocation = gl.getUniformLocation(shaderProgram, "u_transform")
+    val alphaLocation           = gl.getUniformLocation(shaderProgram, "u_alpha")
+    val frameTransform          = gl.getUniformLocation(shaderProgram, "u_frameTransform")
 
     // Uniform locations (fragment)
     val tintLocation    = gl.getUniformLocation(shaderProgram, "u_tint")
@@ -202,9 +200,8 @@ final class RendererWebGL1(
         RendererFunctions.setupVertexShaderState(
           gl,
           displayObject,
-          transformLocation,
-          dimensions,
-          rotationAlphaFlipLocation,
+          transformMatrixLocation,
+          alphaLocation,
           frameTransform
         )
 
@@ -217,7 +214,7 @@ final class RendererWebGL1(
             uiFrameBuffer.diffuse
           )
         else {
-          textureLocations.find(t => t.name === displayObject.atlasName) match {
+          textureLocations.find(t => t.name == displayObject.atlasName) match {
             case None =>
               gl.activeTexture(TEXTURE0);
               gl.bindTexture(TEXTURE_2D, null)
@@ -248,13 +245,13 @@ final class RendererWebGL1(
     val actualWidth  = canvas.width
     val actualHeight = canvas.height
 
-    if (!resizeRun || (lastWidth !== actualWidth) || (lastHeight !== actualHeight)) {
+    if (!resizeRun || (lastWidth != actualWidth) || (lastHeight != actualHeight)) {
       resizeRun = true
       lastWidth = actualWidth
       lastHeight = actualHeight
 
-      orthographicProjectionMatrix = Matrix4.orthographic(actualWidth.toDouble / magnification, actualHeight.toDouble / magnification)
-      orthographicProjectionMatrixNoMag = Matrix4.orthographic(actualWidth.toDouble, actualHeight.toDouble)
+      orthographicProjectionMatrix = CheapMatrix4.orthographic(actualWidth.toDouble / magnification, actualHeight.toDouble / magnification)
+      orthographicProjectionMatrixNoMag = CheapMatrix4.orthographic(actualWidth.toDouble, actualHeight.toDouble)
       // orthographicProjectionMatrixJS = RendererFunctions.mat4ToJsArray(orthographicProjectionMatrix)
       // orthographicProjectionMatrixNoMagJS = RendererFunctions.mat4ToJsArray(Matrix4.orthographic(actualWidth.toDouble, actualHeight.toDouble)).map(_.toFloat)
 

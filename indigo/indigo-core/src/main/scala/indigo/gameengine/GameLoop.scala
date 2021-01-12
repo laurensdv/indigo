@@ -11,6 +11,7 @@ import indigo.shared.time.Millis
 import indigo.shared.scenegraph.SceneGraphViewEvents
 import indigo.shared.time.Seconds
 import indigo.shared.BoundaryLocator
+import indigo.shared.IndigoLogger
 import indigo.shared.platform.SceneProcessor
 
 class GameLoop[StartUpData, GameModel, ViewModel](
@@ -23,19 +24,19 @@ class GameLoop[StartUpData, GameModel, ViewModel](
     frameProcessor: FrameProcessor[StartUpData, GameModel, ViewModel]
 ) {
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var gameModelState: GameModel = initialModel
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var viewModelState: ViewModel = initialViewModel
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var runningTimeReference: Long = 0
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var inputState: InputState = InputState.default
 
-  @SuppressWarnings(Array("org.wartremover.warts.Recursion", "org.wartremover.warts.OptionPartial"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
   def loop(lastUpdateTime: Long): Long => Unit = { time =>
     runningTimeReference = time
     val timeDelta: Long = time - lastUpdateTime
@@ -65,14 +66,20 @@ class GameLoop[StartUpData, GameModel, ViewModel](
             frameProcessor.run(startUpData, gameModelState, viewModelState, gameTime, collectedEvents, inputState, dice, boundaryLocator)
 
           // Persist frame state
-          gameModelState = processedFrame.state._1
-          viewModelState = processedFrame.state._2
-          processedFrame.globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
+          val scene =
+            processedFrame match {
+              case oe @ Outcome.Error(e, _) =>
+                IndigoLogger.error(oe.reportCrash)
+                throw e
 
-          val scene = processedFrame.state._3
+              case Outcome.Result(state, globalEvents) =>
+                gameModelState = state._1
+                viewModelState = state._2
+                globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
+                state._3
+            }
 
           // Process events
-          scene.globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
           SceneGraphViewEvents.collectViewEvents(boundaryLocator, scene.gameLayer.nodes, collectedEvents, gameEngine.globalEventStream.pushGlobalEvent)
           SceneGraphViewEvents.collectViewEvents(boundaryLocator, scene.lightingLayer.nodes, collectedEvents, gameEngine.globalEventStream.pushGlobalEvent)
           SceneGraphViewEvents.collectViewEvents(boundaryLocator, scene.uiLayer.nodes, collectedEvents, gameEngine.globalEventStream.pushGlobalEvent)
@@ -97,9 +104,17 @@ class GameLoop[StartUpData, GameModel, ViewModel](
             frameProcessor.runSkipView(startUpData, gameModelState, viewModelState, gameTime, collectedEvents, inputState, dice, boundaryLocator)
 
           // Persist frame state
-          gameModelState = processedFrame.state._1
-          viewModelState = processedFrame.state._2
-          processedFrame.globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
+          processedFrame match {
+            case oe @ Outcome.Error(e, _) =>
+              IndigoLogger.error("The game has crashed...")
+              IndigoLogger.error(oe.reportCrash)
+              throw e
+
+            case Outcome.Result(state, globalEvents) =>
+              gameModelState = state._1
+              viewModelState = state._2
+              globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
+          }
         }
 
       }

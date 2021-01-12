@@ -9,7 +9,6 @@ import org.scalajs.dom.raw.AudioContext
 import org.scalajs.dom
 import scala.scalajs.js
 
-import indigo.shared.EqualTo._
 import indigo.shared.assets.AssetName
 import indigo.platform.assets.LoadedAudioAsset
 import org.scalajs.dom.raw.AudioBuffer
@@ -18,7 +17,7 @@ import org.scalajs.dom.raw.AudioDestinationNode
 
 object AudioPlayer {
 
-  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf", "org.wartremover.warts.Null", "org.wartremover.warts.Equals"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
   def giveAudioContext(): AudioContextProxy =
     if (js.Dynamic.global.window.webkitAudioContext != null && !js.isUndefined(js.Dynamic.global.window.webkitAudioContext))
       AudioContextProxy.WebKitAudioContext(js.Dynamic.newInstance(js.Dynamic.global.window.webkitAudioContext)())
@@ -62,7 +61,7 @@ object AudioContextProxy {
       context.destination
   }
 
-  @SuppressWarnings(Array("org.wartremover.warts.AsInstanceOf", "org.wartremover.warts.Throw", "org.wartremover.warts.Equals"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null", "scalafix:DisableSyntax.throw", "scalafix:DisableSyntax.asInstanceOf"))
   final case class WebKitAudioContext(context: js.Dynamic) extends AudioContextProxy {
     import scala.scalajs.concurrent.JSExecutionContext.Implicits.queue
     import scalajs.js.JSConverters._
@@ -95,7 +94,7 @@ object AudioContextProxy {
 
 final class AudioPlayer(context: AudioContextProxy) {
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var soundAssets: List[LoadedAudioAsset] = Nil
 
   def addAudioAssets(audioAssets: List[LoadedAudioAsset]): Unit =
@@ -115,18 +114,18 @@ final class AudioPlayer(context: AudioContextProxy) {
   }
 
   private def findAudioDataByName(assetName: AssetName): Option[dom.AudioBuffer] =
-    soundAssets.find(a => a.name === assetName).map(_.data)
+    soundAssets.find(a => a.name == assetName).map(_.data)
 
   def playSound(assetName: AssetName, volume: Volume): Unit =
     findAudioDataByName(assetName).foreach { sound =>
       setupNodes(sound, volume, loop = false).audioBufferSourceNode.start(0)
     }
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var sourceA: AudioSourceState = new AudioSourceState(BindingKey("none"), None)
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var sourceB: AudioSourceState = new AudioSourceState(BindingKey("none"), None)
-  @SuppressWarnings(Array("org.wartremover.warts.Var"))
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var sourceC: AudioSourceState = new AudioSourceState(BindingKey("none"), None)
 
   def playAudio(sceneAudio: SceneAudio): Unit = {
@@ -142,7 +141,7 @@ final class AudioPlayer(context: AudioContextProxy) {
   }
 
   private def updateSource(sceneAudioSource: SceneAudioSource, currentSource: AudioSourceState): Option[AudioSourceState] =
-    if (sceneAudioSource.bindingKey === currentSource.bindingKey) None
+    if (sceneAudioSource.bindingKey == currentSource.bindingKey) None
     else
       Option {
         sceneAudioSource.playbackPattern match {

@@ -33,17 +33,17 @@ class StandardFrameProcessorTests extends munit.FunSuite {
       boundaryLocator
     )
 
-    val outModel     = outcome.state._1
-    val outViewModel = outcome.state._2
-    val outView      = outcome.state._3
+    val outModel     = outcome.unsafeGet._1
+    val outViewModel = outcome.unsafeGet._2
+    val outView      = outcome.unsafeGet._3
 
     assert(outModel.count == 1)
     assert(outViewModel == 10)
-    assert(outView.globalEvents.length == SceneUpdateFragment.empty.globalEvents.length)
-    assert(outcome.globalEvents.length == 2)
-    assert(outcome.globalEvents.contains(EventsOnlyEvent.Increment))
-    assert(outcome.globalEvents.contains(EventsOnlyEvent.Total(1)))
-    assert(outcome.globalEvents == List(EventsOnlyEvent.Total(1), EventsOnlyEvent.Increment))
+    assert(outView.ambientLight.a == 0.5d)
+    assert(outcome.unsafeGlobalEvents.length == 2)
+    assert(outcome.unsafeGlobalEvents.contains(EventsOnlyEvent.Increment))
+    assert(outcome.unsafeGlobalEvents.contains(EventsOnlyEvent.Total(1)))
+    assert(outcome.unsafeGlobalEvents == List(EventsOnlyEvent.Total(1), EventsOnlyEvent.Increment))
 
   }
 
@@ -76,11 +76,11 @@ object TestFixtures {
         Outcome(vm + 10).addGlobalEvents(EventsOnlyEvent.Increment)
       }
 
-  val viewUpdate: (FrameContext[Unit], GameModel, Int) => SceneUpdateFragment =
-    (_, _, _) => SceneUpdateFragment.empty
+  val viewUpdate: (FrameContext[Unit], GameModel, Int) => Outcome[SceneUpdateFragment] =
+    (_, _, _) => Outcome(SceneUpdateFragment.empty.withAmbientLightAmount(0.5))
 
   val standardFrameProcessor: StandardFrameProcessor[Unit, GameModel, Int] = {
-    new StandardFrameProcessor(new SubSystemsRegister(Nil), EventFilters.NoFilter, modelUpdate, viewModelUpdate, viewUpdate)
+    new StandardFrameProcessor(new SubSystemsRegister(), EventFilters.AllowAll, modelUpdate, viewModelUpdate, viewUpdate)
   }
 
   final case class GameModel(count: Int)

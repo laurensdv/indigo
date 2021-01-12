@@ -23,8 +23,8 @@ object AssetBundleLoader extends SubSystem {
     case _                         => None
   }
 
-  def initialModel: AssetBundleTracker =
-    AssetBundleTracker.empty
+  def initialModel: Outcome[AssetBundleTracker] =
+    Outcome(AssetBundleTracker.empty)
 
   def update(frameContext: SubSystemFrameContext, tracker: AssetBundleTracker): GlobalEvent => Outcome[AssetBundleTracker] = {
     // Asset Bundle Loader Commands
@@ -63,8 +63,8 @@ object AssetBundleLoader extends SubSystem {
       Outcome(tracker)
   }
 
-  def present(frameContext: SubSystemFrameContext, model: AssetBundleTracker): SceneUpdateFragment =
-    SceneUpdateFragment.empty
+  def present(frameContext: SubSystemFrameContext, model: AssetBundleTracker): Outcome[SceneUpdateFragment] =
+    Outcome(SceneUpdateFragment.empty)
 
   private def createBeginLoadingOutcome(key: BindingKey, assets: Set[AssetType], tracker: AssetBundleTracker): Outcome[AssetBundleTracker] = {
     val assetPrimitives = AssetType.flattenAssetList(assets.toList)
@@ -143,13 +143,13 @@ final case class AssetBundleTracker(val register: List[AssetBundle]) {
     }
 
   def findBundleByKey(key: BindingKey): Option[AssetBundle] =
-    register.find(_.key === key)
+    register.find(_.key == key)
 
   def findAssetByPath(path: AssetPath): List[AssetToLoad] =
     register.flatMap(_.assets.get(path).toList)
 
   def containsBundle(key: BindingKey): Boolean =
-    register.exists(_.key === key)
+    register.exists(_.key == key)
 
   def containsAssetFromKey(key: BindingKey): Boolean =
     containsAsset(AssetPath(key.value))

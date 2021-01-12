@@ -1,7 +1,5 @@
 package indigoextras.geometry
 
-import indigo.shared.EqualTo
-
 import scala.annotation.tailrec
 import indigo.shared.datatypes.Rectangle
 
@@ -47,7 +45,7 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
 
   def sdf(vertex: Vertex): Double = {
     val p: Vertex = vertex - center
-    val d: Vertex     = p.abs - halfSize
+    val d: Vertex = p.abs - halfSize
     d.max(0.0).length + Math.min(Math.max(d.x, d.y), 0.0)
   }
 
@@ -91,14 +89,8 @@ final case class BoundingBox(position: Vertex, size: Vertex) {
   def lineIntersectsAt(line: LineSegment): Option[Vertex] =
     BoundingBox.lineIntersectsAt(this, line)
 
-  def ===(other: BoundingBox): Boolean =
-    implicitly[EqualTo[BoundingBox]].equal(this, other)
-
-  @SuppressWarnings(Array("org.wartremover.warts.IsInstanceOf", "org.wartremover.warts.AsInstanceOf"))
-  override def equals(obj: Any): Boolean =
-    if (obj.isInstanceOf[BoundingBox])
-      this === obj.asInstanceOf[BoundingBox]
-    else false
+  def ~==(other: BoundingBox): Boolean =
+    (position ~== other.position) && (size ~== other.size)
 }
 
 object BoundingBox {
@@ -119,11 +111,12 @@ object BoundingBox {
   }
 
   def fromVertices(vertices: List[Vertex]): BoundingBox = {
+    val margin: Double = 0.001
     @tailrec
     def rec(remaining: List[Vertex], left: Double, top: Double, right: Double, bottom: Double): BoundingBox =
       remaining match {
         case Nil =>
-          BoundingBox(left, top, right - left, bottom - top)
+          BoundingBox(left, top, right - left + margin, bottom - top + margin)
 
         case p :: ps =>
           rec(
@@ -138,6 +131,11 @@ object BoundingBox {
     rec(vertices, Double.MaxValue, Double.MaxValue, Double.MinValue, Double.MinValue)
   }
 
+  /**
+   * Produces a bounding box that could include all of the vertices. Since the `contains`
+   * methods right and bottom checks are < not <= (to allow bounds to sit next to each other with
+   * no overlap), a small fixed margin of 0.001 is add to the size values.
+   */
   def fromVertexCloud(vertices: List[Vertex]): BoundingBox =
     fromVertices(vertices)
 
@@ -154,14 +152,6 @@ object BoundingBox {
       LineSegment(boundingBox.bottomRight, boundingBox.topRight),
       LineSegment(boundingBox.topRight, boundingBox.topLeft)
     )
-
-  implicit val bbEqualTo: EqualTo[BoundingBox] = {
-    val eq = implicitly[EqualTo[Vertex]]
-
-    EqualTo.create { (a, b) =>
-      eq.equal(a.position, b.position) && eq.equal(a.size, b.size)
-    }
-  }
 
   def expand(boundingBox: BoundingBox, amount: Double): BoundingBox =
     BoundingBox(

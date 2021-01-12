@@ -4,6 +4,7 @@ import indigo.platform.renderer.Renderer
 import indigo.platform.events.GlobalEventStream
 import indigo.shared.config.GameConfig
 import indigo.shared.IndigoLogger
+import indigo.shared.Outcome
 import indigo.shared.datatypes.Vector2
 import indigo.platform.renderer.RendererInitialiser
 import indigo.platform.renderer.shared.LoadedTextureAsset
@@ -17,11 +18,8 @@ import indigo.platform.assets.TextureAtlas
 import indigo.platform.assets.TextureAtlasFunctions
 import indigo.platform.assets.ImageRef
 
-import indigo.shared.EqualTo._
-
 import org.scalajs.dom
 import org.scalajs.dom.html.Canvas
-import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import indigo.facades.FullScreenElement
@@ -39,10 +37,15 @@ class Platform(
   val rendererInit: RendererInitialiser =
     new RendererInitialiser(gameConfig.advanced.renderingTechnology, globalEventStream)
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.Null"))
+  @SuppressWarnings(
+    Array(
+      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.var"
+    )
+  )
   private var _canvas: Canvas = null
 
-  def initialise(): Try[(Renderer, AssetMapping)] =
+  def initialise(): Outcome[(Renderer, AssetMapping)] =
     for {
       textureAtlas        <- createTextureAtlas(assetCollection)
       loadedTextureAssets <- extractLoadedTextures(textureAtlas)
@@ -56,30 +59,29 @@ class Platform(
       (renderer, assetMapping)
     }
 
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def tick(loop: Long => Unit): Unit = {
     dom.window.requestAnimationFrame(t => loop(t.toLong))
     ()
   }
 
-  def createTextureAtlas(assetCollection: AssetCollection): Try[TextureAtlas] =
-    Success(
+  def createTextureAtlas(assetCollection: AssetCollection): Outcome[TextureAtlas] =
+    Outcome(
       TextureAtlas.create(
         assetCollection.images.map(i => ImageRef(i.name, i.data.width, i.data.height, i.tag.map(_.value))),
-        (name: String) => assetCollection.images.find(_.name.value === name),
+        (name: String) => assetCollection.images.find(_.name.value == name),
         TextureAtlasFunctions.createAtlasData
       )
     )
 
-  def extractLoadedTextures(textureAtlas: TextureAtlas): Try[List[LoadedTextureAsset]] =
-    Success(
+  def extractLoadedTextures(textureAtlas: TextureAtlas): Outcome[List[LoadedTextureAsset]] =
+    Outcome(
       textureAtlas.atlases.toList
         .map(a => a._2.imageData.map(data => new LoadedTextureAsset(a._1.id, data)))
         .collect { case Some(s) => s }
     )
 
-  def setupAssetMapping(textureAtlas: TextureAtlas): Try[AssetMapping] =
-    Success(
+  def setupAssetMapping(textureAtlas: TextureAtlas): Outcome[AssetMapping] =
+    Outcome(
       new AssetMapping(
         mappings = textureAtlas.legend
           .map { p =>
@@ -92,13 +94,13 @@ class Platform(
       )
     )
 
-  def createCanvas(gameConfig: GameConfig): Try[Canvas] =
+  def createCanvas(gameConfig: GameConfig): Outcome[Canvas] =
     Option(dom.document.getElementById("indigo-container")) match {
       case None =>
-        Failure[Canvas](new Exception("""Parent element "indigo-container" could not be found on page."""))
+        Outcome.raiseError(new Exception("""Parent element "indigo-container" could not be found on page."""))
 
       case Some(parent) =>
-        Success(
+        Outcome(
           rendererInit.createCanvas(
             gameConfig.viewport.width,
             gameConfig.viewport.height,
@@ -107,8 +109,8 @@ class Platform(
         )
     }
 
-  def listenToWorldEvents(canvas: Canvas, magnification: Int, globalEventStream: GlobalEventStream): Try[Unit] =
-    Success {
+  def listenToWorldEvents(canvas: Canvas, magnification: Int, globalEventStream: GlobalEventStream): Outcome[Unit] =
+    Outcome {
       IndigoLogger.info("Starting world events")
       WorldEvents.init(canvas, magnification, globalEventStream)
       GamepadInputCaptureImpl.init()
@@ -118,8 +120,8 @@ class Platform(
       gameConfig: GameConfig,
       loadedTextureAssets: List[LoadedTextureAsset],
       canvas: Canvas
-  ): Try[Renderer] =
-    Success {
+  ): Outcome[Renderer] =
+    Outcome {
       IndigoLogger.info("Starting renderer")
       rendererInit.setup(
         new RendererConfig(
@@ -136,12 +138,14 @@ class Platform(
 
   implicit private val ec: scala.concurrent.ExecutionContext = scalajs.concurrent.JSExecutionContext.queue
 
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   def toggleFullScreen(): Unit =
     if (Option(dom.document.asInstanceOf[FullScreenElement].fullscreenElement).isEmpty)
       enterFullScreen()
     else
       exitFullScreen()
 
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   def enterFullScreen(): Unit =
     _canvas.asInstanceOf[FullScreenElement].requestFullscreen().toFuture.onComplete {
       case Success(()) =>
@@ -151,6 +155,7 @@ class Platform(
         globalEventStream.pushGlobalEvent(FullScreenEnterError)
     }
 
+  @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   def exitFullScreen(): Unit =
     dom.document.asInstanceOf[FullScreenElement].exitFullscreen().toFuture.onComplete {
       case Success(()) =>

@@ -7,9 +7,7 @@ import indigo.shared.scenegraph._
 import indigo.shared.subsystems.SubSystem
 import indigoextras.subsystems.AutomataEvent._
 import indigoextras.subsystems.Automata.Layer
-import indigo.shared.EqualTo._
-import indigo.shared.EqualTo
-import indigo.shared.datatypes.RGBA
+
 import indigo.shared.subsystems.SubSystemFrameContext
 import indigo.shared.datatypes.Point
 import indigo.shared.time.Seconds
@@ -37,12 +35,11 @@ final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val
       None
   }
 
-  val initialModel: AutomataState =
-    AutomataState(0, Nil)
+  val initialModel: Outcome[AutomataState] =
+    Outcome(AutomataState(0, Nil))
 
-  @SuppressWarnings(Array("org.wartremover.warts.NonUnitStatements"))
   def update(frameContext: SubSystemFrameContext, state: AutomataState): AutomataEvent => Outcome[AutomataState] = {
-    case Spawn(key, position, lifeSpan, payload) if key === poolKey =>
+    case Spawn(key, position, lifeSpan, payload) if key == poolKey =>
       val spawned =
         SpawnedAutomaton(
           automaton.node.giveNode(state.totalSpawned, frameContext.dice),
@@ -71,7 +68,7 @@ final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val
               pool = spawned :: state.pool
             )
 
-          case Some(limit) if state.pool.length === limit =>
+          case Some(limit) if state.pool.length == limit =>
             state.copy(
               totalSpawned = state.totalSpawned + 1,
               pool = spawned :: state.pool.dropRight(1)
@@ -85,10 +82,10 @@ final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val
         }
       )
 
-    case KillAll(key) if key === poolKey =>
+    case KillAll(key) if key == poolKey =>
       Outcome(state.copy(pool = Nil))
 
-    case Update(key) if key === poolKey =>
+    case Update(key) if key == poolKey =>
       val cullEvents = state.pool
         .filterNot(_.isAlive(frameContext.gameTime.running))
         .toList
@@ -104,54 +101,30 @@ final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val
       Outcome(state)
   }
 
-  def present(frameContext: SubSystemFrameContext, state: AutomataState): SceneUpdateFragment =
+  def present(frameContext: SubSystemFrameContext, state: AutomataState): Outcome[SceneUpdateFragment] =
     layer.emptyScene(Automata.renderNoLayer(state.pool, frameContext.gameTime))
 }
 object Automata {
 
   sealed trait Layer {
-    def emptyScene(automatonUpdate: AutomatonUpdate): SceneUpdateFragment =
+    def emptyScene(automatonUpdate: AutomatonUpdate): Outcome[SceneUpdateFragment] =
       this match {
         case Layer.Game =>
-          SceneUpdateFragment(
-            automatonUpdate.nodes,
-            Nil,
-            Nil,
-            Nil,
-            RGBA.None,
-            Nil,
-            automatonUpdate.events,
-            SceneAudio.None,
-            ScreenEffects.None,
-            Nil
+          Outcome(
+            SceneUpdateFragment.empty.addGameLayerNodes(automatonUpdate.nodes),
+            automatonUpdate.events
           )
 
         case Layer.Lighting =>
-          SceneUpdateFragment(
-            Nil,
-            automatonUpdate.nodes,
-            Nil,
-            Nil,
-            RGBA.None,
-            Nil,
-            automatonUpdate.events,
-            SceneAudio.None,
-            ScreenEffects.None,
-            Nil
+          Outcome(
+            SceneUpdateFragment.empty.addLightingLayerNodes(automatonUpdate.nodes),
+            automatonUpdate.events
           )
 
         case Layer.UI =>
-          SceneUpdateFragment(
-            Nil,
-            Nil,
-            Nil,
-            automatonUpdate.nodes,
-            RGBA.None,
-            Nil,
-            automatonUpdate.events,
-            SceneAudio.None,
-            ScreenEffects.None,
-            Nil
+          Outcome(
+            SceneUpdateFragment.empty.addUiLayerNodes(automatonUpdate.nodes),
+            automatonUpdate.events
           )
       }
 
@@ -165,7 +138,6 @@ object Automata {
   def apply(poolKey: AutomataPoolKey, automaton: Automaton, layer: Layer): Automata =
     new Automata(poolKey, automaton, layer, None)
 
-  @SuppressWarnings(Array("org.wartremover.warts.Var", "org.wartremover.warts.While", "org.wartremover.warts.NonUnitStatements"))
   def renderNoLayer(pool: List[SpawnedAutomaton], gameTime: GameTime): AutomatonUpdate =
     AutomatonUpdate.sequence(
       pool.map { sa =>
@@ -195,11 +167,6 @@ final class AutomataPoolKey(val key: String) extends AnyVal {
     s"AutomataPoolKey(key = $key)"
 }
 object AutomataPoolKey {
-
-  implicit val eq: EqualTo[AutomataPoolKey] =
-    EqualTo.create { (a, b) =>
-      implicitly[EqualTo[String]].equal(a.key, b.key)
-    }
 
   def apply(key: String): AutomataPoolKey =
     new AutomataPoolKey(key)

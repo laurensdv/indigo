@@ -1,9 +1,11 @@
 package indigo.platform.renderer.webgl1
 
+import indigo.platform.renderer.shared.RendererHelper
 import org.scalajs.dom.raw
 import org.scalajs.dom.raw.WebGLRenderingContext._
 import org.scalajs.dom.raw.{WebGLProgram, WebGLTexture}
 import indigo.shared.datatypes.Matrix4
+import indigo.shared.datatypes.Vector3
 
 import indigo.shared.display.DisplayObject
 import org.scalajs.dom.raw.WebGLUniformLocation
@@ -44,43 +46,29 @@ object RendererFunctions {
   }
 
   val flipMatrix: ((Boolean, Boolean)) => Matrix4 = {
-    case (true, true)   => Matrix4.identity.translate(1, 1, 0).scale(-1, -1, -1)
-    case (true, false)  => Matrix4.identity.translate(1, 0, 0).scale(-1, 1, -1)
-    case (false, true)  => Matrix4.identity.translate(0, 1, 0).scale(1, -1, -1)
+    case (true, true)   => Matrix4.identity.translate(Vector3(1, 1, 0)).scale(Vector3(-1, -1, -1))
+    case (true, false)  => Matrix4.identity.translate(Vector3(1, 0, 0)).scale(Vector3(-1, 1, -1))
+    case (false, true)  => Matrix4.identity.translate(Vector3(0, 1, 0)).scale(Vector3(1, -1, -1))
     case (false, false) => Matrix4.identity
   }
 
   def setupVertexShaderState(
       gl: raw.WebGLRenderingContext,
       displayObject: DisplayObject,
-      transformLocation: WebGLUniformLocation,
-      dimensions: WebGLUniformLocation,
-      rotationAlphaFlipLocation: WebGLUniformLocation,
+      transformMatrixLocation: WebGLUniformLocation,
+      alphaLocation: WebGLUniformLocation,
       frameTransform: WebGLUniformLocation
   ): Unit = {
 
-    gl.uniform4f(
-      transformLocation,
-      displayObject.x.toDouble,
-      displayObject.y.toDouble,
-      displayObject.scaleX.toDouble,
-      displayObject.scaleY.toDouble
+    gl.uniformMatrix4fv(
+      location = transformMatrixLocation,
+      transpose = false,
+      value = RendererHelper.mat4ToJsArray(displayObject.transform)
     )
 
-    gl.uniform4f(
-      dimensions,
-      displayObject.refX.toDouble,
-      displayObject.refY.toDouble,
-      displayObject.width.toDouble,
-      displayObject.height.toDouble
-    )
-
-    gl.uniform4f(
-      rotationAlphaFlipLocation,
-      displayObject.rotation.toDouble,
-      displayObject.effects.alpha.toDouble,
-      displayObject.effects.flipHorizontal.toDouble,
-      displayObject.effects.flipVertical.toDouble
+    gl.uniform1f(
+      alphaLocation,
+      displayObject.effects.alpha.toDouble
     )
 
     gl.uniform4f(
