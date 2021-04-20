@@ -28,11 +28,47 @@ package object indigo {
   type AssetTag = shared.assets.AssetTag
   val AssetTag: shared.assets.AssetTag.type = shared.assets.AssetTag
 
-  type Material = shared.datatypes.Material
-  val Material: shared.datatypes.Material.type = shared.datatypes.Material
+  type Material = shared.materials.Material
+  val Material: shared.materials.Material.type = shared.materials.Material
 
-  type Texture = shared.datatypes.Texture
-  val Texture: shared.datatypes.Texture.type = shared.datatypes.Texture
+  type LightingModel = shared.materials.LightingModel
+  val LightingModel: shared.materials.LightingModel.type = shared.materials.LightingModel
+
+  type Texture = shared.materials.Texture
+  val Texture: shared.materials.Texture.type = shared.materials.Texture
+
+  type BlendMaterial = shared.materials.BlendMaterial
+  val BlendMaterial: shared.materials.BlendMaterial.type = shared.materials.BlendMaterial
+
+  type ShaderData = shared.materials.ShaderData
+  val ShaderData: shared.materials.ShaderData.type = shared.materials.ShaderData
+
+  type BlendShaderData = shared.materials.BlendShaderData
+  val BlendShaderData: shared.materials.BlendShaderData.type = shared.materials.BlendShaderData
+
+  type Shader = shared.shader.Shader
+
+  type BlendShader = shared.shader.BlendShader
+  val BlendShader: shared.shader.BlendShader.type = shared.shader.BlendShader
+
+  val ShaderLibrary: indigo.shaders.ShaderLibrary.type = indigo.shaders.ShaderLibrary
+
+  type EntityShader = shared.shader.EntityShader
+  val EntityShader: shared.shader.EntityShader.type = shared.shader.EntityShader
+
+  type ShaderId = shared.shader.ShaderId
+  val ShaderId: shared.shader.ShaderId.type = shared.shader.ShaderId
+
+  type Uniform = shared.shader.Uniform
+  val Uniform: shared.shader.Uniform.type = shared.shader.Uniform
+
+  type UniformBlock = shared.shader.UniformBlock
+  val UniformBlock: shared.shader.UniformBlock.type = shared.shader.UniformBlock
+
+  type ShaderPrimitive = shared.shader.ShaderPrimitive
+  val ShaderPrimitive: shared.shader.ShaderPrimitive.type = shared.shader.ShaderPrimitive
+
+  val StandardShaders: shared.shader.StandardShaders.type = shared.shader.StandardShaders
 
   type Outcome[T] = shared.Outcome[T]
   val Outcome: shared.Outcome.type = shared.Outcome
@@ -83,6 +119,7 @@ package object indigo {
   type SubSystemEvent = shared.events.SubSystemEvent
   type ViewEvent      = shared.events.ViewEvent
   type InputEvent     = shared.events.InputEvent
+  type EventHandler   = shared.scenegraph.EventHandler
 
   type EventFilters = shared.events.EventFilters
   val EventFilters: shared.events.EventFilters.type = shared.events.EventFilters
@@ -95,6 +132,14 @@ package object indigo {
 
   type ViewportResize = shared.events.ViewportResize
   val ViewportResize: shared.events.ViewportResize.type = shared.events.ViewportResize
+
+  val ToggleFullScreen: shared.events.ToggleFullScreen.type         = shared.events.ToggleFullScreen
+  val EnterFullScreen: shared.events.EnterFullScreen.type           = shared.events.EnterFullScreen
+  val ExitFullScreen: shared.events.ExitFullScreen.type             = shared.events.ExitFullScreen
+  val FullScreenEntered: shared.events.FullScreenEntered.type       = shared.events.FullScreenEntered
+  val FullScreenEnterError: shared.events.FullScreenEnterError.type = shared.events.FullScreenEnterError
+  val FullScreenExited: shared.events.FullScreenExited.type         = shared.events.FullScreenExited
+  val FullScreenExitError: shared.events.FullScreenExitError.type   = shared.events.FullScreenExitError
 
   type InputState = shared.events.InputState
   val InputState: shared.events.InputState.type = shared.events.InputState
@@ -203,20 +248,11 @@ package object indigo {
   type BindingKey = shared.datatypes.BindingKey
   val BindingKey: shared.datatypes.BindingKey.type = shared.datatypes.BindingKey
 
-  type Effects = shared.datatypes.Effects
-  val Effects: shared.datatypes.Effects.type = shared.datatypes.Effects
+  type Fill = shared.datatypes.Fill
+  val Fill: shared.datatypes.Fill.type = shared.datatypes.Fill
 
-  type Overlay = shared.datatypes.Overlay
-  val Overlay: shared.datatypes.Overlay.type = shared.datatypes.Overlay
-
-  type Thickness = shared.datatypes.Thickness
-  val Thickness: shared.datatypes.Thickness.type = shared.datatypes.Thickness
-
-  type Border = shared.datatypes.Border
-  val Border: shared.datatypes.Border.type = shared.datatypes.Border
-
-  type Glow = shared.datatypes.Glow
-  val Glow: shared.datatypes.Glow.type = shared.datatypes.Glow
+  type Stroke = shared.datatypes.Stroke
+  val Stroke: shared.datatypes.Stroke.type = shared.datatypes.Stroke
 
   type RGB = shared.datatypes.RGB
   val RGB: shared.datatypes.RGB.type = shared.datatypes.RGB
@@ -318,16 +354,25 @@ package object indigo {
   type SceneUpdateFragment = shared.scenegraph.SceneUpdateFragment
   val SceneUpdateFragment: shared.scenegraph.SceneUpdateFragment.type = shared.scenegraph.SceneUpdateFragment
 
-  type ScreenEffects = shared.scenegraph.ScreenEffects
-  val ScreenEffects: shared.scenegraph.ScreenEffects.type = shared.scenegraph.ScreenEffects
+  type Layer = shared.scenegraph.Layer
+  val Layer: shared.scenegraph.Layer.type = shared.scenegraph.Layer
 
-  type SceneLayer = shared.scenegraph.SceneLayer
-  val SceneLayer: shared.scenegraph.SceneLayer.type = shared.scenegraph.SceneLayer
+  type Blending = shared.scenegraph.Blending
+  val Blending: shared.scenegraph.Blending.type = shared.scenegraph.Blending
 
-  type SceneGraphNode = shared.scenegraph.SceneGraphNode
-  val SceneGraphNode: shared.scenegraph.SceneGraphNode.type = shared.scenegraph.SceneGraphNode
+  type Blend = shared.scenegraph.Blend
+  val Blend: shared.scenegraph.Blend.type = shared.scenegraph.Blend
 
-  type Renderable = shared.scenegraph.Renderable
+  type BlendFactor = shared.scenegraph.BlendFactor
+  val BlendFactor: shared.scenegraph.BlendFactor.type = shared.scenegraph.BlendFactor
+
+  type SceneNode = shared.scenegraph.SceneNode
+  val SceneNode: shared.scenegraph.SceneNode.type = shared.scenegraph.SceneNode
+
+  type EntityNode    = shared.scenegraph.EntityNode
+  type DependentNode = shared.scenegraph.DependentNode
+  type CompositeNode = shared.scenegraph.CompositeNode
+  type RenderNode    = shared.scenegraph.RenderNode
 
   // Audio
   type SceneAudio = shared.scenegraph.SceneAudio
@@ -365,6 +410,9 @@ package object indigo {
   val AnimationAction: indigo.shared.animation.AnimationAction.type = indigo.shared.animation.AnimationAction
 
   // Primitives
+  type Shape = shared.scenegraph.Shape
+  val Shape: shared.scenegraph.Shape.type = shared.scenegraph.Shape
+
   type Sprite = shared.scenegraph.Sprite
   val Sprite: shared.scenegraph.Sprite.type = shared.scenegraph.Sprite
 
@@ -378,6 +426,8 @@ package object indigo {
   val Group: shared.scenegraph.Group.type = shared.scenegraph.Group
 
   // Clones
+  type Cloneable = shared.scenegraph.Cloneable
+
   type CloneBlank = shared.scenegraph.CloneBlank
   val CloneBlank: shared.scenegraph.CloneBlank.type = shared.scenegraph.CloneBlank
 
@@ -402,5 +452,11 @@ package object indigo {
 
   type DirectionLight = shared.scenegraph.DirectionLight
   val DirectionLight: shared.scenegraph.DirectionLight.type = shared.scenegraph.DirectionLight
+
+  type AmbientLight = shared.scenegraph.AmbientLight
+  val AmbientLight: shared.scenegraph.AmbientLight.type = shared.scenegraph.AmbientLight
+
+  type Falloff = shared.scenegraph.Falloff
+  val Falloff: shared.scenegraph.Falloff.type = shared.scenegraph.Falloff
 
 }

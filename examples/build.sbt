@@ -1,15 +1,15 @@
 import scala.sys.process._
 import scala.language.postfixOps
 
-val dottyVersion    = "3.0.0-M3"
-val scala213Version = "2.13.4"
+val scala3Version    = "3.0.0-RC2"
+val scala213Version = "2.13.5"
 
 lazy val commonSettings = Seq(
   version := "0.0.1",
-  scalaVersion := dottyVersion,
+  scalaVersion := scala3Version,
   organization := "indigo-examples",
   libraryDependencies ++= Seq(
-    "org.scalameta"   %%% "munit"         % "0.7.20" % Test,
+    "org.scalameta"   %%% "munit"         % "0.7.23" % Test,
     "io.indigoengine" %%% "indigo"        % IndigoVersion.getVersion,
     "io.indigoengine" %%% "indigo-extras" % IndigoVersion.getVersion
   ),
@@ -133,6 +133,8 @@ lazy val tiled =
       showCursor := true,
       title := "Tiled example",
       gameAssetsDirectory := "assets",
+      windowStartWidth := 19 * 32,
+      windowStartHeight := 11 * 32,
       libraryDependencies ++= Seq(
         "io.indigoengine" %%% "indigo-json-circe" % IndigoVersion.getVersion
       )
@@ -204,7 +206,7 @@ lazy val fireworks =
       windowStartWidth := 1280,
       windowStartHeight := 720,
       libraryDependencies ++= Seq(
-        "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
+        "org.scalacheck" %%% "scalacheck" % "1.15.3" % "test"
       )
     )
 
@@ -248,7 +250,9 @@ lazy val distortion =
       name := "distortion",
       showCursor := true,
       title := "Distortion Example",
-      gameAssetsDirectory := "assets"
+      gameAssetsDirectory := "assets",
+      windowStartWidth := 684,
+      windowStartHeight := 384
     )
     .settings(
       publish := {},
@@ -280,7 +284,9 @@ lazy val effects =
       name := "effects",
       showCursor := true,
       title := "Effects Example",
-      gameAssetsDirectory := "assets"
+      gameAssetsDirectory := "assets",
+      windowStartWidth := 550,
+      windowStartHeight := 400
     )
     .settings(
       publish := {},

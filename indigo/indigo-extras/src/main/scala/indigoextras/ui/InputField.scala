@@ -2,7 +2,7 @@ package indigoextras.ui
 
 import indigo.shared.time.GameTime
 import indigo.shared.datatypes._
-import indigo.shared.scenegraph.{Graphic, SceneUpdateFragment, Text}
+import indigo.shared.scenegraph.{Graphic, SceneNode, Text}
 
 import indigo.shared.temporal.Signal
 import indigo.shared.BoundaryLocator
@@ -32,7 +32,7 @@ final case class InputField(
 ) {
 
   def bounds(boundaryLocator: BoundaryLocator): Rectangle =
-    assets.text.withText(text).moveTo(position).bounds(boundaryLocator)
+    assets.text.withText(text).moveTo(position).calculatedBounds(boundaryLocator)
 
   def withText(newText: String): InputField =
     this.copy(
@@ -217,16 +217,12 @@ final case class InputField(
   def draw(
       gameTime: GameTime,
       boundaryLocator: BoundaryLocator
-  ): SceneUpdateFragment = {
+  ): List[SceneNode] = {
     val field =
       assets.text
         .withText(this.text)
         .moveTo(position)
         .withDepth(depth)
-
-    val sceneUpdateFragment =
-      SceneUpdateFragment.empty
-        .addUiLayerNodes(field)
 
     if (hasFocus) {
 
@@ -249,12 +245,12 @@ final case class InputField(
 
       cursorBlinkRate match {
         case None =>
-          sceneUpdateFragment
-            .addUiLayerNodes(
-              assets.cursor
-                .moveTo(cursorPositionPoint)
-                .withDepth(Depth(-(depth.zIndex + 100000)))
-            )
+          List(
+            field,
+            assets.cursor
+              .moveTo(cursorPositionPoint)
+              .withDepth(Depth(-(depth.value + 100000)))
+          )
 
         case Some(seconds) =>
           Signal
@@ -262,20 +258,20 @@ final case class InputField(
             .map(p => if (gameTime.running - lastCursorMove < Seconds(0.5)) true else p)
             .map {
               case false =>
-                sceneUpdateFragment
+                List(field)
 
               case true =>
-                sceneUpdateFragment
-                  .addUiLayerNodes(
-                    assets.cursor
-                      .moveTo(cursorPositionPoint)
-                      .withDepth(Depth(-(depth.zIndex + 100000)))
-                  )
+                List(
+                  field,
+                  assets.cursor
+                    .moveTo(cursorPositionPoint)
+                    .withDepth(Depth(-(depth.value + 100000)))
+                )
             }
             .at(gameTime.running)
       }
 
-    } else sceneUpdateFragment
+    } else List(field)
   }
 
 }

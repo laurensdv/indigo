@@ -6,23 +6,22 @@ import indigo.shared.events.{FrameTick, GlobalEvent, SubSystemEvent}
 import indigo.shared.scenegraph._
 import indigo.shared.subsystems.SubSystem
 import indigoextras.subsystems.AutomataEvent._
-import indigoextras.subsystems.Automata.Layer
 
 import indigo.shared.subsystems.SubSystemFrameContext
 import indigo.shared.datatypes.Point
 import indigo.shared.time.Seconds
 import indigo.shared.dice.Dice
-import indigo.shared.scenegraph.{SceneGraphNode, Renderable}
+import indigo.shared.scenegraph.{SceneNode}
 import indigo.shared.temporal.{Signal, SignalReader}
-import indigo.shared.scenegraph.Clone
 import indigo.shared.collections.NonEmptyList
+import indigo.shared.datatypes.BindingKey
 
-final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val layer: Layer, maxPoolSize: Option[Int]) extends SubSystem {
+final case class Automata(poolKey: AutomataPoolKey, automaton: Automaton, layerKey: Option[BindingKey], maxPoolSize: Option[Int]) extends SubSystem {
   type EventType      = AutomataEvent
   type SubSystemModel = AutomataState
 
   def withMaxPoolSize(limit: Int): Automata =
-    new Automata(poolKey, automaton, layer, Option(limit))
+    Automata(poolKey, automaton, layerKey, Option(limit))
 
   val eventFilter: GlobalEvent => Option[AutomataEvent] = {
     case e: AutomataEvent =>
@@ -101,42 +100,28 @@ final class Automata(val poolKey: AutomataPoolKey, val automaton: Automaton, val
       Outcome(state)
   }
 
-  def present(frameContext: SubSystemFrameContext, state: AutomataState): Outcome[SceneUpdateFragment] =
-    layer.emptyScene(Automata.renderNoLayer(state.pool, frameContext.gameTime))
+  def present(frameContext: SubSystemFrameContext, state: AutomataState): Outcome[SceneUpdateFragment] = {
+    val updated = Automata.renderNoLayer(state.pool, frameContext.gameTime)
+
+    Outcome(
+      SceneUpdateFragment(
+        layerKey match {
+          case None      => Layer(updated.nodes)
+          case Some(key) => Layer(key, updated.nodes)
+        }
+      ),
+      updated.events
+    )
+
+  }
 }
 object Automata {
 
-  sealed trait Layer {
-    def emptyScene(automatonUpdate: AutomatonUpdate): Outcome[SceneUpdateFragment] =
-      this match {
-        case Layer.Game =>
-          Outcome(
-            SceneUpdateFragment.empty.addGameLayerNodes(automatonUpdate.nodes),
-            automatonUpdate.events
-          )
+  def apply(poolKey: AutomataPoolKey, automaton: Automaton): Automata =
+    Automata(poolKey, automaton, None, None)
 
-        case Layer.Lighting =>
-          Outcome(
-            SceneUpdateFragment.empty.addLightingLayerNodes(automatonUpdate.nodes),
-            automatonUpdate.events
-          )
-
-        case Layer.UI =>
-          Outcome(
-            SceneUpdateFragment.empty.addUiLayerNodes(automatonUpdate.nodes),
-            automatonUpdate.events
-          )
-      }
-
-  }
-  object Layer {
-    case object Game     extends Layer
-    case object Lighting extends Layer
-    case object UI       extends Layer
-  }
-
-  def apply(poolKey: AutomataPoolKey, automaton: Automaton, layer: Layer): Automata =
-    new Automata(poolKey, automaton, layer, None)
+  def apply(poolKey: AutomataPoolKey, automaton: Automaton, layerKey: BindingKey): Automata =
+    Automata(poolKey, automaton, Some(layerKey), None)
 
   def renderNoLayer(pool: List[SpawnedAutomaton], gameTime: GameTime): AutomatonUpdate =
     AutomatonUpdate.sequence(
@@ -162,14 +147,11 @@ object AutomataEvent {
 
 trait AutomatonPayload
 
-final class AutomataPoolKey(val key: String) extends AnyVal {
+final case class AutomataPoolKey(key: String) extends AnyVal {
   override def toString: String =
     s"AutomataPoolKey(key = $key)"
 }
 object AutomataPoolKey {
-
-  def apply(key: String): AutomataPoolKey =
-    new AutomataPoolKey(key)
 
   def fromDice(dice: Dice): AutomataPoolKey =
     AutomataPoolKey(dice.rollAlphaNumeric)
@@ -179,11 +161,11 @@ object AutomataPoolKey {
 final case class Automaton(
     node: AutomatonNode,
     lifespan: Seconds,
-    modifier: SignalReader[(AutomatonSeedValues, SceneGraphNode), AutomatonUpdate],
+    modifier: SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate],
     onCull: AutomatonSeedValues => List[GlobalEvent]
 ) {
 
-  def withModifier(newModifier: SignalReader[(AutomatonSeedValues, SceneGraphNode), AutomatonUpdate]): Automaton =
+  def withModifier(newModifier: SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate]): Automaton =
     this.copy(modifier = newModifier)
 
   def withOnCullEvent(onCullEvent: AutomatonSeedValues => List[GlobalEvent]): Automaton =
@@ -192,65 +174,63 @@ final case class Automaton(
 
 object Automaton {
 
-  val NoModifySignal: SignalReader[(AutomatonSeedValues, SceneGraphNode), AutomatonUpdate] =
+  def NoOpModifier: SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate] =
+    SignalReader {
+      case (_, n) =>
+        Signal.fixed(AutomatonUpdate(n))
+    }
+
+  def FixedModifier(transform: (AutomatonSeedValues, SceneNode) => SceneNode): SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate] =
     SignalReader {
       case (sa, n) =>
-        Signal.fixed(
-          n match {
-            case r: Renderable =>
-              AutomatonUpdate(r.moveTo(sa.spawnedAt))
-
-            case c: Clone =>
-              AutomatonUpdate(c.withTransforms(sa.spawnedAt, c.rotation, c.scale, c.alpha, c.flipHorizontal, c.flipVertical))
-
-            case _ =>
-              AutomatonUpdate(n)
-          }
-        )
+        Signal.fixed(AutomatonUpdate(transform(sa, n)))
     }
 
   val NoCullEvent: AutomatonSeedValues => List[GlobalEvent] =
     _ => Nil
 
   def apply(node: AutomatonNode, lifespan: Seconds): Automaton =
-    Automaton(node, lifespan, NoModifySignal, NoCullEvent)
+    Automaton(node, lifespan, NoOpModifier, NoCullEvent)
+
+  def apply(node: AutomatonNode, lifespan: Seconds, placeModifier: (Point, SceneNode) => SceneNode): Automaton =
+    Automaton(node, lifespan, FixedModifier((sa, n) => placeModifier(sa.spawnedAt, n)), NoCullEvent)
 
 }
 
 sealed trait AutomatonNode {
-  def giveNode(totalSpawned: Long, dice: Dice): SceneGraphNode
+  def giveNode(totalSpawned: Long, dice: Dice): SceneNode
 }
 object AutomatonNode {
 
-  final case class Fixed(node: SceneGraphNode) extends AutomatonNode {
-    def giveNode(totalSpawned: Long, dice: Dice): SceneGraphNode =
+  final case class Fixed(node: SceneNode) extends AutomatonNode {
+    def giveNode(totalSpawned: Long, dice: Dice): SceneNode =
       node
   }
 
-  final case class OneOf(nodes: NonEmptyList[SceneGraphNode]) extends AutomatonNode {
-    def giveNode(totalSpawned: Long, dice: Dice): SceneGraphNode = {
+  final case class OneOf(nodes: NonEmptyList[SceneNode]) extends AutomatonNode {
+    def giveNode(totalSpawned: Long, dice: Dice): SceneNode = {
       val nodeList = nodes.toList
 
       nodeList(dice.rollFromZero(nodeList.length - 1))
     }
   }
   object OneOf {
-    def apply(node: SceneGraphNode, nodes: SceneGraphNode*): OneOf =
+    def apply(node: SceneNode, nodes: SceneNode*): OneOf =
       OneOf(NonEmptyList(node, nodes.toList))
   }
 
-  final case class Cycle(nodes: NonEmptyList[SceneGraphNode]) extends AutomatonNode {
+  final case class Cycle(nodes: NonEmptyList[SceneNode]) extends AutomatonNode {
     private def correctMod(dividend: Double, divisor: Double): Int =
       (((dividend % divisor) + divisor) % divisor).toInt
 
-    def giveNode(totalSpawned: Long, dice: Dice): SceneGraphNode = {
+    def giveNode(totalSpawned: Long, dice: Dice): SceneNode = {
       val nodeList = nodes.toList
 
       nodeList(correctMod(totalSpawned.toDouble, nodeList.length.toDouble))
     }
   }
   object Cycle {
-    def apply(node: SceneGraphNode, nodes: SceneGraphNode*): Cycle =
+    def apply(node: SceneNode, nodes: SceneNode*): Cycle =
       Cycle(NonEmptyList(node, nodes.toList))
   }
 
@@ -273,8 +253,8 @@ final case class AutomatonSeedValues(
 }
 
 final case class SpawnedAutomaton(
-    sceneGraphNode: SceneGraphNode,
-    modifier: SignalReader[(AutomatonSeedValues, SceneGraphNode), AutomatonUpdate],
+    sceneGraphNode: SceneNode,
+    modifier: SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate],
     onCull: AutomatonSeedValues => List[GlobalEvent],
     seedValues: AutomatonSeedValues
 ) {
@@ -282,7 +262,7 @@ final case class SpawnedAutomaton(
     seedValues.createdAt + seedValues.lifeSpan > currentTime
 }
 
-final class AutomatonUpdate(val nodes: List[SceneGraphNode], val events: List[GlobalEvent]) {
+final case class AutomatonUpdate(nodes: List[SceneNode], events: List[GlobalEvent]) {
 
   def |+|(other: AutomatonUpdate): AutomatonUpdate =
     AutomatonUpdate(nodes ++ other.nodes, events ++ other.events)
@@ -291,7 +271,7 @@ final class AutomatonUpdate(val nodes: List[SceneGraphNode], val events: List[Gl
     addGlobalEvents(newEvents.toList)
 
   def addGlobalEvents(newEvents: List[GlobalEvent]): AutomatonUpdate =
-    new AutomatonUpdate(nodes, events ++ newEvents)
+    AutomatonUpdate(nodes, events ++ newEvents)
 
 }
 
@@ -300,13 +280,10 @@ object AutomatonUpdate {
   def empty: AutomatonUpdate =
     new AutomatonUpdate(Nil, Nil)
 
-  def apply(nodes: List[SceneGraphNode], events: List[GlobalEvent]): AutomatonUpdate =
-    new AutomatonUpdate(nodes, events)
-
-  def apply(nodes: SceneGraphNode*): AutomatonUpdate =
+  def apply(nodes: SceneNode*): AutomatonUpdate =
     new AutomatonUpdate(nodes.toList, Nil)
 
-  def apply(nodes: List[SceneGraphNode]): AutomatonUpdate =
+  def apply(nodes: List[SceneNode]): AutomatonUpdate =
     new AutomatonUpdate(nodes, Nil)
 
   def sequence(l: List[AutomatonUpdate]): AutomatonUpdate =

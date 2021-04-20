@@ -11,15 +11,18 @@ import indigo.shared.scenegraph.SceneUpdateFragment
 import indigo.shared.datatypes.RGBA
 import indigo.shared.scenegraph.Text
 import indigo.shared.events.FrameTick
+import indigo.shared.scenegraph.Layer
+import indigo.shared.datatypes.BindingKey
+import indigo.shared.materials.Material
 
 object FPSCounter {
 
-  def apply(fontKey: FontKey, position: Point, targetFPS: Int): SubSystem =
+  def apply(fontKey: FontKey, position: Point, targetFPS: Int, layerKey: Option[BindingKey], material: Material.ImageEffects): SubSystem =
     SubSystem[GlobalEvent, FPSCounterState](
       _eventFilter = eventFilter,
       _initialModel = Outcome(FPSCounterState.default),
       _update = update(targetFPS),
-      _present = present(fontKey, position, targetFPS)
+      _present = present(fontKey, position, targetFPS, layerKey, material)
     )
 
   lazy val eventFilter: GlobalEvent => Option[GlobalEvent] = {
@@ -40,16 +43,36 @@ object FPSCounter {
           )
         else
           Outcome(model.copy(frameCountSinceInterval = model.frameCountSinceInterval + 1))
+
+      case _ =>
+        Outcome(model)
     }
 
-  def present(fontKey: FontKey, position: Point, targetFPS: Int): (SubSystemFrameContext, FPSCounterState) => Outcome[SceneUpdateFragment] =
+  def present(
+      fontKey: FontKey,
+      position: Point,
+      targetFPS: Int,
+      layerKey: Option[BindingKey],
+      material: Material.ImageEffects
+  ): (SubSystemFrameContext, FPSCounterState) => Outcome[SceneUpdateFragment] =
     (_, model) => {
+      val text =
+        Text(
+          s"""FPS ${model.fps.toString}""",
+          position.x,
+          position.y,
+          1,
+          fontKey,
+          material.withTint(pickTint(targetFPS, model.fps))
+        )
+
       Outcome(
-        SceneUpdateFragment.empty
-          .addUiLayerNodes(
-            Text(s"""FPS ${model.fps.toString}""", position.x, position.y, 1, fontKey)
-              .withTint(pickTint(targetFPS, model.fps))
-          )
+        SceneUpdateFragment(
+          layerKey match {
+            case None      => Layer(text)
+            case Some(key) => Layer(key, text)
+          }
+        )
       )
     }
 

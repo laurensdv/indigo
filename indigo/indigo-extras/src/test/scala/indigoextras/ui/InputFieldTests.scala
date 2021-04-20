@@ -4,7 +4,7 @@ import indigo.shared.scenegraph.Text
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.scenegraph.Graphic
 import indigo.shared.datatypes.FontKey
-import indigo.shared.datatypes.Material
+import indigo.shared.materials.Material
 import indigo.shared.assets.AssetName
 import indigo.shared.FontRegister
 import indigo.shared.BoundaryLocator
@@ -30,8 +30,8 @@ class InputFieldTests extends munit.FunSuite {
 
   val assets =
     InputFieldAssets(
-      Text("", 0, 0, 1, fontKey),
-      Graphic(Rectangle(0, 0, 0, 0), 1, Material.Textured(AssetName("fake")))
+      Text("", 0, 0, 1, fontKey, material),
+      Graphic(Rectangle(0, 0, 0, 0), 1, Material.Bitmap(AssetName("fake")))
     )
 
   val fontRegister: FontRegister =
@@ -161,8 +161,6 @@ class InputFieldTests extends munit.FunSuite {
   def extractCursorPosition(field: InputField): Point =
     field
       .draw(GameTime.zero, boundaryLocator)
-      .uiLayer
-      .nodes
       .collect { case g: Graphic => g }
       .head
       .position
@@ -278,7 +276,7 @@ class InputFieldTests extends munit.FunSuite {
     )
 
   object Samples {
-    val material = Material.Textured(AssetName("font-sheet"))
+    val material = Material.Bitmap(AssetName("font-sheet"))
 
     val chars = List(
       FontChar("a", 0, 16, 16, 16),
@@ -288,7 +286,7 @@ class InputFieldTests extends munit.FunSuite {
 
     val fontKey = FontKey("test1")
 
-    val fontInfo = FontInfo(fontKey, material, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
+    val fontInfo = FontInfo(fontKey, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
   }
 
 }

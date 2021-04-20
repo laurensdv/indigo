@@ -12,7 +12,8 @@ lazy val releaseProjects: List[String] =
 lazy val coreProjects: List[String] =
   releaseProjects ++ List(
     "sandbox",
-    "perf"
+    "perf",
+    "indigoShaders"
   )
 
 def applyCommand(projects: List[String], command: String): String =
@@ -147,6 +148,15 @@ addCommandAlias(
 )
 
 addCommandAlias(
+  "sandboxRunFull",
+  List(
+    "buildAllNoClean",
+    "sandbox/fullOptJS",
+    "sandbox/indigoRunFull"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
   "perfBuild",
   List(
     "buildAllNoClean",
@@ -161,6 +171,15 @@ addCommandAlias(
     "buildAllNoClean",
     "perf/fastOptJS",
     "perf/indigoRun"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "perfRunFull",
+  List(
+    "buildAllNoClean",
+    "perf/fullOptJS",
+    "perf/indigoRunFull"
   ).mkString(";", ";", "")
 )
 
@@ -182,8 +201,6 @@ addCommandAlias(
 
 // -- cross building --
 
-
-
 addCommandAlias(
   "crossBuildIndigo",
   applyCrossCommand(coreProjects, "compile")
@@ -202,7 +219,6 @@ addCommandAlias(
     "crossLocalPublishIndigo"
   ).mkString(";", ";", "")
 )
-
 
 addCommandAlias(
   "crossTestIndigo",
@@ -224,10 +240,7 @@ addCommandAlias(
   "crossIndigoRelease",
   List(
     "crossCleanAll",
-    "buildAllNoClean",
-    "testAllNoClean",
-    "crossBuildIndigo", // partial repeat
-    "crossTestAllNoClean", // partial repeat
+    "crossBuildIndigo",
     "crossIndigoPublishAllSigned",
     "sonatypeBundleRelease"
   ).mkString(";", ";", "")

@@ -4,7 +4,15 @@ import indigo.shared.datatypes.{Depth, Rectangle}
 import indigo.shared.events.GlobalEvent
 import indigo.shared.input.Mouse
 import indigo.shared.Outcome
-import indigo.shared.scenegraph.SceneGraphNodePrimitive
+import indigo.shared.scenegraph.SceneNode
+import indigo.shared.scenegraph.EntityNode
+import indigo.shared.scenegraph.Shape
+import indigo.shared.scenegraph.Graphic
+import indigo.shared.scenegraph.Sprite
+import indigo.shared.scenegraph.Text
+import indigo.shared.scenegraph.Group
+import indigo.shared.datatypes.Point
+import indigo.shared.scenegraph.RenderNode
 
 final case class Button(
     buttonAssets: ButtonAssets,
@@ -44,16 +52,26 @@ final case class Button(
     }
   }
 
-  def draw: SceneGraphNodePrimitive =
+  private def applyPositionAndDepth(sceneNode: RenderNode, pt: Point, d: Depth): RenderNode =
+    sceneNode match {
+      case n: Shape         => n.withPosition(pt).withDepth(d)
+      case n: Graphic       => n.withPosition(pt).withDepth(d)
+      case n: Sprite        => n.withPosition(pt).withDepth(d)
+      case n: Text          => n.withPosition(pt).withDepth(d)
+      case n: Group         => n.withPosition(pt).withDepth(d)
+      case n: EntityNode    => n
+    }
+
+  def draw: SceneNode =
     state match {
       case ButtonState.Up =>
-        buttonAssets.up.moveTo(bounds.position).withDepth(depth)
+        applyPositionAndDepth(buttonAssets.up, bounds.position, depth)
 
       case ButtonState.Over =>
-        buttonAssets.over.moveTo(bounds.position).withDepth(depth)
+        applyPositionAndDepth(buttonAssets.over, bounds.position, depth)
 
       case ButtonState.Down =>
-        buttonAssets.down.moveTo(bounds.position).withDepth(depth)
+        applyPositionAndDepth(buttonAssets.down, bounds.position, depth)
     }
 
   def withUpActions(actions: GlobalEvent*): Button =
@@ -127,4 +145,8 @@ object ButtonState {
 
 }
 
-final case class ButtonAssets(up: SceneGraphNodePrimitive, over: SceneGraphNodePrimitive, down: SceneGraphNodePrimitive)
+final case class ButtonAssets(
+    up: RenderNode,
+    over: RenderNode,
+    down: RenderNode
+)

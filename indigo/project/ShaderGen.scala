@@ -11,19 +11,101 @@ object ShaderGen {
 
   val tripleQuotes: String = "\"\"\""
 
-  def template(name: String, vextexContents: String, fragmentContents: String): String =
-    s"""package indigo.platform.shaders
+  def template(
+      name: String,
+      vextexContents: String,
+      fragmentContents: String
+  ): String = {
+    val vertexCode = {
+      val withVertex =
+        injectCode(
+          vextexContents,
+          "vertex",
+          "vertexProgram",
+          "void vertex(){}"
+        )
+
+      withVertex
+    }
+
+    val fragmentCode = {
+      val withFragment =
+        injectCode(
+          fragmentContents,
+          "fragment",
+          "fragmentProgram",
+          "void fragment(){}"
+        )
+
+      val withPrepare =
+        injectCode(
+          withFragment,
+          "prepare",
+          "prepareProgram",
+          "void prepare(){}"
+        )
+
+      val withLight =
+        injectCode(
+          withPrepare,
+          "light",
+          "lightProgram",
+          "void light(){}"
+        )
+
+      val withComposite =
+        injectCode(
+          withLight,
+          "composite",
+          "compositeProgram",
+          "void composite(){}"
+        )
+
+      withComposite
+    }
+
+    val useNoWarn: Boolean =
+      !(vertexCode.contains("vertexProgram.getOrElse") || fragmentCode.contains("fragmentProgram.getOrElse"))
+
+    s"""package indigo.shaders
     |
-    |import indigo.shared.display.Shader
+    |import indigo.shared.shader.{RawShaderCode, ShaderId}
+    |${if (useNoWarn) "import scala.annotation.nowarn" else ""}
     |
-    |object $name extends Shader {
+    |object $name extends RawShaderCode {
+    |  val id: ShaderId = ShaderId("indigo_default_$name")
+    |
     |  val vertex: String =
-    |    ${tripleQuotes}${vextexContents}${tripleQuotes}
+    |    vertexShader(None)
     |
     |  val fragment: String =
-    |    ${tripleQuotes}${fragmentContents}${tripleQuotes}
+    |    fragmentShader(None, None, None, None)
+    |
+    |  ${if (useNoWarn) "@nowarn" else ""}
+    |  def vertexShader(vertexProgram: Option[String]): String =
+    |    s${tripleQuotes}${vertexCode}${tripleQuotes}
+    |
+    |  ${if (useNoWarn) "@nowarn" else ""}
+    |  def fragmentShader(
+    |    fragmentProgram: Option[String],
+    |    prepareProgram: Option[String],
+    |    lightProgram: Option[String],
+    |    compositeProgram: Option[String]
+    |  ): String =
+    |    s${tripleQuotes}${fragmentCode}${tripleQuotes}
     |}
     """.stripMargin
+  }
+
+  def injectCode(program: String, programType: String, argName: String, default: String): String =
+    if (program.contains(s"//#${programType}_start") && program.contains(s"//#${programType}_end")) {
+      val code = program.split('\n').toList
+
+      val start = code.takeWhile(line => !line.startsWith(s"//#${programType}_start"))
+      val end   = code.reverse.takeWhile(line => !line.startsWith(s"//#${programType}_end")).reverse
+
+      (start ++ List(s"""|$${$argName.getOrElse("$default")}""") ++ end).mkString("\n")
+    } else program
 
   def splitAndPair(remaining: Seq[String], name: String, file: File): Option[ShaderDetails] =
     remaining match {
@@ -38,7 +120,7 @@ object ShaderGen {
     }
 
   def makeShader(files: Set[File], sourceManagedDir: File): Seq[File] = {
-    println("Generating Indigo Shader Classes...")
+    println("Generating Indigo RawShaderCode Classes...")
 
     val shaderFiles: Seq[File] =
       files.filter(f => fileFilter(f.name)).toSeq
@@ -49,19 +131,17 @@ object ShaderGen {
     println("GLSL Validation")
     println("***************")
 
-    if (glslValidatorExitCode == 0) {
+    if (glslValidatorExitCode == 0)
       shaderFiles.foreach { f =>
         val exit = ("glslangValidator " + f.getCanonicalPath) !
 
-        if (exit != 0) {
+        if (exit != 0)
           throw new Exception("GLSL Validation Error in: " + f.getName)
-        } else {
+        else
           println(f.getName + " [valid]")
-        }
       }
-    } else {
+    else
       println("**WARNING**: GLSL Validator not installed, shader code not checked.")
-    }
 
     val dict: Map[String, Seq[ShaderDetails]] =
       shaderFiles
@@ -71,13 +151,13 @@ object ShaderGen {
 
     dict.toSeq.map {
       case (newName, subShaders: Seq[ShaderDetails]) if subShaders.length != 2 =>
-        throw new Exception("Shader called '" + newName + "' did not appear to be a pair of shaders .vert and .frag")
+        throw new Exception("RawShaderCode called '" + newName + "' did not appear to be a pair of shaders .vert and .frag")
 
       case (newName, subShaders: Seq[ShaderDetails]) if !subShaders.exists(_.ext == ".vert") =>
-        throw new Exception("Shader called '" + newName + "' is missing a .vert shader")
+        throw new Exception("RawShaderCode called '" + newName + "' is missing a .vert shader")
 
       case (newName, subShaders: Seq[ShaderDetails]) if !subShaders.exists(_.ext == ".frag") =>
-        throw new Exception("Shader called '" + newName + "' is missing a .frag shader")
+        throw new Exception("RawShaderCode called '" + newName + "' is missing a .frag shader")
 
       case (newName, subShaders: Seq[ShaderDetails]) =>
         val vert = subShaders.find(_.ext == ".vert").map(_.shaderCode)
@@ -91,7 +171,7 @@ object ShaderGen {
             println("> " + originalName + " --> " + newName + ".scala")
 
             val file: File =
-              sourceManagedDir / "indigo" / "platform" / "shaders" / (newName + ".scala")
+              sourceManagedDir / "indigo" / "shaders" / (newName + ".scala")
 
             val newContents: String =
               template(newName, v, f)
@@ -115,6 +195,6 @@ object ShaderGen {
     }
   }
 
-}
+  case class ShaderDetails(newName: String, originalName: String, ext: String, shaderCode: String)
 
-case class ShaderDetails(newName: String, originalName: String, ext: String, shaderCode: String)
+}

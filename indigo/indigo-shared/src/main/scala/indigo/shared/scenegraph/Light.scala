@@ -2,21 +2,17 @@ package indigo.shared.scenegraph
 
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Radians
-import indigo.shared.datatypes.RGB
 import indigo.shared.datatypes.Vector2
+import indigo.shared.datatypes.RGBA
 
-sealed trait Light {
-  val height: Int
-  val color: RGB
-  val power: Double
-}
+sealed trait Light
 
 final case class PointLight(
     position: Point,
-    height: Int,
-    color: RGB,
-    power: Double,
-    attenuation: Int
+    color: RGBA,
+    specular: RGBA,
+    intensity: Double,
+    falloff: Falloff
 ) extends Light {
   def moveTo(newPosition: Point): PointLight =
     this.copy(position = newPosition)
@@ -24,68 +20,69 @@ final case class PointLight(
   def moveBy(amount: Point): PointLight =
     this.copy(position = position + amount)
 
-  def withHeight(newHeight: Int): PointLight =
-    this.copy(height = newHeight)
-
-  def withColor(newColor: RGB): PointLight =
+  def withColor(newColor: RGBA): PointLight =
     this.copy(color = newColor)
 
-  def withPower(newPower: Double): PointLight =
-    this.copy(power = newPower)
+  def withSpecular(newColor: RGBA): PointLight =
+    this.copy(specular = newColor)
 
-  def withAttenuation(distance: Int): PointLight =
-    this.copy(attenuation = distance)
+  def withIntensity(newIntensity: Double): PointLight =
+    this.copy(intensity = newIntensity)
+
+  def withFalloff(newFalloff: Falloff): PointLight =
+    this.copy(falloff = newFalloff)
+
+  def modifyFalloff(modify: Falloff => Falloff): PointLight =
+    this.copy(falloff = modify(falloff))
 }
 object PointLight {
 
   val default: PointLight =
-    apply(Point.zero, 100, RGB.White, 1.5d, 100)
+    PointLight(Point.zero, RGBA.White, RGBA.White, 2, Falloff.default)
+
+  def apply(position: Point, color: RGBA): PointLight =
+    PointLight(position, color, RGBA.White, 2, Falloff.default)
 
 }
 
 final case class SpotLight(
     position: Point,
-    height: Int,
-    color: RGB,
-    power: Double,
-    attenuation: Int,
+    color: RGBA,
+    specular: RGBA,
+    intensity: Double,
     angle: Radians,
     rotation: Radians,
-    near: Int,
-    far: Int
+    falloff: Falloff
 ) extends Light {
   def moveTo(newPosition: Point): SpotLight =
-    new SpotLight(newPosition, height, color, power, attenuation, angle, rotation, near, far)
+    this.copy(position = newPosition)
 
   def moveBy(amount: Point): SpotLight =
-    new SpotLight(position + amount, height, color, power, attenuation, angle, rotation, near, far)
+    this.copy(position = position + amount)
 
-  def withHeight(newHeight: Int): SpotLight =
-    new SpotLight(position, newHeight, color, power, attenuation, angle, rotation, near, far)
+  def withColor(newColor: RGBA): SpotLight =
+    this.copy(color = newColor)
 
-  def withNear(distance: Int): SpotLight =
-    new SpotLight(position, height, color, power, attenuation, angle, rotation, distance, far)
+  def withSpecular(newColor: RGBA): SpotLight =
+    this.copy(specular = newColor)
 
-  def withFar(distance: Int): SpotLight =
-    new SpotLight(position, height, color, power, attenuation, angle, rotation, near, distance)
-
-  def withColor(newColor: RGB): SpotLight =
-    new SpotLight(position, height, newColor, power, attenuation, angle, rotation, near, far)
-
-  def withPower(newPower: Double): SpotLight =
-    new SpotLight(position, height, color, newPower, attenuation, angle, rotation, near, far)
-
-  def withAttenuation(distance: Int): SpotLight =
-    new SpotLight(position, height, color, power, distance, angle, rotation, near, far)
+  def withIntensity(newIntensity: Double): SpotLight =
+    this.copy(intensity = newIntensity)
 
   def withAngle(newAngle: Radians): SpotLight =
-    new SpotLight(position, height, color, power, attenuation, newAngle, rotation, near, far)
+    this.copy(angle = newAngle)
 
   def rotateTo(newRotation: Radians): SpotLight =
-    new SpotLight(position, height, color, power, attenuation, angle, newRotation, near, far)
+    this.copy(rotation = newRotation)
 
   def rotateBy(amount: Radians): SpotLight =
-    new SpotLight(position, height, color, power, attenuation, angle, rotation + amount, near, far)
+    this.copy(rotation = rotation + amount)
+
+  def withFalloff(newFalloff: Falloff): SpotLight =
+    this.copy(falloff = newFalloff)
+
+  def modifyFalloff(modify: Falloff => Falloff): SpotLight =
+    this.copy(falloff = modify(falloff))
 
   def lookAt(point: Point): SpotLight =
     lookDirection((point - position).toVector.normalise)
@@ -99,25 +96,24 @@ final case class SpotLight(
 object SpotLight {
 
   val default: SpotLight =
-    apply(Point.zero, 100, RGB.White, 1.5, 100, Radians.fromDegrees(45), Radians.zero, 10, 300)
+    SpotLight(Point.zero, RGBA.White, RGBA.White, 2, Radians.fromDegrees(45), Radians.zero, Falloff.default)
+
+  def apply(position: Point, color: RGBA): SpotLight =
+    SpotLight(position, color, RGBA.White, 2, Radians.fromDegrees(45), Radians.zero, Falloff.default)
 
 }
 
 final case class DirectionLight(
-    height: Int,
-    color: RGB,
-    power: Double,
+    color: RGBA,
+    specular: RGBA,
     rotation: Radians
 ) extends Light {
 
-  def withHeight(newHeight: Int): DirectionLight =
-    this.copy(height = newHeight)
-
-  def withColor(newColor: RGB): DirectionLight =
+  def withColor(newColor: RGBA): DirectionLight =
     this.copy(color = newColor)
 
-  def withPower(newPower: Double): DirectionLight =
-    this.copy(power = newPower)
+  def withSpecular(newColor: RGBA): DirectionLight =
+    this.copy(specular = newColor)
 
   def rotateTo(newRotation: Radians): DirectionLight =
     this.copy(rotation = newRotation)
@@ -129,6 +125,189 @@ final case class DirectionLight(
 object DirectionLight {
 
   val default: DirectionLight =
-    apply(100, RGB.White, 1.0, Radians.zero)
+    DirectionLight(RGBA.White, RGBA.White, Radians.zero)
+
+  def apply(rotation: Radians, color: RGBA): DirectionLight =
+    DirectionLight(color, RGBA.White, rotation)
+}
+
+final case class AmbientLight(color: RGBA) extends Light {
+
+  def withColor(newColor: RGBA): AmbientLight =
+    this.copy(color = newColor)
+
+}
+object AmbientLight {
+
+  val default: AmbientLight =
+    apply(RGBA.White)
+
+}
+
+/**
+  * Represents different lighting falloff models, also known
+  * as attenuation, i.e. how much a light power decays over
+  * distance.
+  *
+  * Quadratic is the most physically accurate, but possibly least
+  * useful for 2D games! All other models are unrealistic, but
+  * possibly easier to work with.
+  *
+  * Note that "intensity" will feel different in different lighting
+  * models. Try smooth with intensity 1 or 2, Linear 5, or Quadratic
+  * 500 and compare.
+  */
+sealed trait Falloff {
+  def withRange(newNear: Int, newFar: Int): Falloff
+  def withNear(newNear: Int): Falloff
+  def withFar(newFar: Int): Falloff
+}
+object Falloff {
+
+  val default: Falloff =
+    SmoothQuadratic(0, 100)
+
+  val none: None                       = None.default
+  val smoothLinear: SmoothLinear       = SmoothLinear.default
+  val smoothQuadratic: SmoothQuadratic = SmoothQuadratic.default
+  val linear: Linear                   = Linear.default
+  val quadratic: Quadratic             = Quadratic.default
+
+  /**
+    * Light does not decay.
+    */
+  final case class None(near: Int, far: Option[Int]) extends Falloff {
+    def withRange(newNear: Int, newFar: Int): None =
+      this.copy(near = newNear, far = Some(newFar))
+
+    def withNear(newNear: Int): None =
+      this.copy(near = newNear)
+
+    def withFar(newFar: Int): None =
+      this.copy(far = Some(newFar))
+
+    def noFarLimit: None =
+      this.copy(far = scala.None)
+  }
+  object None {
+    def default: None =
+      None(0, scala.None)
+
+    def apply(far: Int): None =
+      None(0, Option(far))
+
+    def apply(near: Int, far: Int): None =
+      None(near, Option(far))
+  }
+
+  /**
+    * A big smooth circle of light that falls to zero at the "far" distance.
+    *
+    * @param near
+    * @param far
+    */
+  final case class SmoothLinear(near: Int, far: Int) extends Falloff {
+    def withRange(newNear: Int, newFar: Int): SmoothLinear =
+      this.copy(near = newNear, far = newFar)
+
+    def withNear(newNear: Int): SmoothLinear =
+      this.copy(near = newNear)
+
+    def withFar(newFar: Int): SmoothLinear =
+      this.copy(far = newFar)
+  }
+  object SmoothLinear {
+    def default: SmoothLinear =
+      SmoothLinear(0, 100)
+
+    def apply(far: Int): SmoothLinear =
+      SmoothLinear(0, far)
+  }
+
+  /**
+    * A smooth circle of light that decays pleasingly to zero at the "far" distance.
+    *
+    * @param near
+    * @param far
+    */
+  final case class SmoothQuadratic(near: Int, far: Int) extends Falloff {
+    def withRange(newNear: Int, newFar: Int): SmoothQuadratic =
+      this.copy(near = newNear, far = newFar)
+
+    def withNear(newNear: Int): SmoothQuadratic =
+      this.copy(near = newNear)
+
+    def withFar(newFar: Int): SmoothQuadratic =
+      this.copy(far = newFar)
+  }
+  object SmoothQuadratic {
+    def default: SmoothQuadratic =
+      SmoothQuadratic(0, 100)
+
+    def apply(far: Int): SmoothQuadratic =
+      SmoothQuadratic(0, far)
+  }
+
+  /**
+    * Light decays linearly forever. If a "far" distance is specified then the light will be
+    * artificially attenuated to zero by the time it reaches the limit.
+    *
+    * @param near
+    * @param far
+    */
+  final case class Linear(near: Int, far: Option[Int]) extends Falloff {
+    def withRange(newNear: Int, newFar: Int): Linear =
+      this.copy(near = newNear, far = Some(newFar))
+
+    def withNear(newNear: Int): Linear =
+      this.copy(near = newNear)
+
+    def withFar(newFar: Int): Linear =
+      this.copy(far = Some(newFar))
+
+    def noFarLimit: Linear =
+      this.copy(far = scala.None)
+  }
+  object Linear {
+    def default: Linear =
+      Linear(0, scala.None)
+
+    def apply(far: Int): Linear =
+      Linear(0, Option(far))
+
+    def apply(near: Int, far: Int): Linear =
+      Linear(near, Option(far))
+  }
+
+  /**
+    * Light decays quadratically (inverse-square) forever. If a "far" distance is specified
+    * then the light will be artificially attenuated to zero by the time it reaches the limit.
+    *
+    * @param near
+    * @param far
+    */
+  final case class Quadratic(near: Int, far: Option[Int]) extends Falloff {
+    def withRange(newNear: Int, newFar: Int): Quadratic =
+      this.copy(near = newNear, far = Some(newFar))
+
+    def withNear(newNear: Int): Quadratic =
+      this.copy(near = newNear)
+
+    def withFar(newFar: Int): Quadratic =
+      this.copy(far = Some(newFar))
+
+    def noFarLimit: Quadratic =
+      this.copy(far = scala.None)
+  }
+  object Quadratic {
+    def default: Quadratic =
+      Quadratic(0, scala.None)
+
+    def apply(far: Int): Quadratic =
+      Quadratic(0, Option(far))
+
+    def apply(near: Int, far: Int): Quadratic =
+      Quadratic(near, Option(far))
+  }
 
 }

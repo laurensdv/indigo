@@ -2,7 +2,7 @@ package indigo.shared.platform
 
 import indigo.shared.scenegraph.Graphic
 import indigo.shared.datatypes.Rectangle
-import indigo.shared.datatypes.Material
+import indigo.shared.materials.Material
 import indigo.shared.assets.AssetName
 import indigo.shared.AnimationsRegister
 import indigo.shared.FontRegister
@@ -15,17 +15,19 @@ import indigo.shared.datatypes.Point
 import indigo.shared.display.DisplayObject
 import indigo.shared.display.DisplayClone
 import indigo.shared.display.DisplayCloneBatch
-import indigo.shared.scenegraph.SceneGraphNode
+import indigo.shared.scenegraph.SceneNode
 import indigo.shared.scenegraph.Group
 import indigo.shared.datatypes.Depth
 import indigo.shared.datatypes.mutable.CheapMatrix4
 import indigo.shared.datatypes.Radians
+import indigo.shared.shader.Uniform
+import indigo.shared.scenegraph.RenderNode
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
 class DisplayObjectConversionsTests extends munit.FunSuite {
 
   val graphic: Graphic =
-    Graphic(Rectangle(10, 20, 200, 100), 2, Material.Textured(AssetName("texture")))
+    Graphic(Rectangle(10, 20, 200, 100), 2, Material.Bitmap(AssetName("texture")))
 
   val animationRegister          = new AnimationsRegister
   val fontRegister               = new FontRegister
@@ -41,7 +43,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     fontRegister
   )
 
-  def convert(node: SceneGraphNode): DisplayObject = {
+  def convert(node: SceneNode): DisplayObject = {
     doc.purgeCaches()
 
     doc
@@ -106,10 +108,10 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     assertEquals(actual.height, 100.0f)
   }
 
-  test("create a CheapMatrix4 from a SceneGraphNode.translation") {
+  test("create a CheapMatrix4 from a SceneNode.translation") {
 
-    val node: SceneGraphNode =
-      Graphic(100, 100, Material.Textured(AssetName("test")))
+    val node: RenderNode =
+      Graphic(100, 100, Material.Bitmap(AssetName("test")))
         .moveTo(10, 20)
 
     val expected: CheapMatrix4 =
@@ -126,10 +128,10 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     assertEquals(actual.toMatrix4, expected.toMatrix4)
   }
 
-  test("create a CheapMatrix4 from a SceneGraphNode.translation with ref") {
+  test("create a CheapMatrix4 from a SceneNode.translation with ref") {
 
-    val node: SceneGraphNode =
-      Graphic(100, 100, Material.Textured(AssetName("test")))
+    val node: RenderNode =
+      Graphic(100, 100, Material.Bitmap(AssetName("test")))
         .moveTo(10, 20)
         .withRef(50, 50)
 
@@ -147,10 +149,10 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     assertEquals(actual.toMatrix4, expected.toMatrix4)
   }
 
-  test("create a CheapMatrix4 from a SceneGraphNode.scale") {
+  test("create a CheapMatrix4 from a SceneNode.scale") {
 
-    val node: SceneGraphNode =
-      Graphic(100, 100, Material.Textured(AssetName("test")))
+    val node: RenderNode =
+      Graphic(100, 100, Material.Bitmap(AssetName("test")))
         .scaleBy(2, 10)
 
     val expected: CheapMatrix4 =
@@ -167,10 +169,10 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     assertEquals(actual.toMatrix4, expected.toMatrix4)
   }
 
-  test("create a CheapMatrix4 from a SceneGraphNode.rotation") {
+  test("create a CheapMatrix4 from a SceneNode.rotation") {
 
-    val node: SceneGraphNode =
-      Graphic(100, 100, Material.Textured(AssetName("test")))
+    val node: RenderNode =
+      Graphic(100, 100, Material.Bitmap(AssetName("test")))
         .rotateTo(Radians.TAUby4)
 
     val c = 0.0d
@@ -190,13 +192,13 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     assert(clue(actual.toMatrix4) ~== clue(expected.toMatrix4))
   }
 
-  test("create a CheapMatrix4 from a SceneGraphNode.translation with flip") {
+  test("create a CheapMatrix4 from a SceneNode.translation with flip") {
 
     val width: Int  = 100
     val height: Int = 100
 
-    val node: SceneGraphNode =
-      Graphic(width, height, Material.Textured(AssetName("test")))
+    val node: RenderNode =
+      Graphic(width, height, Material.Bitmap(AssetName("test")))
         .moveTo(10, 20)
         .flipHorizontal(true)
         .flipVertical(true)
@@ -213,6 +215,122 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
       DisplayObjectConversions.nodeToMatrix4(node, Vector3(width.toDouble, height.toDouble, 1.0d))
 
     assertEquals(actual.toMatrix4, expected.toMatrix4)
+  }
+
+  test("ubo packing") {
+
+    import indigo.shared.shader.ShaderPrimitive._
+
+    val uniforms =
+      List(
+        Uniform("a") -> float(1),
+        Uniform("b") -> float(2),
+        Uniform("c") -> vec3(3, 4, 5),
+        Uniform("d") -> float(6),
+        Uniform("e") -> array(4)(vec2(7, 8), vec2(9, 10), vec2(11, 12)),
+        Uniform("f") -> float(13)
+      )
+
+    val expected: Array[Float] =
+      Array[Array[Float]](
+        Array[Float](1, 2, 0, 0),
+        Array[Float](3, 4, 5, 0),
+        Array[Float](6, 0, 0, 0),
+        Array[Float](7, 8, 0, 0, 9, 10, 0, 0, 11, 12, 0, 0, 0, 0, 0, 0),
+        Array[Float](13, 0, 0, 0)
+      ).flatten
+
+    val actual: Array[Float] =
+      DisplayObjectConversions.packUBO(uniforms)
+
+    assertEquals(actual.toList, expected.toList)
+
+  }
+
+  test("ubo packing - arrays") {
+
+    import indigo.shared.shader.ShaderPrimitive._
+
+    val uniforms =
+      List(
+        Uniform("ASPECT_RATIO") -> vec2(1.0),
+        Uniform("STROKE_WIDTH") -> float(2.0),
+        Uniform("COUNT")        -> float(3.0),
+        Uniform("STROKE_COLOR") -> vec4(4.0),
+        Uniform("FILL_COLOR")   -> vec4(5.0)
+      )
+
+    val expected: Array[Float] =
+      Array[Array[Float]](
+        Array[Float](1, 1),
+        Array[Float](2),
+        Array[Float](3),
+        Array[Float](4, 4, 4, 4),
+        Array[Float](5, 5, 5, 5)
+      ).flatten
+
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms).toList,
+      expected.toList
+    )
+
+    // Exact 3 array.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(3)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0)
+    )
+
+    // 4 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(4)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0)
+    )
+
+    // 5 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(5)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0)
+    )
+
+    // 6 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(6)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0)
+    )
+
+    // 7 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(7)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0)
+    )
+
+    // 8 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(8)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0)
+    )
+
+    // 16 array padded.
+    assertEquals(
+      DisplayObjectConversions.packUBO(uniforms :+ Uniform("VERTICES") -> array(16)(vec2(6.0), vec2(7.0), vec2(8.0))).toList,
+      expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0) ++
+        List[Float](0, 0, 0, 0)
+    )
+
   }
 
 }

@@ -15,5 +15,14 @@ mill indigo-plugin[2.13].compile
 mill indigo-plugin[2.12].test
 mill indigo-plugin[2.13].test
 
-mill -i indigo-plugin[2.12].publish --sonatypeCreds $SONATYPE_USERNAME:$SONATYPE_PASSWORD --release true
-mill -i indigo-plugin[2.13].publish --sonatypeCreds $SONATYPE_USERNAME:$SONATYPE_PASSWORD --release true
+mill mill.scalalib.PublishModule/publishAll \
+        indigo-plugin[2.12].publishArtifacts \
+        $SONATYPE_USERNAME:$SONATYPE_PASSWORD \
+        --gpgArgs --passphrase=$GPG_PASSWORD,--batch,--yes,-a,-b \
+        --release true
+
+mill mill.scalalib.PublishModule/publishAll \
+        indigo-plugin[2.13].publishArtifacts \
+        $SONATYPE_USERNAME:$SONATYPE_PASSWORD \
+        --gpgArgs --passphrase=$GPG_PASSWORD,--batch,--yes,-a,-b \
+        --release true

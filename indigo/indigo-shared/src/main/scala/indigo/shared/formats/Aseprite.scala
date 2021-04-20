@@ -7,13 +7,13 @@ import indigo.shared.assets.AssetName
 import indigo.shared.dice.Dice
 import indigo.shared.IndigoLogger
 import indigo.shared.animation.AnimationKey
-import indigo.shared.datatypes.Material
+import indigo.shared.materials.Material
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Vector2
-import indigo.shared.datatypes.Effects
+// import indigo.shared.datatypes.Effects
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.events.GlobalEvent
 import indigo.shared.animation.Cycle
@@ -49,7 +49,6 @@ object Aseprite {
         val animations: Animation =
           Animation(
             animationKey = AnimationKey.fromDice(dice),
-            material = Material.Textured(assetName),
             currentCycleLabel = x.label,
             cycles = NonEmptyList.pure(x, xs)
           )
@@ -57,13 +56,13 @@ object Aseprite {
           SpriteAndAnimations(
             Sprite(
               bindingKey = BindingKey.fromDice(dice),
+              material = Material.Bitmap(assetName),
               position = Point(0, 0),
               depth = Depth(1),
               rotation = Radians.zero,
               scale = Vector2.one,
               animationKey = animations.animationKey,
               ref = Point(0, 0),
-              effects = Effects.default,
               eventHandler = (_: (Rectangle, GlobalEvent)) => Nil
             ),
             animations

@@ -9,8 +9,15 @@ import indigoextras.ui.InputFieldAssets
 import indigo.scenes._
 
 import scala.scalajs.js.annotation._
-import indigo.shared.events.FullScreenEntered
-import indigo.shared.events.FullScreenExited
+
+import com.example.sandbox.scenes.OriginalScene
+import com.example.sandbox.scenes.Shaders
+import com.example.sandbox.scenes.ShapesScene
+import com.example.sandbox.scenes.LightsScene
+import com.example.sandbox.scenes.RefractionScene
+import com.example.sandbox.scenes.LegacyEffectsScene
+import indigoextras.effectmaterials.Refraction
+import indigoextras.effectmaterials.LegacyEffects
 
 @JSExportTopLevel("IndigoGame")
 object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, SandboxGameModel, SandboxViewModel] {
@@ -21,10 +28,10 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   private val viewportHeight: Int     = 128 * magnificationLevel
 
   def initialScene(bootData: SandboxBootData): Option[SceneName] =
-    None
+    Some(LightsScene.name)
 
   def scenes(bootData: SandboxBootData): NonEmptyList[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
-    NonEmptyList(TestScene)
+    NonEmptyList(OriginalScene, ShapesScene, LightsScene, RefractionScene, LegacyEffectsScene)
 
   val eventFilters: EventFilters = EventFilters.Permissive
 
@@ -46,15 +53,25 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           clearColor = RGBA(0.4, 0.2, 0.5, 1),
           magnification = magnificationLevel
         ),
-        SandboxBootData(flags.getOrElse("key", "No entry for 'key'."))
-      ).withAssets(SandboxAssets.assets)
-        .withFonts(SandboxView.fontInfo)
-        .withSubSystems(FPSCounter(SandboxView.fontKey, Point(3, 100), targetFPS))
+        SandboxBootData(flags.getOrElse("key", "No entry for 'key'."), gameViewport)
+      ).withAssets(SandboxAssets.assets ++ Shaders.assets)
+        .withFonts(Fonts.fontInfo)
+        .withSubSystems(FPSCounter(Fonts.fontKey, Point(5, 165), targetFPS, Option(BindingKey("fps counter")), SandboxAssets.fontMaterial))
+        .withShaders(
+          Shaders.circle,
+          Shaders.external,
+          Shaders.sea,
+          LegacyEffects.entityShader
+        )
+        .addShaders(Refraction.shaders)
     )
   }
 
   def setup(bootData: SandboxBootData, assetCollection: AssetCollection, dice: Dice): Outcome[Startup[SandboxStartupData]] = {
     println(bootData.message)
+
+    val screenCenter: Point =
+      bootData.gameViewport.giveDimensions(magnificationLevel).center
 
     def makeStartupData(aseprite: Aseprite, spriteAndAnimations: SpriteAndAnimations): Startup.Success[SandboxStartupData] =
       Startup
@@ -64,9 +81,11 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
               aseprite,
               spriteAndAnimations.sprite
                 .withDepth(Depth(3))
-                .withRef(16, 16)                                                                         // Initial offset, so when talk about his position it's the center of the sprite
-                .moveTo(viewportWidth / 2 / magnificationLevel, viewportHeight / 2 / magnificationLevel) // Also place him in the middle of the screen initially
-            )
+                .withRef(16, 16)      // Initial offset, so when talk about his position it's the center of the sprite
+                .moveTo(screenCenter) // Also place him in the middle of the screen initially
+                .withMaterial(SandboxAssets.dudeMaterial)
+            ),
+            screenCenter
           )
         )
         .addAnimations(spriteAndAnimations.animations)
@@ -86,15 +105,17 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   def initialViewModel(startupData: SandboxStartupData, model: SandboxGameModel): Outcome[SandboxViewModel] = {
     val assets =
       new InputFieldAssets(
-        Text("placeholder", 0, 0, 0, SandboxView.fontKey).alignLeft,
-        Graphic(0, 0, 16, 16, 2, Material.Textured(SandboxAssets.smallFontName)).withCrop(188, 78, 14, 23).withTint(0, 0, 1)
+        Text("placeholder", 0, 0, 0, Fonts.fontKey, SandboxAssets.fontMaterial).alignLeft,
+        Graphic(0, 0, 16, 16, 2, Material.ImageEffects(SandboxAssets.smallFontName).withTint(RGB(0, 0, 1)))
+          .withCrop(188, 78, 14, 23)
       )
 
     Outcome(
       SandboxViewModel(
         Point.zero,
         InputField("single", assets).withKey(BindingKey("single")).makeSingleLine,
-        InputField("multi\nline", assets).withKey(BindingKey("multi")).makeMultiLine
+        InputField("multi\nline", assets).withKey(BindingKey("multi")).makeMultiLine.moveTo(5, 5),
+        true
       )
     )
   }
@@ -103,6 +124,9 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
     SandboxModel.updateModel(model)
 
   def updateViewModel(context: FrameContext[SandboxStartupData], model: SandboxGameModel, viewModel: SandboxViewModel): GlobalEvent => Outcome[SandboxViewModel] = {
+    case RendererDetails(RenderingTechnology.WebGL1, _, _) =>
+      Outcome(viewModel.copy(useLightingLayer = false))
+
     case FrameTick =>
       val updateOffset: Point =
         context.inputState.gamepad.dpad match {
@@ -141,49 +165,10 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   }
 
   def present(context: FrameContext[SandboxStartupData], model: SandboxGameModel, viewModel: SandboxViewModel): Outcome[SceneUpdateFragment] =
-    Outcome(
-      SandboxView.updateView(model, viewModel, context.inputState) |+|
-        // viewModel.single.draw(gameTime, boundaryLocator) //|+|
-        viewModel.multi.draw(context.gameTime, context.boundaryLocator)
-    )
+    Outcome(SceneUpdateFragment(Layer(BindingKey("fps counter")).withDepth(Depth(200))))
 }
 
 final case class Dude(aseprite: Aseprite, sprite: Sprite)
-final case class SandboxBootData(message: String)
-final case class SandboxStartupData(dude: Dude)
-final case class SandboxViewModel(offset: Point, single: InputField, multi: InputField)
-
-object TestScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
-
-  type SceneModel     = Unit
-  type SceneViewModel = Unit
-
-  def eventFilters: EventFilters =
-    EventFilters.Restricted
-
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, Unit] =
-    Lens.unit[SandboxGameModel]
-
-  def viewModelLens: Lens[SandboxViewModel, Unit] =
-    Lens.unit[SandboxViewModel]
-
-  def name: SceneName =
-    SceneName("test")
-
-  def subSystems: Set[SubSystem] =
-    Set()
-
-  def updateModel(context: FrameContext[SandboxStartupData], model: Unit): GlobalEvent => Outcome[Unit] =
-    _ => Outcome(model)
-
-  def updateViewModel(context: FrameContext[SandboxStartupData], model: Unit, viewModel: Unit): GlobalEvent => Outcome[Unit] =
-    _ => Outcome(viewModel)
-
-  def present(context: FrameContext[SandboxStartupData], model: Unit, viewModel: Unit): Outcome[SceneUpdateFragment] =
-    Outcome(
-      SceneUpdateFragment(
-        Graphic(120, 10, 32, 32, 1, SandboxAssets.dotsMaterial)
-      )
-    )
-
-}
+final case class SandboxBootData(message: String, gameViewport: GameViewport)
+final case class SandboxStartupData(dude: Dude, viewportCenter: Point)
+final case class SandboxViewModel(offset: Point, single: InputField, multi: InputField, useLightingLayer: Boolean)

@@ -18,7 +18,7 @@ object SceneGraphViewEvents {
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  def applyInputEvents(node: EventHandling, bounds: Rectangle, inputEvents: List[GlobalEvent], sendEvent: GlobalEvent => Unit): Unit = {
+  def applyInputEvents(node: EventHandler, bounds: Rectangle, inputEvents: List[GlobalEvent], sendEvent: GlobalEvent => Unit): Unit = {
     val count = inputEvents.length
     var index = 0
 
@@ -29,31 +29,19 @@ object SceneGraphViewEvents {
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  def collectViewEvents(boundaryLocator: BoundaryLocator, nodes: List[SceneGraphNode], inputEvents: List[GlobalEvent], sendEvent: GlobalEvent => Unit): Unit = {
+  def collectViewEvents(boundaryLocator: BoundaryLocator, nodes: List[SceneNode], inputEvents: List[GlobalEvent], sendEvent: GlobalEvent => Unit): Unit = {
     val count = nodes.length
     var index = 0
 
     while (index < count) {
       nodes(index) match {
-        case s: Sprite =>
-          applyInputEvents(s, s.bounds(boundaryLocator), inputEvents, sendEvent)
-
-        case t: Text =>
-          applyInputEvents(t, t.bounds(boundaryLocator), inputEvents, sendEvent)
-
-        case _: Graphic =>
-          ()
-
         case g: Group =>
           collectViewEvents(boundaryLocator, g.children, inputEvents, sendEvent)
 
-        case _: Transformer =>
-          ()
+        case t: EventHandler =>
+          applyInputEvents(t, t.calculatedBounds(boundaryLocator), inputEvents, sendEvent)
 
-        case _: Clone =>
-          ()
-
-        case _: CloneBatch =>
+        case _ =>
           ()
       }
 

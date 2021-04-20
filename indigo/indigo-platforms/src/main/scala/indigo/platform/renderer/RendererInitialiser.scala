@@ -15,13 +15,14 @@ import indigo.shared.IndigoLogger
 import indigo.facades.WebGL2RenderingContext
 import indigo.platform.events.GlobalEventStream
 import indigo.shared.events.RendererDetails
+import indigo.shared.shader.RawShaderCode
 
 final class RendererInitialiser(renderingTechnology: RenderingTechnology, globalEventStream: GlobalEventStream) {
 
-  def setup(config: RendererConfig, loadedTextureAssets: List[LoadedTextureAsset], canvas: html.Canvas): Renderer = {
+  def setup(config: RendererConfig, loadedTextureAssets: List[LoadedTextureAsset], canvas: html.Canvas, shaders: Set[RawShaderCode]): Renderer = {
     val (cNc, tech) = setupContextAndCanvas(canvas, config.magnification, config.antiAliasing)
 
-    globalEventStream.pushGlobalEvent(new RendererDetails(tech, config.clearColor, config.magnification))
+    globalEventStream.pushGlobalEvent(RendererDetails(tech, config.clearColor, config.magnification))
 
     val r =
       tech match {
@@ -35,7 +36,7 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
           new RendererWebGL2(config, loadedTextureAssets, cNc, globalEventStream)
       }
 
-    r.init()
+    r.init(shaders)
     r
   }
 
@@ -92,7 +93,7 @@ final class RendererInitialiser(renderingTechnology: RenderingTechnology, global
   )
   private def getContext(canvas: html.Canvas, antiAliasing: Boolean): (WebGLRenderingContext, RenderingTechnology) = {
     val args =
-      Dynamic.literal("premultipliedAlpha" -> false, "alpha" -> false, "antialias" -> antiAliasing)
+      Dynamic.literal("premultipliedAlpha" -> true, "alpha" -> false, "antialias" -> antiAliasing)
 
     val tech = chooseRenderingTechnology(renderingTechnology, args)
 

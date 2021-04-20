@@ -5,6 +5,8 @@ import indigo.shared.events.GlobalEvent
 import indigo.shared.scenegraph.{SceneUpdateFragment, Text}
 import indigo.shared.datatypes.FontKey
 import indigo.shared.subsystems.SubSystemFrameContext
+import indigo.shared.materials.Material
+import indigo.shared.assets.AssetName
 
 final case class PointsTrackerExample(startingPoints: Int) extends SubSystem {
   type EventType      = PointsTrackerEvent
@@ -29,8 +31,7 @@ final case class PointsTrackerExample(startingPoints: Int) extends SubSystem {
 
   def present(context: SubSystemFrameContext, points: Int): Outcome[SceneUpdateFragment] =
     Outcome(
-      SceneUpdateFragment.empty
-        .addGameLayerNodes(Text(points.toString, 0, 0, 1, FontKey("")))
+      SceneUpdateFragment(Text(points.toString, 0, 0, 1, FontKey(""), Material.Bitmap(AssetName("Testing"))))
     )
 }
 

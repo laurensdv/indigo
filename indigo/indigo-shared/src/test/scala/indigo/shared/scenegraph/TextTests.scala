@@ -4,13 +4,13 @@ import indigo.shared.FontRegister
 import indigo.shared.datatypes.{FontChar, FontInfo, FontKey, Rectangle}
 
 import indigo.shared.assets.AssetName
-import indigo.shared.datatypes.Material
+import indigo.shared.materials.Material
 import indigo.shared.BoundaryLocator
 import indigo.shared.AnimationsRegister
 
 class TextTests extends munit.FunSuite {
 
-  val material = Material.Textured(AssetName("font-sheet"))
+  val material = Material.Bitmap(AssetName("font-sheet"))
 
   val fontRegister: FontRegister =
     new FontRegister
@@ -28,13 +28,13 @@ class TextTests extends munit.FunSuite {
 
     val fontKey = FontKey("test1")
 
-    val fontInfo = FontInfo(fontKey, material, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
+    val fontInfo = FontInfo(fontKey, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
 
     fontRegister.register(fontInfo)
 
-    val t = Text("abc", 10, 20, 1, fontKey)
+    val t = Text("abc", 10, 20, 1, fontKey, material)
 
-    assertEquals(t.bounds(boundaryLocator) === Rectangle(10, 20, 16 * 3, 16), true)
+    assertEquals(t.calculatedBounds(boundaryLocator) === Rectangle(10, 20, 16 * 3, 16), true)
 
     fontRegister.clearRegister()
   }
@@ -49,13 +49,13 @@ class TextTests extends munit.FunSuite {
 
     val fontKey = FontKey("test2")
 
-    val fontInfo = FontInfo(fontKey, material, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
+    val fontInfo = FontInfo(fontKey, 256, 256, FontChar("?", 0, 0, 16, 16)).addChars(chars)
 
     fontRegister.register(fontInfo)
 
-    val t = Text("abc", 10, 20, 1, fontKey)
+    val t = Text("abc", 10, 20, 1, fontKey, material)
 
-    val actual   = t.bounds(boundaryLocator)           // 48 x 16
+    val actual   = t.calculatedBounds(boundaryLocator) // 48 x 16
     val expected = Rectangle(10, 20, 10 + 20 + 30, 30) // 60 x 30
 
     assertEquals(actual === expected, true)

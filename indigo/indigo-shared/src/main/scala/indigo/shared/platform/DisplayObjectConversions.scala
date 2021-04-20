@@ -12,7 +12,8 @@ import indigo.shared.FontRegister
 import indigo.shared.platform.AssetMapping
 import indigo.shared.scenegraph.{Graphic, Sprite, Text, TextLine}
 
-import indigo.shared.scenegraph.SceneGraphNode
+import indigo.shared.scenegraph.SceneNode
+import indigo.shared.scenegraph.RenderNode
 import indigo.shared.scenegraph.Group
 import indigo.shared.scenegraph.Transformer
 import indigo.shared.QuickCache
@@ -20,17 +21,20 @@ import indigo.shared.QuickCache
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import indigo.shared.display.DisplayEntity
+import indigo.shared.display.DisplayObjectUniformData
 import indigo.shared.scenegraph.Clone
 import indigo.shared.scenegraph.CloneBatch
 import indigo.shared.display.DisplayClone
 import indigo.shared.scenegraph.CloneTransformData
-import indigo.shared.display.DisplayCloneBatchData
-import indigo.shared.datatypes.Material
-import indigo.shared.display.DisplayEffects
-import indigo.shared.datatypes.Texture
+import indigo.shared.materials.ShaderData
 import indigo.shared.BoundaryLocator
 import indigo.shared.animation.AnimationRef
 import indigo.shared.datatypes.mutable.CheapMatrix4
+import indigo.shared.assets.AssetName
+import indigo.shared.scenegraph.EntityNode
+import indigo.shared.shader.Uniform
+import indigo.shared.shader.ShaderPrimitive
+import indigo.shared.scenegraph.Shape
 
 final class DisplayObjectConversions(
     boundaryLocator: BoundaryLocator,
@@ -43,8 +47,7 @@ final class DisplayObjectConversions(
   implicit private val frameCache: QuickCache[SpriteSheetFrameCoordinateOffsets] = QuickCache.empty
   implicit private val listDoCache: QuickCache[List[DisplayObject]]              = QuickCache.empty
   implicit private val cloneBatchCache: QuickCache[DisplayCloneBatch]            = QuickCache.empty
-  implicit private val effectsCache: QuickCache[DisplayEffects]                  = QuickCache.empty
-  implicit private val textureAmountsCache: QuickCache[(Vector2, Double)]        = QuickCache.empty
+  implicit private val uniformsCache: QuickCache[Array[Float]]                   = QuickCache.empty
 
   def purgeCaches(): Unit = {
     stringCache.purgeAllNow()
@@ -52,8 +55,7 @@ final class DisplayObjectConversions(
     frameCache.purgeAllNow()
     listDoCache.purgeAllNow()
     cloneBatchCache.purgeAllNow()
-    effectsCache.purgeAllNow()
-    textureAmountsCache.purgeAllNow()
+    uniformsCache.purgeAllNow()
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
@@ -88,20 +90,16 @@ final class DisplayObjectConversions(
     new DisplayClone(
       id = id,
       transform = DisplayObjectConversions.cloneTransformDataToMatrix4(data, blankTransform),
-      z = cloneDepth,
-      alpha = data.alpha.toFloat
+      z = cloneDepth
     )
 
   private def cloneBatchDataToDisplayEntities(batch: CloneBatch, blankTransform: CheapMatrix4): DisplayCloneBatch = {
     def convert(): DisplayCloneBatch =
       new DisplayCloneBatch(
         id = batch.id.value,
-        z = batch.depth.zIndex.toDouble,
+        z = batch.depth.value.toDouble,
         clones = batch.clones.map { td =>
-          new DisplayCloneBatchData(
-            transform = DisplayObjectConversions.cloneTransformDataToMatrix4(batch.transform |+| td, blankTransform),
-            alpha = batch.transform.alpha.toFloat
-          )
+          DisplayObjectConversions.cloneTransformDataToMatrix4(batch.transform |+| td, blankTransform)
         }
       )
 
@@ -117,7 +115,7 @@ final class DisplayObjectConversions(
   }
 
   def sceneNodesToDisplayObjects(
-      sceneNodes: List[SceneGraphNode],
+      sceneNodes: List[SceneNode],
       gameTime: GameTime,
       assetMapping: AssetMapping,
       cloneBlankDisplayObjects: Map[String, DisplayObject]
@@ -126,13 +124,13 @@ final class DisplayObjectConversions(
       sceneNodeToDisplayObject(node, gameTime, assetMapping, cloneBlankDisplayObjects)
     }
 
-  private val accSceneNodes: ListBuffer[SceneGraphNode] = new ListBuffer()
+  private val accSceneNodes: ListBuffer[SceneNode] = new ListBuffer()
 
   def deGroup(
-      sceneNodes: List[SceneGraphNode]
-  ): ListBuffer[SceneGraphNode] = {
+      sceneNodes: List[SceneNode]
+  ): ListBuffer[SceneNode] = {
     @tailrec
-    def rec(remaining: List[SceneGraphNode]): ListBuffer[SceneGraphNode] =
+    def rec(remaining: List[SceneNode]): ListBuffer[SceneNode] =
       remaining match {
         case Nil =>
           accSceneNodes
@@ -157,12 +155,21 @@ final class DisplayObjectConversions(
   }
 
   def sceneNodeToDisplayObject(
-      sceneNode: SceneGraphNode,
+      sceneNode: SceneNode,
       gameTime: GameTime,
       assetMapping: AssetMapping,
       cloneBlankDisplayObjects: Map[String, DisplayObject]
   ): List[DisplayEntity] =
     sceneNode match {
+
+      case x: Graphic =>
+        List(graphicToDisplayObject(x, assetMapping))
+
+      case s: Shape =>
+        List(shapeToDisplayObject(s))
+
+      case s: EntityNode =>
+        List(sceneEntityToDisplayObject(s, assetMapping))
 
       case c: Clone =>
         cloneBlankDisplayObjects.get(c.id.value) match {
@@ -173,7 +180,7 @@ final class DisplayObjectConversions(
             List(
               cloneDataToDisplayEntity(
                 c.id.value,
-                c.depth.zIndex.toDouble,
+                c.depth.value.toDouble,
                 c.transform,
                 refDisplayObject.transform
               )
@@ -195,9 +202,6 @@ final class DisplayObjectConversions(
       case t: Transformer =>
         sceneNodeToDisplayObject(t.node, gameTime, assetMapping, cloneBlankDisplayObjects)
           .map(_.applyTransform(t.transform))
-
-      case x: Graphic =>
-        List(graphicToDisplayObject(x, assetMapping))
 
       case x: Sprite =>
         animationsRegister.fetchAnimationForSprite(gameTime, x.bindingKey, x.animationKey, x.animationActions) match {
@@ -241,56 +245,102 @@ final class DisplayObjectConversions(
         letters
     }
 
-  def materialToEmissiveValues(assetMapping: AssetMapping, material: Material): (Vector2, Double) =
-    QuickCache(material.hash + "_emissive") {
-      material match {
-        case _: Material.Textured =>
-          (Vector2.zero, 0.0d)
+  def optionalAssetToOffset(assetMapping: AssetMapping, maybeAssetName: Option[AssetName]): Vector2 =
+    maybeAssetName match {
+      case None =>
+        Vector2.zero
 
-        case t: Material.Lit =>
-          optionalAssetToValues(assetMapping, t.emissive)
-      }
+      case Some(assetName) =>
+        lookupTextureOffset(assetMapping, assetName.value)
     }
 
-  def materialToNormalValues(assetMapping: AssetMapping, material: Material): (Vector2, Double) =
-    QuickCache(material.hash + "_normal") {
-      material match {
-        case _: Material.Textured =>
-          (Vector2.zero, 0.0d)
-
-        case t: Material.Lit =>
-          optionalAssetToValues(assetMapping, t.normal)
+  def shapeToDisplayObject(leaf: Shape): DisplayObject = {
+    val shader: ShaderData = leaf.toShaderData
+    val offset             = Vector2.zero
+    val uniformData: List[DisplayObjectUniformData] =
+      shader.uniformBlocks.map { ub =>
+        DisplayObjectUniformData(
+          uniformHash = ub.uniformHash,
+          blockName = ub.blockName,
+          data = DisplayObjectConversions.packUBO(ub.uniforms)
+        )
       }
-    }
 
-  def materialToSpecularValues(assetMapping: AssetMapping, material: Material): (Vector2, Double) =
-    QuickCache(material.hash + "_specular") {
-      material match {
-        case _: Material.Textured =>
-          (Vector2.zero, 0.0d)
+    DisplayObject(
+      transform = DisplayObjectConversions.nodeToMatrix4(leaf, Vector3(leaf.bounds.size.x.toDouble, leaf.bounds.size.y.toDouble, 1.0d)),
+      rotation = leaf.rotation.value,
+      z = leaf.depth.value.toDouble,
+      width = leaf.bounds.size.x,
+      height = leaf.bounds.size.y,
+      atlasName = None,
+      frame = SpriteSheetFrame.defaultOffset,
+      channelOffset1 = offset,
+      channelOffset2 = offset,
+      channelOffset3 = offset,
+      shaderId = shader.shaderId,
+      shaderUniformData = uniformData
+    )
+  }
 
-        case t: Material.Lit =>
-          optionalAssetToValues(assetMapping, t.specular)
+  def sceneEntityToDisplayObject(leaf: EntityNode, assetMapping: AssetMapping): DisplayObject = {
+    val shader: ShaderData = leaf.toShaderData
+
+    val channelOffset1 = optionalAssetToOffset(assetMapping, shader.channel1)
+    val channelOffset2 = optionalAssetToOffset(assetMapping, shader.channel2)
+    val channelOffset3 = optionalAssetToOffset(assetMapping, shader.channel3)
+
+    val frameInfo: SpriteSheetFrameCoordinateOffsets =
+      shader.channel0 match {
+        case None =>
+          SpriteSheetFrame.defaultOffset
+
+        case Some(assetName) =>
+          QuickCache(s"${leaf.bounds.hash}_${shader.hash}") {
+            SpriteSheetFrame.calculateFrameOffset(
+              atlasSize = lookupAtlasSize(assetMapping, assetName.value),
+              frameCrop = leaf.bounds,
+              textureOffset = lookupTextureOffset(assetMapping, assetName.value)
+            )
+          }
       }
-    }
 
-  def optionalAssetToValues(assetMapping: AssetMapping, maybeAssetName: Option[Texture]): (Vector2, Double) =
-    maybeAssetName
-      .map { t =>
-        (lookupTextureOffset(assetMapping, t.assetName.value), Math.min(1.0d, Math.max(0.0d, t.amount)))
+    val shaderId = shader.shaderId
+
+    val uniformData: List[DisplayObjectUniformData] =
+      shader.uniformBlocks.map { ub =>
+        DisplayObjectUniformData(
+          uniformHash = ub.uniformHash,
+          blockName = ub.blockName,
+          data = DisplayObjectConversions.packUBO(ub.uniforms)
+        )
       }
-      .getOrElse((Vector2.zero, 0.0d))
+
+    DisplayObject(
+      transform = DisplayObjectConversions.nodeToMatrix4(leaf, Vector3(leaf.bounds.size.x.toDouble, leaf.bounds.size.y.toDouble, 1.0d)),
+      rotation = leaf.rotation.value,
+      z = leaf.depth.value.toDouble,
+      width = leaf.bounds.size.x,
+      height = leaf.bounds.size.y,
+      atlasName = shader.channel0.map(assetName => lookupAtlasName(assetMapping, assetName.value)),
+      frame = frameInfo,
+      channelOffset1 = frameInfo.offsetToCoords(channelOffset1),
+      channelOffset2 = frameInfo.offsetToCoords(channelOffset2),
+      channelOffset3 = frameInfo.offsetToCoords(channelOffset3),
+      shaderId = shaderId,
+      shaderUniformData = uniformData
+    )
+  }
 
   def graphicToDisplayObject(leaf: Graphic, assetMapping: AssetMapping): DisplayObject = {
-    val materialName = leaf.material.default.value
+    val shaderData   = leaf.material.toShaderData
+    val materialName = shaderData.channel0.get.value
 
-    val albedoAmount                     = 1.0f
-    val (emissiveOffset, emissiveAmount) = materialToEmissiveValues(assetMapping, leaf.material)
-    val (normalOffset, normalAmount)     = materialToNormalValues(assetMapping, leaf.material)
-    val (specularOffset, specularAmount) = materialToSpecularValues(assetMapping, leaf.material)
+    val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderData.hash, "_e")
+    val normalOffset   = findAssetOffsetValues(assetMapping, shaderData.channel2, shaderData.hash, "_n")
+    val specularOffset = findAssetOffsetValues(assetMapping, shaderData.channel3, shaderData.hash, "_s")
 
     val frameInfo =
-      QuickCache(s"${leaf.crop.hash}_${leaf.material.hash}") {
+      QuickCache(s"${leaf.crop.hash}_${shaderData.hash}") {
         SpriteSheetFrame.calculateFrameOffset(
           atlasSize = lookupAtlasSize(assetMapping, materialName),
           frameCrop = leaf.crop,
@@ -298,42 +348,44 @@ final class DisplayObjectConversions(
         )
       }
 
-    val effectsValues =
-      QuickCache(leaf.effects.hash) {
-        DisplayEffects.fromEffects(leaf.effects)
+    val shaderId = shaderData.shaderId
+
+    val uniformData: List[DisplayObjectUniformData] =
+      shaderData.uniformBlocks.map { ub =>
+        DisplayObjectUniformData(
+          uniformHash = ub.uniformHash,
+          blockName = ub.blockName,
+          data = DisplayObjectConversions.packUBO(ub.uniforms)
+        )
       }
 
     DisplayObject(
       transform = DisplayObjectConversions.nodeToMatrix4(leaf, Vector3(leaf.crop.size.x.toDouble, leaf.crop.size.y.toDouble, 1.0d)),
-      z = leaf.depth.zIndex.toDouble,
+      rotation = leaf.rotation.value,
+      z = leaf.depth.value.toDouble,
       width = leaf.crop.size.x,
       height = leaf.crop.size.y,
-      atlasName = lookupAtlasName(assetMapping, materialName),
+      atlasName = Some(lookupAtlasName(assetMapping, materialName)),
       frame = frameInfo,
-      albedoAmount = albedoAmount,
-      emissiveOffset = frameInfo.offsetToCoords(emissiveOffset),
-      emissiveAmount = emissiveAmount.toFloat,
-      normalOffset = frameInfo.offsetToCoords(normalOffset),
-      normalAmount = normalAmount.toFloat,
-      specularOffset = frameInfo.offsetToCoords(specularOffset),
-      specularAmount = specularAmount.toFloat,
-      isLit = if (leaf.material.isLit) 1.0f else 0.0f,
-      effects = effectsValues
+      channelOffset1 = frameInfo.offsetToCoords(emissiveOffset),
+      channelOffset2 = frameInfo.offsetToCoords(normalOffset),
+      channelOffset3 = frameInfo.offsetToCoords(specularOffset),
+      shaderId = shaderId,
+      shaderUniformData = uniformData
     )
   }
 
   def spriteToDisplayObject(boundaryLocator: BoundaryLocator, leaf: Sprite, assetMapping: AssetMapping, anim: AnimationRef): DisplayObject = {
-    val material = anim.currentFrame.frameMaterial.getOrElse(anim.material)
+    val material     = leaf.material
+    val shaderData   = material.toShaderData
+    val materialName = shaderData.channel0.get.value
 
-    val materialName = material.default.value
-
-    val albedoAmount                     = 1.0f
-    val (emissiveOffset, emissiveAmount) = materialToEmissiveValues(assetMapping, material)
-    val (normalOffset, normalAmount)     = materialToNormalValues(assetMapping, material)
-    val (specularOffset, specularAmount) = materialToSpecularValues(assetMapping, material)
+    val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderData.hash, "_e")
+    val normalOffset   = findAssetOffsetValues(assetMapping, shaderData.channel2, shaderData.hash, "_n")
+    val specularOffset = findAssetOffsetValues(assetMapping, shaderData.channel3, shaderData.hash, "_s")
 
     val frameInfo =
-      QuickCache(anim.frameHash) {
+      QuickCache(anim.frameHash + shaderData.hash) {
         SpriteSheetFrame.calculateFrameOffset(
           atlasSize = lookupAtlasSize(assetMapping, materialName),
           frameCrop = anim.currentFrame.crop,
@@ -341,35 +393,42 @@ final class DisplayObjectConversions(
         )
       }
 
-    val effectsValues =
-      QuickCache(leaf.effects.hash) {
-        DisplayEffects.fromEffects(leaf.effects)
-      }
+    val width: Int  = leaf.calculatedBounds(boundaryLocator).size.x
+    val height: Int = leaf.calculatedBounds(boundaryLocator).size.y
 
-    val width: Int  = leaf.bounds(boundaryLocator).size.x
-    val height: Int = leaf.bounds(boundaryLocator).size.y
+    val shaderId = shaderData.shaderId
+
+    val uniformData: List[DisplayObjectUniformData] =
+      shaderData.uniformBlocks.map { ub =>
+        DisplayObjectUniformData(
+          uniformHash = ub.uniformHash,
+          blockName = ub.blockName,
+          data = DisplayObjectConversions.packUBO(ub.uniforms)
+        )
+      }
 
     DisplayObject(
       transform = DisplayObjectConversions.nodeToMatrix4(leaf, Vector3(width.toDouble, height.toDouble, 1.0d)),
-      z = leaf.depth.zIndex.toDouble,
+      rotation = leaf.rotation.value,
+      z = leaf.depth.value.toDouble,
       width = width,
       height = height,
-      atlasName = lookupAtlasName(assetMapping, materialName),
+      atlasName = Some(lookupAtlasName(assetMapping, materialName)),
       frame = frameInfo,
-      albedoAmount = albedoAmount,
-      emissiveOffset = frameInfo.offsetToCoords(emissiveOffset),
-      emissiveAmount = emissiveAmount.toFloat,
-      normalOffset = frameInfo.offsetToCoords(normalOffset),
-      normalAmount = normalAmount.toFloat,
-      specularOffset = frameInfo.offsetToCoords(specularOffset),
-      specularAmount = specularAmount.toFloat,
-      isLit = if (material.isLit) 1.0f else 0.0f,
-      effects = effectsValues
+      channelOffset1 = frameInfo.offsetToCoords(emissiveOffset),
+      channelOffset2 = frameInfo.offsetToCoords(normalOffset),
+      channelOffset3 = frameInfo.offsetToCoords(specularOffset),
+      shaderId = shaderId,
+      shaderUniformData = uniformData
     )
   }
 
   def textLineToDisplayObjects(leaf: Text, assetMapping: AssetMapping, fontInfo: FontInfo): (TextLine, Int, Int) => List[DisplayObject] =
     (line, alignmentOffsetX, yOffset) => {
+
+      val material     = leaf.material
+      val shaderData   = material.toShaderData
+      val materialName = shaderData.channel0.get.value
 
       val lineHash: String =
         leaf.fontKey.key +
@@ -379,26 +438,30 @@ final class DisplayObjectConversions(
           ":" + leaf.position.hash +
           ":" + leaf.rotation.hash +
           ":" + leaf.scale.hash +
-          ":" + fontInfo.fontSpriteSheet.material.hash +
-          ":" + leaf.effects.hash
+          ":" + shaderData.hash // +
+      // ":" + leaf.effects.hash
 
-      val materialName = fontInfo.fontSpriteSheet.material.default.value
+      // val albedoAmount                     = 1.0f
+      val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderData.hash, "_e")
+      val normalOffset   = findAssetOffsetValues(assetMapping, shaderData.channel2, shaderData.hash, "_n")
+      val specularOffset = findAssetOffsetValues(assetMapping, shaderData.channel3, shaderData.hash, "_s")
 
-      val albedoAmount                     = 1.0f
-      val (emissiveOffset, emissiveAmount) = materialToEmissiveValues(assetMapping, fontInfo.fontSpriteSheet.material)
-      val (normalOffset, normalAmount)     = materialToNormalValues(assetMapping, fontInfo.fontSpriteSheet.material)
-      val (specularOffset, specularAmount) = materialToSpecularValues(assetMapping, fontInfo.fontSpriteSheet.material)
+      val shaderId = shaderData.shaderId
 
-      val effectsValues =
-        QuickCache(leaf.effects.hash) {
-          DisplayEffects.fromEffects(leaf.effects)
+      val uniformData: List[DisplayObjectUniformData] =
+        shaderData.uniformBlocks.map { ub =>
+          DisplayObjectUniformData(
+            uniformHash = ub.uniformHash,
+            blockName = ub.blockName,
+            data = DisplayObjectConversions.packUBO(ub.uniforms)
+          )
         }
 
       QuickCache(lineHash) {
         zipWithCharDetails(line.text.toList, fontInfo).toList.map {
           case (fontChar, xPosition) =>
             val frameInfo =
-              QuickCache(fontChar.bounds.hash + "_" + fontInfo.fontSpriteSheet.material.hash) {
+              QuickCache(fontChar.bounds.hash + "_" + shaderData.hash) {
                 SpriteSheetFrame.calculateFrameOffset(
                   atlasSize = lookupAtlasSize(assetMapping, materialName),
                   frameCrop = fontChar.bounds,
@@ -411,20 +474,17 @@ final class DisplayObjectConversions(
                 leaf.moveBy(xPosition + alignmentOffsetX, yOffset),
                 Vector3(fontChar.bounds.width.toDouble, fontChar.bounds.height.toDouble, 1.0d)
               ),
-              z = leaf.depth.zIndex.toDouble,
+              rotation = leaf.rotation.value,
+              z = leaf.depth.value.toDouble,
               width = fontChar.bounds.width,
               height = fontChar.bounds.height,
-              atlasName = lookupAtlasName(assetMapping, materialName),
+              atlasName = Some(lookupAtlasName(assetMapping, materialName)),
               frame = frameInfo,
-              albedoAmount = albedoAmount,
-              emissiveOffset = frameInfo.offsetToCoords(emissiveOffset),
-              emissiveAmount = emissiveAmount.toFloat,
-              normalOffset = frameInfo.offsetToCoords(normalOffset),
-              normalAmount = normalAmount.toFloat,
-              specularOffset = frameInfo.offsetToCoords(specularOffset),
-              specularAmount = specularAmount.toFloat,
-              isLit = if (fontInfo.fontSpriteSheet.material.isLit) 1.0f else 0.0f,
-              effects = effectsValues
+              channelOffset1 = frameInfo.offsetToCoords(emissiveOffset),
+              channelOffset2 = frameInfo.offsetToCoords(normalOffset),
+              channelOffset3 = frameInfo.offsetToCoords(specularOffset),
+              shaderId = shaderId,
+              shaderUniformData = uniformData
             )
         }
       }
@@ -448,11 +508,19 @@ final class DisplayObjectConversions(
     rec(charList.map(c => (c, fontInfo.findByCharacter(c))), 0)
   }
 
+  def findAssetOffsetValues(assetMapping: AssetMapping, maybeAssetName: Option[AssetName], cacheKey: String, cacheSuffix: String): Vector2 =
+    QuickCache[Vector2](cacheKey + cacheSuffix) {
+      maybeAssetName
+        .map { t =>
+          lookupTextureOffset(assetMapping, t.value)
+        }
+        .getOrElse(Vector2.zero)
+    }
 }
 
 object DisplayObjectConversions {
 
-  def nodeToMatrix4(node: SceneGraphNode, size: Vector3): CheapMatrix4 =
+  def nodeToMatrix4(node: RenderNode, size: Vector3): CheapMatrix4 =
     CheapMatrix4.identity
       .scale(
         if (node.flip.horizontal) -1.0 else 1.0,
@@ -491,5 +559,52 @@ object DisplayObjectConversions {
         data.position.y.toDouble,
         0.0d
       )
+
+  private val empty0: Array[Float] = Array[Float]()
+  private val empty1: Array[Float] = Array[Float](0.0f)
+  private val empty2: Array[Float] = Array[Float](0.0f, 0.0f)
+  private val empty3: Array[Float] = Array[Float](0.0f, 0.0f, 0.0f)
+
+  def expandTo4(arr: Array[Float]): Array[Float] =
+    arr.length match {
+      case 0 => arr
+      case 1 => arr ++ empty3
+      case 2 => arr ++ empty2
+      case 3 => arr ++ empty1
+      case 4 => arr
+      case _ => arr
+    }
+
+  def packUBO(uniforms: List[(Uniform, ShaderPrimitive)]): Array[Float] = {
+    def rec(remaining: List[ShaderPrimitive], current: Array[Float], acc: Array[Float]): Array[Float] =
+      remaining match {
+        case Nil =>
+          // println(s"done, expanded: ${current.toList} to ${expandTo4(current).toList}")
+          // println(s"result: ${(acc ++ expandTo4(current)).toList}")
+          acc ++ expandTo4(current)
+
+        case us if current.length == 4 =>
+          // println(s"current full, sub-result: ${(acc ++ current).toList}")
+          rec(us, empty0, acc ++ current)
+
+        case u :: us if current.isEmpty && u.isArray =>
+          // println(s"Found an array, current is empty, set current to: ${u.toArray.toList}")
+          rec(us, u.toArray, acc)
+
+        case u :: _ if current.length + u.length > 4 =>
+          // println(s"doesn't fit, expanded: ${current.toList} to ${expandTo4(current).toList},  sub-result: ${(acc ++ expandTo4(current)).toList}")
+          rec(remaining, empty0, acc ++ expandTo4(current))
+
+        case u :: _ if u.isArray =>
+          // println(s"fits but next value is array, expanded: ${current.toList} to ${expandTo4(current).toList},  sub-result: ${(acc ++ expandTo4(current)).toList}")
+          rec(remaining, empty0, acc ++ current)
+
+        case u :: us =>
+          // println(s"fits, current is now: ${(current ++ u.toArray).toList}")
+          rec(us, current ++ u.toArray, acc)
+      }
+
+    rec(uniforms.map(_._2), empty0, empty0)
+  }
 
 }

@@ -11,6 +11,7 @@ import indigo.shared.dice.Dice
 import indigo.shared.assets.AssetName
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.time.Millis
+import indigo.shared.materials.Material
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.noValPatterns"))
 class AsepriteTests extends munit.FunSuite {
@@ -136,7 +137,6 @@ object AsepriteSampleData {
   val animation: Animation =
     Animation(
       animationKey,
-      Material.Textured(imageAssetRef),
       currentCycleLabel = CycleLabel("lights"),
       cycles = NonEmptyList(
         Cycle.create(
@@ -168,8 +168,8 @@ object AsepriteSampleData {
       scale = Vector2.one,
       animationKey = animationKey,
       ref = Point.zero,
-      effects = Effects.default,
-      (_: (Rectangle, GlobalEvent)) => Nil
+      (_: (Rectangle, GlobalEvent)) => Nil,
+      Material.Bitmap(imageAssetRef)
     )
 
 }

@@ -2,7 +2,7 @@
 // The essentials.
 //-----------------------------------
 
-val dottyVersion    = "3.0.0-M3"
+val scala3Version    = "3.0.0-RC2"
 
 lazy val pirate =
   (project in file("."))
@@ -13,11 +13,11 @@ lazy val pirate =
     .settings( // Standard SBT settings
       name := "pirate",
       version := "0.0.1",
-      scalaVersion := dottyVersion,
+      scalaVersion := scala3Version,
       organization := "pirate",
       libraryDependencies ++= Seq(
-        "org.scalameta" %%% "munit" % "0.7.20" % Test,
-        "org.scalacheck" %%% "scalacheck" % "1.15.2" % "test"
+        "org.scalameta" %%% "munit" % "0.7.23" % Test,
+        "org.scalacheck" %%% "scalacheck" % "1.15.3" % "test"
       ),
       testFrameworks += new TestFramework("munit.Framework"),
       // wartremoverWarnings in (Compile, compile) ++= Warts.unsafe,

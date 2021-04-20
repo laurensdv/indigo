@@ -3,7 +3,15 @@ package indigo.shared.formats
 import indigo.shared.EqualTo._
 import indigo.shared.animation.{Animation, Frame, AnimationKey}
 import indigo.shared.assets.AssetName
+<<<<<<< HEAD
 import indigo.shared.time.Millis
+=======
+import indigo.shared.scenegraph.Graphic
+import indigo.shared.materials.Material
+import indigo.shared.datatypes.Rectangle
+
+import scala.annotation.tailrec
+>>>>>>> master
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.datatypes.{BindingKey, Material, Point, Rectangle}
 import indigo.shared.scenegraph.{Graphic, Group, Renderable, Sprite}
@@ -153,6 +161,7 @@ object TiledMap {
   private def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
+<<<<<<< HEAD
       tiledMap.tilesets.flatMap {
         tileset =>
           tileset.tiles.map(tile => {
@@ -170,6 +179,32 @@ object TiledMap {
               }
             }
           })
+=======
+
+      val layers = tiledMap.layers.map { layer =>
+        val tilesInUse: Map[Int, Graphic] =
+          layer.data.toSet.foldLeft(Map.empty[Int, Graphic]) { (tiles, i) =>
+            tiles ++ Map(
+              i ->
+                Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
+                  .withCrop(
+                    Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
+                  )
+            )
+          }
+
+        Group(
+          layer.data.zipWithIndex.flatMap {
+            case (tileIndex, positionIndex) =>
+              if (tileIndex == 0) Nil
+              else
+                tilesInUse
+                  .get(tileIndex)
+                  .map(g => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize)))
+                  .getOrElse(Nil)
+          }
+        )
+>>>>>>> master
       }
     }
 

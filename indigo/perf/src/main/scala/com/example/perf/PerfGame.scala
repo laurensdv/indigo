@@ -46,13 +46,19 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
               antiAliasing = false,
               batchSize = 512,
               disableSkipModelUpdates = true,
-              disableSkipViewUpdates = true
+              disableSkipViewUpdates = true,
+              autoLoadStandardShaders = false
             )
           )
         )
         .withAssets(PerfAssets.assets)
-        .withFonts(PerfView.fontInfo)
-        .withSubSystems(FPSCounter(PerfView.fontKey, Point(10, 565), targetFPS))
+        .withFonts(Fonts.fontInfo)
+        .withSubSystems(FPSCounter(Fonts.fontKey, Point(10, 565), targetFPS, None, PerfAssets.fontMaterial))
+        .withShaders(
+          StandardShaders.Bitmap,
+          StandardShaders.ImageEffects,
+          StandardShaders.NormalBlend
+        )
     }
 
   def initialModel(startupData: Dude): Outcome[DudeModel] =
@@ -91,7 +97,7 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
     _ => Outcome(viewModel)
 
   def present(context: FrameContext[Dude], model: DudeModel, viewModel: Unit): Outcome[SceneUpdateFragment] =
-    Outcome(PerfView.updateView(model, context.inputState))
+    Outcome(PerfView.updateView(model))
 
 }
 

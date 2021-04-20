@@ -5,14 +5,19 @@ import org.scalajs.dom.raw
 import org.scalajs.dom.raw.WebGLRenderingContext._
 import org.scalajs.dom.raw.WebGLTexture
 import org.scalajs.dom.raw.WebGLProgram
-
-import indigo.shared.display.Shader
 import org.scalajs.dom.raw.WebGLRenderingContext
+import scala.scalajs.js.typedarray.Float32Array
+import org.scalajs.dom.raw.WebGLBuffer
+
+import indigo.shared.shader.RawShaderCode
+import indigo.facades.WebGL2RenderingContext
+import indigo.shared.scenegraph.BlendFactor
+import scala.scalajs.js.JSConverters._
 
 object WebGLHelper {
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf", "scalafix:DisableSyntax.throw"))
-  def shaderProgramSetup(gl: raw.WebGLRenderingContext, layerLabel: String, shader: Shader): WebGLProgram = {
+  def shaderProgramSetup(gl: raw.WebGLRenderingContext, layerLabel: String, shader: RawShaderCode): WebGLProgram = {
     //Create a vertex shader program object and compile it
     val vertShader = gl.createShader(VERTEX_SHADER)
     gl.shaderSource(vertShader, shader.vertex)
@@ -24,7 +29,7 @@ object WebGLHelper {
       IndigoLogger.info(s"$layerLabel vshader compiled: " + gl.getShaderParameter(vertShader, COMPILE_STATUS))
       IndigoLogger.error(gl.getShaderInfoLog(vertShader));
       gl.deleteShader(vertShader);
-      throw new Exception("Fatal: Vertex shader compile error")
+      throw new Exception(s"Fatal: Vertex shader compile error ($layerLabel)")
     }
 
     //Create a fragment shader program object and compile it
@@ -38,7 +43,7 @@ object WebGLHelper {
       IndigoLogger.info(s"$layerLabel fshader compiled: " + gl.getShaderParameter(fragShader, COMPILE_STATUS))
       IndigoLogger.error(gl.getShaderInfoLog(fragShader));
       gl.deleteShader(fragShader);
-      throw new Exception("Fatal: Fragment shader compile error")
+      throw new Exception(s"Fatal: Fragment shader compile error ($layerLabel)")
     }
 
     //Create and use combined shader program
@@ -52,8 +57,21 @@ object WebGLHelper {
     else {
       IndigoLogger.error(gl.getProgramInfoLog(shaderProgram));
       gl.deleteProgram(shaderProgram);
-      throw new Exception("Fatal: Shader program link error")
+      throw new Exception(s"Fatal: RawShaderCode program link error ($layerLabel)")
     }
+  }
+
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
+  def attachUBOData(gl2: WebGL2RenderingContext, data: Array[Float], buffer: WebGLBuffer): Unit = {
+    gl2.bindBuffer(gl2.UNIFORM_BUFFER, buffer)
+    gl2.bufferData(gl2.UNIFORM_BUFFER, (Math.ceil(data.length.toDouble / 16).toInt * 16) * Float32Array.BYTES_PER_ELEMENT, DYNAMIC_DRAW)
+    gl2.bufferSubData(gl2.UNIFORM_BUFFER, 0, new Float32Array(data.toJSArray))
+    gl2.bindBuffer(gl2.UNIFORM_BUFFER, null);
+  }
+
+  def bindUBO(gl2: WebGL2RenderingContext, activeShader: WebGLProgram, uboStructName: String, blockPointer: Int, buffer: WebGLBuffer): Unit = {
+    gl2.bindBufferBase(gl2.UNIFORM_BUFFER, blockPointer, buffer)
+    gl2.uniformBlockBinding(activeShader, gl2.getUniformBlockIndex(activeShader, uboStructName), blockPointer)
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
@@ -99,17 +117,53 @@ object WebGLHelper {
     gl.bindTexture(TEXTURE_2D, texture)
   }
 
+  // Blend Equations
+  def setBlendAdd(gl: raw.WebGLRenderingContext): Unit =
+    gl.blendEquation(FUNC_ADD)
+
+  def setBlendSubtract(gl: raw.WebGLRenderingContext): Unit =
+    gl.blendEquation(FUNC_SUBTRACT)
+
+  def setBlendReverseSubtract(gl: raw.WebGLRenderingContext): Unit =
+    gl.blendEquation(FUNC_REVERSE_SUBTRACT)
+
+  def setBlendMin(gl2: WebGL2RenderingContext): Unit =
+    gl2.blendEquation(gl2.MIN)
+  def setBlendDarken(gl2: WebGL2RenderingContext): Unit =
+    setBlendMin(gl2)
+
+  def setBlendMax(gl2: WebGL2RenderingContext): Unit =
+    gl2.blendEquation(gl2.MAX)
+  def setBlendLighten(gl2: WebGL2RenderingContext): Unit =
+    setBlendMax(gl2)
+
+  // Blend Modes
+  def setAlphaBlend(gl: raw.WebGLRenderingContext): Unit =
+    gl.blendFunc(SRC_ALPHA, DST_ALPHA)
+
   def setNormalBlend(gl: raw.WebGLRenderingContext): Unit =
-    gl.blendFuncSeparate(SRC_ALPHA, ONE_MINUS_SRC_ALPHA, ONE, ONE_MINUS_SRC_ALPHA)
-
-  def setLightingBlend(gl: raw.WebGLRenderingContext): Unit =
-    gl.blendFunc(SRC_ALPHA, DST_ALPHA)
-
-  def setDistortionBlend(gl: raw.WebGLRenderingContext): Unit =
-    gl.blendFunc(SRC_ALPHA, DST_ALPHA)
+    gl.blendFunc(ONE, ONE_MINUS_SRC_ALPHA)
 
   def setLightsBlend(gl: raw.WebGLRenderingContext): Unit =
     gl.blendFunc(SRC_ALPHA, ONE)
+
+  def convertBlendFactor(bf: BlendFactor): Int =
+    bf match {
+      case BlendFactor.Zero             => ZERO
+      case BlendFactor.One              => ONE
+      case BlendFactor.SrcColor         => SRC_COLOR
+      case BlendFactor.DstColor         => DST_COLOR
+      case BlendFactor.SrcAlpha         => SRC_ALPHA
+      case BlendFactor.DstAlpha         => DST_ALPHA
+      case BlendFactor.OneMinusSrcColor => ONE_MINUS_SRC_COLOR
+      case BlendFactor.OneMinusDstColor => ONE_MINUS_DST_COLOR
+      case BlendFactor.OneMinusSrcAlpha => ONE_MINUS_SRC_ALPHA
+      case BlendFactor.OneMinusDstAlpha => ONE_MINUS_DST_ALPHA
+      case BlendFactor.SrcAlphaSaturate => SRC_ALPHA_SATURATE
+    }
+
+  def setBlendFunc(gl: raw.WebGLRenderingContext, src: BlendFactor, dst: BlendFactor): Unit =
+    gl.blendFunc(convertBlendFactor(src), convertBlendFactor(dst))
 
   def organiseImage(gl: raw.WebGLRenderingContext, image: raw.ImageData): WebGLTexture = {
     val texture = createAndBindTexture(gl)
