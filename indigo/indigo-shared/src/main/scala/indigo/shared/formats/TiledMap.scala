@@ -3,18 +3,11 @@ package indigo.shared.formats
 import indigo.shared.EqualTo._
 import indigo.shared.animation.{Animation, Frame, AnimationKey}
 import indigo.shared.assets.AssetName
-<<<<<<< HEAD
 import indigo.shared.time.Millis
-=======
-import indigo.shared.scenegraph.Graphic
+import indigo.shared.collections._
 import indigo.shared.materials.Material
-import indigo.shared.datatypes.Rectangle
-
-import scala.annotation.tailrec
->>>>>>> master
-import indigo.shared.collections.NonEmptyList
-import indigo.shared.datatypes.{BindingKey, Material, Point, Rectangle}
-import indigo.shared.scenegraph.{Graphic, Group, Renderable, Sprite}
+import indigo.shared.datatypes.{BindingKey, Point, Rectangle}
+import indigo.shared.scenegraph.{Graphic, Group, RenderNode, Sprite}
 import scala.annotation.tailrec
 
 /*
@@ -75,8 +68,8 @@ final case class TiledMap(
     }
   }
 
-  def parseAnimations(assetName: AssetName): Option[Seq[Iterable[Animation]]] =
-    TiledMap.parseAnimations(this, assetName)
+  def parseAnimations(): Option[Seq[Iterable[Animation]]] =
+    TiledMap.parseAnimations(this)
 
   def parseObjects(): List[TiledMapObject] =
     TiledMap.parseObjects(this) 
@@ -158,10 +151,9 @@ object TiledMap {
       layer.objects.getOrElse(List[TiledMapObject]())
     }
 
-  private def parseAnimations(tiledMap: TiledMap, assetName: AssetName): Option[Seq[Iterable[Animation]]] =
+  private def parseAnimations(tiledMap: TiledMap): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Point = Point(tiledMap.tilewidth, tiledMap.tileheight)
-<<<<<<< HEAD
       tiledMap.tilesets.flatMap {
         tileset =>
           tileset.tiles.map(tile => {
@@ -172,39 +164,13 @@ object TiledMap {
                 }
                 Animation(
                   AnimationKey(tl.id.toString),
-                  Material.Textured(assetName),
                   frameOne = framesSeq.headOption.getOrElse(Frame(Rectangle(fromIndex(0, tileSheetColumnCount) * tileSize, tileSize), Millis(0))),
                   frames = framesSeq.drop(1): _*
                 )
               }
             }
           })
-=======
 
-      val layers = tiledMap.layers.map { layer =>
-        val tilesInUse: Map[Int, Graphic] =
-          layer.data.toSet.foldLeft(Map.empty[Int, Graphic]) { (tiles, i) =>
-            tiles ++ Map(
-              i ->
-                Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
-                  .withCrop(
-                    Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
-                  )
-            )
-          }
-
-        Group(
-          layer.data.zipWithIndex.flatMap {
-            case (tileIndex, positionIndex) =>
-              if (tileIndex == 0) Nil
-              else
-                tilesInUse
-                  .get(tileIndex)
-                  .map(g => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize)))
-                  .getOrElse(Nil)
-          }
-        )
->>>>>>> master
       }
     }
 
@@ -223,23 +189,23 @@ object TiledMap {
         }).flatten.toMap
 
         val layers = tiledMap.layers.filter(_.`type`==="tilelayer").map { layer =>
-          val tilesInUse: Map[Int, Renderable] =
-            layer.data.toSet.foldLeft(Map.empty[Int, Renderable]) { (tiles, i) =>
+          val tilesInUse: Map[Int, RenderNode] =
+            layer.data.toSet.foldLeft(Map.empty[Int, RenderNode]) { (tiles, i) =>
               tiles ++ Map(
                 i ->
                   {
                     if(animations.contains(i - 1)) {
                       if(animations(i - 1).nonEmpty) {
                         val key = AnimationKey((i - 1).toString)
-                        Sprite(BindingKey((i - 1).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key)
+                        Sprite(BindingKey((i - 1).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
                       } else {
-                        Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
+                        Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
                           .withCrop(
                             Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
                           )
                       }
                     } else {
-                      Graphic(Rectangle(Point.zero, tileSize), 1, Material.Textured(assetName))
+                      Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
                         .withCrop(
                           Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize, tileSize)
                         )
@@ -256,10 +222,10 @@ object TiledMap {
                 else
                   tilesInUse
                     .get(tileIndex)
-                    .map(g => g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize))
                     .map {
-                      case g:Sprite => List(g.play())
-                      case g:Renderable => List(g)
+                      case g:Sprite => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize).play())
+                      case g:Graphic => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize))
+                      case g:RenderNode => List(g)
                     }
                     .getOrElse(Nil)
             }
