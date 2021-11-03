@@ -7,11 +7,11 @@ import mill.scalajslib._
 import mill.scalajslib.api._
 import coursier.maven.MavenRepository
 
-import $ivy.`io.indigoengine::mill-indigo:0.7.1-SNAPSHOT`, millindigo._
+import $ivy.`io.indigoengine::mill-indigo:0.9.3-SNAPSHOT`, millindigo._
 
 object snake extends ScalaJSModule with MillIndigo {
-  def scalaVersion   = "3.0.0-RC2"
-  def scalaJSVersion = "1.5.1"
+  def scalaVersion   = "3.1.0"
+  def scalaJSVersion = "1.7.1"
 
   val gameAssetsDirectory: os.Path = os.pwd / "assets"
   val showCursor: Boolean          = true
@@ -35,7 +35,7 @@ object snake extends ScalaJSModule with MillIndigo {
     }
   }
 
-  val indigoVersion = "0.7.1-SNAPSHOT"
+  val indigoVersion = "0.9.3-SNAPSHOT"
 
   def ivyDeps = Agg(
     ivy"io.indigoengine::indigo-json-circe::$indigoVersion",
@@ -47,10 +47,10 @@ object snake extends ScalaJSModule with MillIndigo {
 
   object test extends Tests {
     def ivyDeps = Agg(
-      ivy"org.scalameta::munit::0.7.23"
+      ivy"org.scalameta::munit::0.7.26"
     )
 
-    def testFrameworks = Seq("munit.Framework")
+    def testFramework = "munit.Framework"
 
     override def moduleKind = T(mill.scalajslib.api.ModuleKind.CommonJSModule)
 
@@ -72,7 +72,8 @@ object ScalacOptions {
       "-language:higherKinds",         // Allow higher-kinded types
       "-language:implicitConversions", // Allow definition of implicit functions called views
       "-unchecked",                    // Enable additional warnings where generated code depends on assumptions.
-      "-Xfatal-warnings"               // Fail the compilation if there are any warnings.
+      "-Xfatal-warnings",              // Fail the compilation if there are any warnings.
+      "-language:strictEquality"       // Scala 3 - Multiversal Equality
     )
 
   lazy val test: Seq[String] =

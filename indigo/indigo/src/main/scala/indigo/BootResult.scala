@@ -1,8 +1,14 @@
 package indigo
 
-import indigo.shared.subsystems.SubSystem
 import indigo.shared.shader.Shader
+import indigo.shared.subsystems.SubSystem
 
+/** The game bootstrapping process results in a `BootResult`, which only occurs once on initial game load. The boot
+  * result decribes all of the initial values of your game such as it's configuration, data, animations, assets, fonts,
+  * subsystems, and shaders. You can add additional assets, animations, fonts, and shaders later during the setup
+  * process, so it is recommended that you only load the bare minimum needed to get your game going during the boot
+  * phase.
+  */
 final case class BootResult[A](
     gameConfig: GameConfig,
     bootData: A,
@@ -11,7 +17,7 @@ final case class BootResult[A](
     fonts: Set[FontInfo],
     subSystems: Set[SubSystem],
     shaders: Set[Shader]
-) {
+) derives CanEqual {
 
   def addAnimations(newAnimations: Set[Animation]): BootResult[A] =
     this.copy(animations = animations ++ newAnimations)

@@ -1,28 +1,29 @@
 package indigoextras.ui
 
-import indigo.shared.scenegraph.Text
-import indigo.shared.datatypes.Rectangle
-import indigo.shared.scenegraph.Graphic
-import indigo.shared.datatypes.FontKey
-import indigo.shared.materials.Material
-import indigo.shared.assets.AssetName
-import indigo.shared.FontRegister
-import indigo.shared.BoundaryLocator
-import indigo.shared.datatypes.FontChar
-import indigo.shared.datatypes.FontInfo
+import indigo.platform.assets.DynamicText
 import indigo.shared.AnimationsRegister
-import indigo.shared.time.GameTime
-import indigo.shared.datatypes.Point
-import indigo.shared.events.InputState
-import indigo.shared.dice.Dice
+import indigo.shared.BoundaryLocator
+import indigo.shared.FontRegister
 import indigo.shared.FrameContext
-import indigo.shared.input.Mouse
-import indigo.shared.input.Keyboard
-import indigo.shared.input.Gamepad
-import indigo.shared.events.KeyboardEvent
+import indigo.shared.assets.AssetName
 import indigo.shared.constants.Key
 import indigo.shared.datatypes.BindingKey
+import indigo.shared.datatypes.FontChar
+import indigo.shared.datatypes.FontInfo
+import indigo.shared.datatypes.FontKey
+import indigo.shared.datatypes.Point
+import indigo.shared.datatypes.Rectangle
+import indigo.shared.dice.Dice
 import indigo.shared.events.GlobalEvent
+import indigo.shared.events.InputState
+import indigo.shared.events.KeyboardEvent
+import indigo.shared.input.Gamepad
+import indigo.shared.input.Keyboard
+import indigo.shared.input.Mouse
+import indigo.shared.materials.Material
+import indigo.shared.scenegraph.Graphic
+import indigo.shared.scenegraph.Text
+import indigo.shared.time.GameTime
 
 class InputFieldTests extends munit.FunSuite {
 
@@ -40,7 +41,7 @@ class InputFieldTests extends munit.FunSuite {
   fontRegister.register(fontInfo)
 
   val boundaryLocator: BoundaryLocator =
-    new BoundaryLocator(new AnimationsRegister, fontRegister)
+    new BoundaryLocator(new AnimationsRegister, fontRegister, new DynamicText())
 
   val atCommaPosition =
     InputField("Hello, world!", assets).cursorHome.cursorRight.cursorRight.cursorRight.cursorRight.cursorRight
@@ -143,7 +144,7 @@ class InputFieldTests extends munit.FunSuite {
 
   test("Multi line boxes have bounds correctly caluculated") {
     val actual =
-      InputField("ab\nc", assets).moveTo(50, 50).bounds(boundaryLocator)
+      InputField("ab\nc", assets).moveTo(50, 50).bounds(boundaryLocator).get
 
     val expected =
       Rectangle(50, 50, 26, 36)
@@ -161,7 +162,7 @@ class InputFieldTests extends munit.FunSuite {
   def extractCursorPosition(field: InputField): Point =
     field
       .draw(GameTime.zero, boundaryLocator)
-      .collect { case g: Graphic => g }
+      .collect { case g: Graphic[_] => g }
       .head
       .position
 
@@ -271,7 +272,7 @@ class InputFieldTests extends munit.FunSuite {
       GameTime.zero,
       Dice.loaded(1),
       new InputState(Mouse.default, new Keyboard(keysUp, Nil, None), Gamepad.default),
-      new BoundaryLocator(new AnimationsRegister, new FontRegister),
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText),
       ()
     )
 

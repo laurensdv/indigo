@@ -1,28 +1,62 @@
 package indigoextras.subsystems
 
-import indigo.shared.subsystems.SubSystem
-import indigo.shared.datatypes.Point
-import indigo.shared.datatypes.FontKey
-import indigo.shared.time.Seconds
-import indigo.shared.events.GlobalEvent
-import indigo.shared.subsystems.SubSystemFrameContext
 import indigo.shared.Outcome
-import indigo.shared.scenegraph.SceneUpdateFragment
-import indigo.shared.datatypes.RGBA
-import indigo.shared.scenegraph.Text
-import indigo.shared.events.FrameTick
-import indigo.shared.scenegraph.Layer
 import indigo.shared.datatypes.BindingKey
-import indigo.shared.materials.Material
+import indigo.shared.datatypes.Fill
+import indigo.shared.datatypes.FontFamily
+import indigo.shared.datatypes.Pixels
+import indigo.shared.datatypes.Point
+import indigo.shared.datatypes.RGBA
+import indigo.shared.datatypes.Rectangle
+import indigo.shared.datatypes.Size
+import indigo.shared.events.FrameTick
+import indigo.shared.events.GlobalEvent
+import indigo.shared.scenegraph.Layer
+import indigo.shared.scenegraph.SceneUpdateFragment
+import indigo.shared.scenegraph.Shape
+import indigo.shared.scenegraph.TextBox
+import indigo.shared.subsystems.SubSystem
+import indigo.shared.subsystems.SubSystemFrameContext
+import indigo.shared.time.Seconds
 
 object FPSCounter {
 
-  def apply(fontKey: FontKey, position: Point, targetFPS: Int, layerKey: Option[BindingKey], material: Material.ImageEffects): SubSystem =
+  def apply(
+      position: Point,
+      targetFPS: Int,
+      layerKey: Option[BindingKey],
+      fontFamily: FontFamily,
+      fontSize: Pixels
+  ): SubSystem =
     SubSystem[GlobalEvent, FPSCounterState](
       _eventFilter = eventFilter,
       _initialModel = Outcome(FPSCounterState.default),
       _update = update(targetFPS),
-      _present = present(fontKey, position, targetFPS, layerKey, material)
+      _present = present(position, targetFPS, layerKey, fontFamily, fontSize)
+    )
+
+  def apply(position: Point, targetFPS: Int, layerKey: Option[BindingKey]): SubSystem =
+    SubSystem[GlobalEvent, FPSCounterState](
+      _eventFilter = eventFilter,
+      _initialModel = Outcome(FPSCounterState.default),
+      _update = update(targetFPS),
+      _present = present(position, targetFPS, layerKey, FontFamily.sansSerif, Pixels(12))
+    )
+
+  def apply(position: Point, targetFPS: Int, layerKey: BindingKey): SubSystem =
+    SubSystem[GlobalEvent, FPSCounterState](
+      _eventFilter = eventFilter,
+      _initialModel = Outcome(FPSCounterState.default),
+      _update = update(targetFPS),
+      _present = present(position, targetFPS, Option(layerKey), FontFamily.sansSerif, Pixels(12))
+    )
+
+  def apply(position: Point, targetFPS: Int): SubSystem =
+    SubSystem[GlobalEvent, FPSCounterState](
+      _eventFilter = eventFilter,
+      _initialModel = Outcome(FPSCounterState.default),
+      _update = update(targetFPS),
+      _present = present(position, targetFPS, None, FontFamily.sansSerif, Pixels(12))
     )
 
   lazy val eventFilter: GlobalEvent => Option[GlobalEvent] = {
@@ -49,28 +83,41 @@ object FPSCounter {
     }
 
   def present(
-      fontKey: FontKey,
       position: Point,
       targetFPS: Int,
       layerKey: Option[BindingKey],
-      material: Material.ImageEffects
+      fontFamily: FontFamily,
+      fontSize: Pixels
   ): (SubSystemFrameContext, FPSCounterState) => Outcome[SceneUpdateFragment] =
-    (_, model) => {
-      val text =
-        Text(
-          s"""FPS ${model.fps.toString}""",
-          position.x,
-          position.y,
-          1,
-          fontKey,
-          material.withTint(pickTint(targetFPS, model.fps))
-        )
+    (ctx, model) => {
+      val text: TextBox =
+        TextBox(s"""FPS ${model.fps.toString}""")
+          .withFontFamily(fontFamily)
+          .withColor(pickTint(targetFPS, model.fps))
+          .withFontSize(fontSize)
+          .moveTo(position + 2)
+
+      val size: Rectangle =
+        ctx.boundaryLocator
+          .measureText(text)
+
+      val boxSize =
+        ({ (s: Size) =>
+          Size(
+            if s.width  % 2 == 0 then s.width else s.width + 1,
+            if s.height % 2 == 0 then s.height else s.height + 1
+          )
+        })(size.expand(2).size)
+
+      val bg: Shape.Box =
+        Shape
+          .Box(Rectangle(position, boxSize), Fill.Color(RGBA.Black.withAlpha(0.5)))
 
       Outcome(
         SceneUpdateFragment(
           layerKey match {
-            case None      => Layer(text)
-            case Some(key) => Layer(key, text)
+            case None      => Layer(bg, text.withSize(size.size))
+            case Some(key) => Layer(key, bg, text.withSize(size.size))
           }
         )
       )

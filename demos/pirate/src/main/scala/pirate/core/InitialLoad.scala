@@ -84,8 +84,7 @@ object InitialLoad {
         flag        <- loader(Assets.Flag.jsonRef, Assets.Flag.ref, Depth(10)).toOption
         terrain     <- terrainData
       } yield makeAdditionalAssets(screenDimensions, helm, palm, reflections, flag, terrain._1, terrain._2, terrain._3)
-    } else
-      None
+    } else None
   }
 
   // Helper function that loads Aseprite animations.
@@ -93,6 +92,8 @@ object InitialLoad {
       assetCollection: AssetCollection,
       dice: Dice
   )(jsonRef: AssetName, name: AssetName, depth: Depth): Either[String, SpriteAndAnimations] = {
+    given CanEqual[Option[SpriteAndAnimations], Option[SpriteAndAnimations]] = CanEqual.derived
+
     val res = for {
       json                <- assetCollection.findTextDataByName(jsonRef)
       aseprite            <- Json.asepriteFromJson(json)
@@ -104,7 +105,7 @@ object InitialLoad {
         Right(spriteAndAnimations)
 
       case None =>
-        Left("Failed to load " + name.value)
+        Left("Failed to load " + name)
     }
   }
 
@@ -141,12 +142,7 @@ object InitialLoad {
       .Success(
         StartupData(
           captain.sprite
-            .withMaterial {
-              captain.sprite.material match {
-                case m: Material.ImageEffects => m
-                case m: Material.Bitmap       => Material.ImageEffects(m.diffuse)
-              }
-            }
+            .modifyMaterial(m => Material.ImageEffects(m.diffuse))
             .withRef(37, 64)
             .moveTo(300, 271),
           levelDataStore.map(_._1)
@@ -158,26 +154,23 @@ object InitialLoad {
 }
 
 final case class StartupData(
-    captain: Sprite,
+    captain: Sprite[Material.ImageEffects],
     levelDataStore: Option[LevelDataStore]
 )
 final case class LevelDataStore(
-    waterReflections: Sprite,
-    flag: Sprite,
-    helm: Sprite,
-    palm: Sprite,
+    waterReflections: Sprite[Material.Bitmap],
+    flag: Sprite[Material.Bitmap],
+    helm: Sprite[Material.Bitmap],
+    palm: Sprite[Material.Bitmap],
     tileSize: Point,
     terrainMap: TiledGridMap[TileType],
     terrain: Group
 ) {
-  val backTallPalm: Sprite =
+  val backTallPalm: Sprite[Material.Bitmap] =
     palm
       .withBindingKey(BindingKey("Back Tall Palm"))
       .withDepth(Depth(10))
 }
 
-sealed trait TileType
-object TileType {
-  case object Empty extends TileType
-  case object Solid extends TileType
-}
+enum TileType derives CanEqual:
+  case Empty, Solid

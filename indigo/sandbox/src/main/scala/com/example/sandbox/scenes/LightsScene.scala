@@ -1,11 +1,11 @@
 package com.example.sandbox.scenes
 
+import com.example.sandbox.SandboxAssets
+import com.example.sandbox.SandboxGameModel
+import com.example.sandbox.SandboxStartupData
+import com.example.sandbox.SandboxViewModel
 import indigo._
 import indigo.scenes._
-import com.example.sandbox.SandboxStartupData
-import com.example.sandbox.SandboxGameModel
-import com.example.sandbox.SandboxViewModel
-import com.example.sandbox.SandboxAssets
 
 object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
@@ -33,11 +33,11 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
   def updateViewModel(context: FrameContext[SandboxStartupData], model: SandboxGameModel, viewModel: SandboxViewModel): GlobalEvent => Outcome[SandboxViewModel] =
     _ => Outcome(viewModel)
 
-  val graphic: Graphic =
+  val graphic: Graphic[Material.Bitmap] =
     Graphic(Rectangle(0, 0, 40, 40), 1, LightingAssets.junctionBoxMaterialOn)
       .withRef(20, 20)
 
-  val grid: List[Graphic] = {
+  val grid: List[Graphic[Material.Bitmap]] = {
     val rows    = 4
     val columns = 6
     val offset  = Point(0)
@@ -106,7 +106,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
             .withIntensity(1)
             .moveTo(
               Signal
-                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.value / 3))
+                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.toDouble / 3))
                 .affectTime(0.1)
                 .at(context.running)
                 .toPoint
@@ -118,7 +118,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
             .withIntensity(1)
             .moveTo(
               Signal
-                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.value / 3 * 2))
+                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.toDouble / 3 * 2))
                 .affectTime(0.1)
                 .at(context.running)
                 .toPoint

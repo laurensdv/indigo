@@ -1,17 +1,18 @@
 package indigoextras.subsystems
 
-import indigo.shared.scenegraph.Graphic
-import indigo.shared.events.GlobalEvent
-import indigo.shared.dice.Dice
-import indigo.shared.datatypes.Point
 import indigo.shared.assets.AssetName
-import indigo.shared.materials.Material
-import indigo.shared.time.Seconds
-import indigo.shared.scenegraph.SceneNode
-import indigo.shared.temporal.{Signal, SignalReader}
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.datatypes.BindingKey
+import indigo.shared.datatypes.Point
+import indigo.shared.dice.Dice
+import indigo.shared.events.GlobalEvent
+import indigo.shared.materials.Material
+import indigo.shared.scenegraph.Graphic
 import indigo.shared.scenegraph.RenderNode
+import indigo.shared.scenegraph.SceneNode
+import indigo.shared.temporal.Signal
+import indigo.shared.temporal.SignalReader
+import indigo.shared.time.Seconds
 
 class AutomataTests extends munit.FunSuite {
 
@@ -79,7 +80,7 @@ class AutomataTests extends munit.FunSuite {
     assertEquals(makePosition(seed).at(Seconds(1)), Point(0, -30))
 
     // Test the automaton
-    def drawAt(time: Seconds): Graphic = {
+    def drawAt(time: Seconds): Graphic[_] = {
       val ctx = context(1, time, time)
 
       val nextState =
@@ -94,7 +95,7 @@ class AutomataTests extends munit.FunSuite {
         .find(l => l.key.contains(layerKey))
         .get
         .nodes
-        .collect { case g: Graphic => g }
+        .collect { case g: Graphic[_] => g }
         .head
     }
 
@@ -201,20 +202,19 @@ class AutomataTests extends munit.FunSuite {
         }
 
     val signal: SignalReader[(AutomatonSeedValues, SceneNode), AutomatonUpdate] =
-      SignalReader {
-        case (seed, sceneGraphNode) =>
-          makePosition(seed).map { position =>
-            AutomatonUpdate(
-              sceneGraphNode match {
-                case g: Graphic =>
-                  List(g.moveTo(position))
+      SignalReader { case (seed, sceneGraphNode) =>
+        makePosition(seed).map { position =>
+          AutomatonUpdate(
+            sceneGraphNode match {
+              case g: Graphic[_] =>
+                List(g.moveTo(position))
 
-                case _ =>
-                  Nil
-              },
-              Nil
-            )
-          }
+              case _ =>
+                Nil
+            },
+            Nil
+          )
+        }
       }
 
   }

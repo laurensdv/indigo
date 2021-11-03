@@ -13,17 +13,15 @@ class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule
 
   def scalaVersion =
     crossScalaVersion match {
-      case "2.12" => "2.12.10"
-      case "2.13" => "2.13.5"
-      case _  => "2.13.5"
+      case "2.12" => "2.12.15"
+      case "2.13" => "2.13.6"
+      case _  => "2.13.6"
     }
 
   def artifactName = "indigo-plugin"
 
   def ivyDeps =
-    Agg(
-      ivy"com.lihaoyi::os-lib:0.7.4"
-    )
+    Agg(ivy"com.lihaoyi::os-lib:0.7.8")
 
   def repositories =
     super.repositories ++ Seq(
@@ -36,10 +34,10 @@ class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule
   object test extends Tests {
     def ivyDeps =
       Agg(
-        ivy"org.scalameta::munit:0.7.23"
+        ivy"org.scalameta::munit:0.7.29"
       )
 
-    def testFrameworks = Seq("munit.Framework")
+    def testFramework = "munit.Framework"
 
     def scalacOptions = ScalacOptions.scala213Test
   }

@@ -1,15 +1,16 @@
 package indigoextras.jobs
 
+import indigo.platform.assets.DynamicText
 import indigo.shared.AnimationsRegister
+import indigo.shared.BoundaryLocator
 import indigo.shared.FontRegister
+import indigo.shared.datatypes.BindingKey
+import indigo.shared.dice.Dice
+import indigo.shared.events.FrameTick
+import indigo.shared.events.InputState
+import indigo.shared.scenegraph.SceneAudio
 import indigo.shared.subsystems.SubSystemFrameContext
 import indigo.shared.time.GameTime
-import indigo.shared.dice.Dice
-import indigo.shared.events.InputState
-import indigo.shared.BoundaryLocator
-import indigo.shared.datatypes.BindingKey
-import indigo.shared.events.FrameTick
-import indigo.shared.scenegraph.SceneAudio
 
 class JobMarketTests extends munit.FunSuite {
 
@@ -18,7 +19,7 @@ class JobMarketTests extends munit.FunSuite {
       GameTime.zero,
       Dice.loaded(6),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister)
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText)
     )
 
   val workContext =
@@ -65,9 +66,9 @@ class JobMarketTests extends munit.FunSuite {
     val job: Job          = SampleJobs.CantHave()
     val market: JobMarket = JobMarket(List(job))
 
-    val report = market.availableJobs.map(_.jobName.value).mkString(",")
+    val report = market.availableJobs.map(_.jobName.toString).mkString(",")
 
-    assertEquals(report.contains(job.jobName.value), true)
+    assertEquals(report.contains(job.jobName.toString), true)
   }
 
   test("The job market.should not render anything") {

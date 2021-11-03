@@ -53,11 +53,12 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
         )
         .withAssets(PerfAssets.assets)
         .withFonts(Fonts.fontInfo)
-        .withSubSystems(FPSCounter(Fonts.fontKey, Point(10, 565), targetFPS, None, PerfAssets.fontMaterial))
+        .withSubSystems(FPSCounter(Point(10, 565), targetFPS, None))
         .withShaders(
           StandardShaders.Bitmap,
           StandardShaders.ImageEffects,
-          StandardShaders.NormalBlend
+          StandardShaders.NormalBlend,
+          StandardShaders.ShapeBox
         )
     }
 
@@ -75,14 +76,17 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
             aseprite,
             spriteAndAnimations.sprite
               .withDepth(Depth(3))
-              .withRef(16, 16)                                                                         // Initial offset, so when talk about his position it's the center of the sprite
-              .moveTo(viewportWidth / 2 / magnificationLevel, viewportHeight / 2 / magnificationLevel) // Also place him in the middle of the screen initially
+              .withRef(16, 16) // Initial offset, so when talk about his position it's the center of the sprite
+              .moveTo(
+                viewportWidth / 2 / magnificationLevel,
+                viewportHeight / 2 / magnificationLevel
+              ) // Also place him in the middle of the screen initially
           )
         )
         .addAnimations(spriteAndAnimations.animations)
 
     val res: Option[Startup.Success[Dude]] = for {
-      json                <- assetCollection.findTextDataByName(AssetName(PerfAssets.dudeName.value + "-json"))
+      json                <- assetCollection.findTextDataByName(AssetName(PerfAssets.dudeName.toString + "-json"))
       aseprite            <- Json.asepriteFromJson(json)
       spriteAndAnimations <- aseprite.toSpriteAndAnimations(dice, PerfAssets.dudeName)
     } yield makeStartupData(aseprite, spriteAndAnimations)
@@ -101,4 +105,4 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
 
 }
 
-final case class Dude(aseprite: Aseprite, sprite: Sprite)
+final case class Dude(aseprite: Aseprite, sprite: Sprite[_])

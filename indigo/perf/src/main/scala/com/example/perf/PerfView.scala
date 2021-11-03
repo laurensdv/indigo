@@ -2,8 +2,8 @@ package com.example.perf
 
 import indigo._
 
-import scala.util.Random
 import scala.annotation.tailrec
+import scala.util.Random
 
 object PerfView {
 
@@ -19,8 +19,8 @@ object PerfView {
         CloneBlank(cloneId, model.dude.sprite)
       )
 
-  private val herdCount: Int = 19999
-  private val cloneBatchSize: Int = 32
+  private val herdCount: Int      = 150_000 - 1
+  private val cloneBatchSize: Int = 2048
 
   private val positions: List[Point] =
     (1 to herdCount).toList.map { _ =>
@@ -36,18 +36,21 @@ object PerfView {
 
         case rs =>
           val (l, r) = rs.splitAt(batchSize)
-          rec(
-            r,
-            batchSize,
-            batchNumber + 1,
-            CloneBatch(
-              cloneId,
-              Depth(1),
-              CloneTransformData.identity,
-              l.map(CloneTransformData.startAt),
-              Some(BindingKey("herd" + batchNumber.toString))
-            ) :: acc
-          )
+
+          l match
+            case Nil =>
+              rec(r, batchSize, batchNumber + 1, acc)
+
+            case p :: ps =>
+              rec(
+                r,
+                batchSize,
+                batchNumber + 1,
+                CloneBatch(
+                  cloneId,
+                  ps.map(p => CloneBatchData(p.x, p.y)).toArray
+                ).withStaticBatchKey(BindingKey("herd" + batchNumber.toString)) :: acc
+              )
       }
 
     rec(positions, cloneBatchSize, 0, Nil)
@@ -85,7 +88,14 @@ object PerfView {
 
   val uiLayer: List[SceneNode] =
     List(
-      Text((herdCount + 1).toString + " Naked dudes!", PerfGame.viewportWidth / 2, 40, 5, Fonts.fontKey, PerfAssets.fontMaterial).alignCenter,
+      Text(
+        (herdCount + 1).toString + " Naked dudes!",
+        PerfGame.viewportWidth / 2,
+        40,
+        5,
+        Fonts.fontKey,
+        PerfAssets.fontMaterial
+      ).alignCenter,
       Text("Thundering Herd!", PerfGame.viewportWidth / 2, 10, 5, Fonts.fontKey, PerfAssets.fontMaterial).alignCenter
     )
 

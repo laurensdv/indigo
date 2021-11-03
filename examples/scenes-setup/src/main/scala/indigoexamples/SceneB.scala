@@ -30,7 +30,7 @@ object SceneB extends Scene[StartUpData, GameModel, Unit] {
   // Nothing to do
   def updateModel(context: FrameContext[StartUpData], sceneModel: MessageB): GlobalEvent => Outcome[MessageB] = {
     case SceneEvent.SceneChange(from, to, at) =>
-      println(s"B: Changed scene from '${from.name}' to '${to.name}' at running time: ${at.value}")
+      println(s"B: Changed scene from '${from}' to '${to}' at running time: ${at}")
       Outcome(sceneModel)
 
     case _ =>
@@ -48,7 +48,7 @@ object SceneB extends Scene[StartUpData, GameModel, Unit] {
       if (context.inputState.mouse.wasMouseClickedWithin(Rectangle(0, 0, 550, 400))) List(SceneEvent.JumpTo(SceneA.name))
       else Nil
 
-    val text: Text = Text(sceneModel.value, 20, 20, 1, FontStuff.fontKey, FontStuff.fontMaterial)
+    val text: Text[_] = Text(sceneModel.value, 20, 20, 1, FontStuff.fontKey, FontStuff.fontMaterial)
     Outcome(
       SceneUpdateFragment(text)
     ).addGlobalEvents(events)

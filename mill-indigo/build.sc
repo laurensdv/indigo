@@ -10,17 +10,17 @@ class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule
 
   def scalaVersion =
     crossScalaVersion match {
-      case _ => "2.13.5"
+      case _ => "2.13.6"
     }
 
-  def millLibVersion = "0.9.6"
+  def millLibVersion = "0.9.9"
 
   def ivyDeps = Agg(
     ivy"com.lihaoyi::mill-main:${millLibVersion}",
     ivy"com.lihaoyi::mill-main-api:${millLibVersion}",
     ivy"com.lihaoyi::mill-scalalib:${millLibVersion}",
     ivy"com.lihaoyi::mill-scalalib-api:${millLibVersion}",
-    ivy"com.lihaoyi::os-lib:0.7.4",
+    ivy"com.lihaoyi::os-lib:0.7.8",
     ivy"io.indigoengine::indigo-plugin:${IndigoVersion.getVersion}"
   )
 
@@ -29,9 +29,9 @@ class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule
   )
 
   object test extends Tests {
-    def ivyDeps = Agg(ivy"org.scalameta::munit:0.7.23")
+    def ivyDeps = Agg(ivy"org.scalameta::munit:0.7.29")
 
-    def testFrameworks = Seq("munit.Framework")
+    def testFramework = "munit.Framework"
   }
 
   def publishVersion = IndigoVersion.getVersion

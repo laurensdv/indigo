@@ -1,12 +1,13 @@
 package indigo.scenes
 
+import indigo.platform.assets.DynamicText
+import indigo.shared.AnimationsRegister
+import indigo.shared.BoundaryLocator
+import indigo.shared.FontRegister
 import indigo.shared.FrameContext
-import indigo.shared.time.GameTime
 import indigo.shared.dice.Dice
 import indigo.shared.events.InputState
-import indigo.shared.BoundaryLocator
-import indigo.shared.AnimationsRegister
-import indigo.shared.FontRegister
+import indigo.shared.time.GameTime
 import indigo.shared.time.Seconds
 
 object FakeFrameContext {
@@ -16,7 +17,7 @@ object FakeFrameContext {
       GameTime.zero,
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister),
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText),
       ()
     )
 
@@ -25,7 +26,7 @@ object FakeFrameContext {
       GameTime.is(time),
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister),
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText),
       ()
     )
 
@@ -34,7 +35,7 @@ object FakeFrameContext {
       GameTime.withDelta(time, delta),
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister),
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText),
       ()
     )
 

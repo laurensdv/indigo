@@ -1,26 +1,27 @@
 package indigo.entry
 
-import indigo.shared.time.GameTime
-import indigo.shared.events.InputState
-import indigo.shared.dice.Dice
-import indigo.shared.events.GlobalEvent
-import indigo.shared.Outcome
-import indigo.shared.scenegraph.SceneUpdateFragment
-import indigo.shared.BoundaryLocator
+import indigo.platform.assets.DynamicText
 import indigo.shared.AnimationsRegister
+import indigo.shared.BoundaryLocator
 import indigo.shared.FontRegister
 import indigo.shared.FrameContext
-import indigo.shared.events.EventFilters
-import indigo.shared.subsystems.SubSystemsRegister
-import indigo.shared.materials.BlendMaterial
+import indigo.shared.Outcome
 import indigo.shared.datatypes.RGBA
+import indigo.shared.dice.Dice
+import indigo.shared.events.EventFilters
+import indigo.shared.events.GlobalEvent
+import indigo.shared.events.InputState
+import indigo.shared.materials.BlendMaterial
+import indigo.shared.scenegraph.SceneUpdateFragment
+import indigo.shared.subsystems.SubSystemsRegister
+import indigo.shared.time.GameTime
 
 class StandardFrameProcessorTests extends munit.FunSuite {
 
   import TestFixtures._
 
   val boundaryLocator: BoundaryLocator =
-    new BoundaryLocator(new AnimationsRegister, new FontRegister)
+    new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText)
 
   test("standard frame processor") {
 

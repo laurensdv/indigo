@@ -1,12 +1,8 @@
 lazy val releaseProjects: List[String] =
   List(
-    "indigoShared",
-    "indigoJsonCirce",
-    "indigoPlatforms",
-    "indigoCore",
-    "indigoExtras",
     "indigo",
-    "indigoFacades"
+    "indigoJsonCirce",
+    "indigoExtras"
   )
 
 lazy val coreProjects: List[String] =
@@ -135,6 +131,15 @@ addCommandAlias(
     "buildAllNoClean",
     "sandbox/fastOptJS",
     "sandbox/indigoBuild"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "sandboxBuildFull",
+  List(
+    "buildAllNoClean",
+    "sandbox/fullOptJS",
+    "sandbox/indigoBuildFull"
   ).mkString(";", ";", "")
 )
 

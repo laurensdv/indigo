@@ -1,7 +1,7 @@
 import scala.sys.process._
 import scala.language.postfixOps
 
-val scala3Version    = "3.0.0-RC2"
+val scala3Version    = "3.1.0"
 val scala213Version = "2.13.5"
 
 lazy val commonSettings = Seq(
@@ -9,10 +9,11 @@ lazy val commonSettings = Seq(
   scalaVersion := scala3Version,
   organization := "indigo-examples",
   libraryDependencies ++= Seq(
-    "org.scalameta"   %%% "munit"         % "0.7.23" % Test,
+    "org.scalameta"   %%% "munit"         % "0.7.26" % Test,
     "io.indigoengine" %%% "indigo"        % IndigoVersion.getVersion,
     "io.indigoengine" %%% "indigo-extras" % IndigoVersion.getVersion
   ),
+  scalacOptions ++= Seq("-language:strictEquality"),
   testFrameworks += new TestFramework("munit.Framework"),
   Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
 )
@@ -28,6 +29,19 @@ lazy val basicSetup =
       name := "basic-setup",
       showCursor := true,
       title := "Basic Setup",
+      gameAssetsDirectory := "assets"
+    )
+
+lazy val blending =
+  project
+    .in(file("blending"))
+    .settings(commonSettings: _*)
+    .enablePlugins(SbtIndigo)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "blending-example",
+      showCursor := true,
+      title := "Blending example",
       gameAssetsDirectory := "assets"
     )
 
@@ -321,6 +335,21 @@ lazy val jobs =
       windowStartHeight := 400
     )
 
+lazy val confetti =
+  project
+    .in(file("confetti"))
+    .settings(commonSettings: _*)
+    .enablePlugins(SbtIndigo)
+    .enablePlugins(ScalaJSPlugin)
+    .settings(
+      name := "confetti",
+      showCursor := true,
+      title := "Confetti",
+      gameAssetsDirectory := "assets",
+      windowStartWidth := 640,
+      windowStartHeight := 480
+    )
+
 lazy val inputmapper =
   project
     .in(file("inputmapper"))
@@ -352,3 +381,13 @@ lazy val errors =
       windowStartWidth := 800,
       windowStartHeight := 800
     )
+
+// Root
+lazy val examplesProject =
+  (project in file("."))
+    .settings(
+      code := { "code ." ! }
+    )
+
+lazy val code =
+  taskKey[Unit]("Launch VSCode in the current directory")

@@ -1,10 +1,11 @@
 package indigoextras.jobs
 
-import indigo.shared.time.GameTime
-import indigo.shared.events.{FrameTick, GlobalEvent}
-import indigo.shared.datatypes.BindingKey
 import indigo.shared.Outcome
+import indigo.shared.datatypes.BindingKey
 import indigo.shared.dice.Dice
+import indigo.shared.events.FrameTick
+import indigo.shared.events.GlobalEvent
+import indigo.shared.time.GameTime
 
 /**
   * Represents an Actor's work schedule
@@ -12,7 +13,7 @@ import indigo.shared.dice.Dice
   * @param id
   * @param jobStack
   */
-final case class WorkSchedule[Actor, Context](val id: BindingKey, val worker: Worker[Actor, Context], val jobStack: List[Job]) {
+final case class WorkSchedule[Actor, Context](val id: BindingKey, val worker: Worker[Actor, Context], val jobStack: List[Job]) derives CanEqual {
 
   /**
     * Give the job currently being worked on
@@ -138,4 +139,4 @@ object WorkSchedule {
   * @param workSchedule The updated work schedule.
   * @param actor The updated actor.
   */
-final case class WorkProgressReport[Actor, Context](workSchedule: WorkSchedule[Actor, Context], actor: Actor)
+final case class WorkProgressReport[Actor, Context](workSchedule: WorkSchedule[Actor, Context], actor: Actor) derives CanEqual

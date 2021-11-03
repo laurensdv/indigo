@@ -1,8 +1,8 @@
 package indigoextras.jobs
 
-import indigo.shared.time.GameTime
 import indigo.shared.Outcome
 import indigo.shared.dice.Dice
+import indigo.shared.time.GameTime
 
 /**
   * Represents a Worker for a given Actor
@@ -100,4 +100,4 @@ final case class WorkContext[Actor, Context](
     dice: Dice,
     actor: Actor,
     context: Context
-)
+) derives CanEqual

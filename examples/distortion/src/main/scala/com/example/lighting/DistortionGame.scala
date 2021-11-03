@@ -54,24 +54,24 @@ object DistortionGame extends IndigoSandbox[Unit, Unit] {
   def updateModel(context: FrameContext[Unit], model: Unit): GlobalEvent => Outcome[Unit] =
     _ => Outcome(())
 
-  val graphic: Graphic =
+  val graphic: Graphic[Material.Bitmap] =
     Graphic(Rectangle(0, 0, 64, 64), 1, DistortionAssets.junctionBoxMaterial)
       .withRef(20, 20)
       .moveTo(viewCenter)
 
-  val imageLight: Graphic =
+  val imageLight: Graphic[Material.Bitmap] =
     Graphic(Rectangle(0, 0, 320, 240), 1, DistortionAssets.imageLightMaterial)
       .moveBy(-14, -60)
 
-  val distortion: Graphic =
+  val distortion: Graphic[RefractionEntity] =
     Graphic(Rectangle(0, 0, 240, 240), 1, DistortionAssets.normalMapMaterial)
       .scaleBy(0.5, 0.5)
       .withRef(120, 120)
 
-  val background: Graphic =
+  val background: Graphic[Material.Bitmap] =
     Graphic(Rectangle(0, 0, 790, 380), 1, DistortionAssets.foliageMaterial)
 
-  def sliding: Signal[Graphic] =
+  def sliding: Signal[Graphic[_]] =
     Signal.SmoothPulse.map { d =>
       distortion.moveTo(Point(70, 70 + (50 * d).toInt))
     }
@@ -129,13 +129,13 @@ object DistortionAssets {
   def assets: Set[AssetType] =
     Set(
       AssetType.Tagged("atlas1")(
-        AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo.value + ".png")),
-        AssetType.Image(junctionBoxEmission.assetName, AssetPath("assets/" + junctionBoxEmission.assetName.value + ".png")),
-        AssetType.Image(junctionBoxNormal.assetName, AssetPath("assets/" + junctionBoxNormal.assetName.value + ".png")),
-        AssetType.Image(junctionBoxSpecular.assetName, AssetPath("assets/" + junctionBoxSpecular.assetName.value + ".png")),
-        AssetType.Image(imageLightName, AssetPath("assets/" + imageLightName.value + ".png")),
-        AssetType.Image(foliageName, AssetPath("assets/" + foliageName.value + ".png")),
-        AssetType.Image(normalName, AssetPath("assets/" + normalName.value + ".png"))
+        AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo + ".png")),
+        AssetType.Image(junctionBoxEmission.assetName, AssetPath("assets/" + junctionBoxEmission.assetName + ".png")),
+        AssetType.Image(junctionBoxNormal.assetName, AssetPath("assets/" + junctionBoxNormal.assetName + ".png")),
+        AssetType.Image(junctionBoxSpecular.assetName, AssetPath("assets/" + junctionBoxSpecular.assetName + ".png")),
+        AssetType.Image(imageLightName, AssetPath("assets/" + imageLightName + ".png")),
+        AssetType.Image(foliageName, AssetPath("assets/" + foliageName + ".png")),
+        AssetType.Image(normalName, AssetPath("assets/" + normalName + ".png"))
       )
     )
 

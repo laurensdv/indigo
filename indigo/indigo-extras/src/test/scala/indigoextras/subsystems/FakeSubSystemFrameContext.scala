@@ -1,12 +1,13 @@
 package indigoextras.subsystems
 
-import indigo.shared.subsystems.SubSystemFrameContext
-import indigo.shared.time.GameTime
+import indigo.platform.assets.DynamicText
+import indigo.shared.AnimationsRegister
+import indigo.shared.BoundaryLocator
+import indigo.shared.FontRegister
 import indigo.shared.dice.Dice
 import indigo.shared.events.InputState
-import indigo.shared.BoundaryLocator
-import indigo.shared.AnimationsRegister
-import indigo.shared.FontRegister
+import indigo.shared.subsystems.SubSystemFrameContext
+import indigo.shared.time.GameTime
 import indigo.shared.time.Seconds
 
 object FakeSubSystemFrameContext {
@@ -16,7 +17,7 @@ object FakeSubSystemFrameContext {
       GameTime.zero,
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister)
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText)
     )
 
   def context(sides: Int, time: Seconds): SubSystemFrameContext = 
@@ -24,7 +25,7 @@ object FakeSubSystemFrameContext {
       GameTime.is(time),
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister)
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText)
     )
 
   def context(sides: Int, time: Seconds, delta: Seconds): SubSystemFrameContext = 
@@ -32,7 +33,7 @@ object FakeSubSystemFrameContext {
       GameTime.withDelta(time, delta),
       Dice.loaded(sides),
       InputState.default,
-      new BoundaryLocator(new AnimationsRegister, new FontRegister)
+      new BoundaryLocator(new AnimationsRegister, new FontRegister, new DynamicText)
     )
 
 }

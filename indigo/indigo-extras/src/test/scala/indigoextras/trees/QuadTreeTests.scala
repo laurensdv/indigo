@@ -1,7 +1,10 @@
 package indigoextras.trees
 
-import indigoextras.geometry.{Vertex, BoundingBox}
-import indigoextras.trees.QuadTree.{QuadBranch, QuadEmpty, QuadLeaf}
+import indigoextras.geometry.BoundingBox
+import indigoextras.geometry.Vertex
+import indigoextras.trees.QuadTree.QuadBranch
+import indigoextras.trees.QuadTree.QuadEmpty
+import indigoextras.trees.QuadTree.QuadLeaf
 
 class QuadTreeTests extends munit.FunSuite {
 
@@ -40,6 +43,8 @@ class QuadTreeTests extends munit.FunSuite {
     .insertElement("d", Vertex(20, 50))
 
   test("should be able insert multiple items") {
+    given CanEqual[Option[String], Option[String]] = CanEqual.derived
+
     val actual =
       QuadTree(
         ("a", Vertex(9, 2)),
@@ -102,6 +107,42 @@ class QuadTreeTests extends munit.FunSuite {
 
   }
 
+  test("toList") {
+
+    val actual: List[String] = QuadTree
+      .empty(2, 2)
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(0, 1))
+      .insertElement("c", Vertex(1, 0))
+      .toList
+
+    val expected: List[String] =
+      List("a", "b", "c")
+
+    assert(actual.length == expected.length)
+    assert(actual.forall(expected.contains))
+  }
+
+  test("toPositionedList") {
+
+    val actual: List[(Vertex, String)] = QuadTree
+      .empty(2, 2)
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(0, 1))
+      .insertElement("c", Vertex(1, 0))
+      .toListWithPosition
+
+    val expected: List[(Vertex, String)] =
+      List(
+        (Vertex(0, 0), "a"),
+        (Vertex(0, 1), "b"),
+        (Vertex(1, 0), "c")
+      )
+
+    assert(actual.length == expected.length)
+    assert(actual.forall(expected.contains))
+  }
+
   test("should be able to check equality.equal") {
 
     val treeA = QuadTree
@@ -116,7 +157,24 @@ class QuadTreeTests extends munit.FunSuite {
       .insertElement("b", Vertex(0, 1))
       .insertElement("c", Vertex(1, 0))
 
-    assertEquals(treeA === treeB, true)
+    assert(treeA === treeB)
+  }
+
+  test("should be able to check equality.equal") {
+
+    val treeA = QuadTree
+      .empty(2, 2)
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(0, 1))
+      .insertElement("c", Vertex(1, 0))
+
+    val treeB = QuadTree
+      .empty(2, 2)
+      .insertElement("c", Vertex(1, 0))
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(0, 1))
+
+    assert(treeA === treeB)
   }
 
   test("should be able to check equality.not equal") {
@@ -133,7 +191,24 @@ class QuadTreeTests extends munit.FunSuite {
       .insertElement("b", Vertex(0, 1))
       .insertElement("d", Vertex(1, 0))
 
-    assertEquals(treeA === treeB, false)
+    assert(treeA !== treeB)
+  }
+
+  test("should be able to check equality.not equal 2") {
+
+    val treeA = QuadTree
+      .empty(2, 2)
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(0, 1))
+      .insertElement("c", Vertex(1, 0))
+
+    val treeB = QuadTree
+      .empty(2, 2)
+      .insertElement("a", Vertex(0, 0))
+      .insertElement("b", Vertex(1, 0))
+      .insertElement("c", Vertex(0, 1))
+
+    assert(treeA !== treeB)
   }
 
   test("should be able to prune an existing tree to simplify the structure") {
@@ -173,7 +248,7 @@ class QuadTreeTests extends munit.FunSuite {
 
     val point: Vertex = Vertex(0, 1)
 
-    assertEquals(QuadTree.searchByPoint(tree, point), expected)
+    assertEquals(QuadTree.findClosestTo(tree, point), expected)
   }
 
   test("should allow a search of squares where the line points are in the same square") {
@@ -185,7 +260,7 @@ class QuadTreeTests extends munit.FunSuite {
       )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected, actual)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares between two horizontal points") {
@@ -198,8 +273,8 @@ class QuadTreeTests extends munit.FunSuite {
         "3,1"
       )
 
-    assertEquals(expected, actual)
     assertEquals(actual.length, expected.length)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares between two vertical points") {
@@ -213,7 +288,7 @@ class QuadTreeTests extends munit.FunSuite {
       )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected, actual)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares between two 45 degree points") {
@@ -233,7 +308,8 @@ class QuadTreeTests extends munit.FunSuite {
         "3,3"
       )
 
-    assertEquals(actual, expected)
+    assertEquals(actual.length, expected.length)
+    assert(actual.forall(expected.contains))
   }
 
   /*
@@ -258,7 +334,7 @@ class QuadTreeTests extends munit.FunSuite {
       )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected.forall(p => actual.contains(p)), true)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares intersecting with a 1x1 rectangle") {
@@ -269,7 +345,7 @@ class QuadTreeTests extends munit.FunSuite {
     val expected: List[String] = List("1,1")
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected.forall(p => actual.contains(p)), true)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares intersecting with a 2x2 rectangle") {
@@ -285,7 +361,7 @@ class QuadTreeTests extends munit.FunSuite {
     )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected.forall(p => actual.contains(p)), true)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares intersecting with a rectangle the size of the grid") {
@@ -314,7 +390,7 @@ class QuadTreeTests extends munit.FunSuite {
       )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected.forall(p => actual.contains(p)), true)
+    assert(actual.forall(expected.contains))
   }
 
   test("should allow a search of squares intersecting with a rectangle") {
@@ -335,7 +411,7 @@ class QuadTreeTests extends munit.FunSuite {
       )
 
     assertEquals(actual.length, expected.length)
-    assertEquals(expected.forall(p => actual.contains(p)), true)
+    assert(actual.forall(expected.contains))
   }
 
   test("subdivision") {
@@ -348,17 +424,9 @@ class QuadTreeTests extends munit.FunSuite {
     assert(q3 ~== BoundingBox(0, 100, 50, 100))
     assert(q4 ~== BoundingBox(50, 100, 50, 100))
 
-    val z =
-      BoundingBox(
-        Double.PositiveInfinity,
-        Double.PositiveInfinity,
-        Double.NegativeInfinity,
-        Double.NegativeInfinity
-      )
-
     val recombined: BoundingBox =
       List(q1, q2, q3, q4)
-        .foldLeft(z)((acc, next) => acc.expandToInclude(next))
+        .reduce(_.expandToInclude(_))
 
     assert(recombined ~== original)
   }
@@ -374,17 +442,10 @@ class QuadTreeTests extends munit.FunSuite {
 
     val (q1, q2, q3, q4) = QuadTree.QuadBranch.subdivide(original)
 
-    val z =
-      BoundingBox(
-        Double.PositiveInfinity,
-        Double.PositiveInfinity,
-        Double.NegativeInfinity,
-        Double.NegativeInfinity
-      )
-
     val recombined: BoundingBox =
       List(q1, q2, q3, q4)
-        .foldLeft(z)((acc, next) => acc.expandToInclude(next))
+        .reduce(_.expandToInclude(_))
+    // .foldLeft(z)((acc, next) => acc.expandToInclude(next))
 
     assert(clue(recombined) ~== clue(original))
   }

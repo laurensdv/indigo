@@ -1,8 +1,8 @@
 package indigoextras.geometry
 
-import indigo.shared.datatypes.Rectangle
-
 import indigo.shared.datatypes.Point
+import indigo.shared.datatypes.Rectangle
+import indigo.shared.datatypes.Size
 
 class PolygonTests extends munit.FunSuite {
 
@@ -35,13 +35,13 @@ class PolygonTests extends munit.FunSuite {
 
   // Rectangles
   val intersectingRectangle: Rectangle =
-    Rectangle(Point(0, 5), Point(5, 0))
+    Rectangle(Point(0, 5), Size(5, 0))
 
   val noneIntersectingRectangle: Rectangle =
-    Rectangle(Point(0, 5), Point(1, 1))
+    Rectangle(Point(0, 5), Size(1, 1))
 
   val intersectingRectangleWithClosed: Rectangle =
-    Rectangle(Point(0, -5), Point(4, 4))
+    Rectangle(Point(0, -5), Size(4, 4))
 
   test("Construction.should be able to create an open polygon") {
     assertEquals(open.edgeCount, 3)
@@ -69,7 +69,7 @@ class PolygonTests extends munit.FunSuite {
       )
 
     val actual: Polygon =
-      Polygon.fromRectangle(Rectangle(Point(0, 0), Point(10, 10)))
+      Polygon.fromRectangle(Rectangle(Point(0, 0), Size(10, 10)))
 
     assertEquals(expected == actual, true)
   }
@@ -151,6 +151,53 @@ class PolygonTests extends munit.FunSuite {
     assertEquals(closed.polygonIntersectCheck(Polygon.fromRectangle(intersectingRectangle)), true)
     assertEquals(closed.polygonIntersectCheck(Polygon.fromRectangle(noneIntersectingRectangle)), false)
     assertEquals(closed.polygonIntersectCheck(Polygon.fromRectangle(intersectingRectangleWithClosed)), true)
+  }
+
+  test("moveTo") {
+    val actual =
+      closed.moveTo(10, 20)
+
+    val expected =
+      Polygon.Closed(
+        Vertex(10, 20),
+        Vertex(15, 25),
+        Vertex(20, 20),
+        Vertex(15, 15)
+      )
+
+    assertEquals(actual, expected)
+  }
+
+  test("moveBy") {
+    val actual =
+      closed.moveBy(100, 50)
+
+    val expected =
+      Polygon.Closed(
+        Vertex(100, 50),
+        Vertex(105, 55),
+        Vertex(110, 50),
+        Vertex(105, 45)
+      )
+
+    assertEquals(actual, expected)
+  }
+
+  test("scaleBy") {
+    val amount = 10.0d
+
+    val actual =
+      closed.scaleBy(amount)
+
+    val expected =
+      Polygon.Closed(
+        Vertex(0 * amount, 0 * amount),
+        Vertex(5 * amount, 5 * amount),
+        Vertex(10 * amount, 0 * amount),
+        Vertex(5 * amount, -5 * amount)
+      )
+
+    assertEquals(actual, expected)
   }
 
 }

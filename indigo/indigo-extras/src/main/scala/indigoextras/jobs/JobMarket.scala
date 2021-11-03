@@ -1,10 +1,10 @@
 package indigoextras.jobs
 
-import indigo.shared.subsystems.SubSystem
-import indigo.shared.events.GlobalEvent
 import indigo.shared.Outcome
-import indigo.shared.scenegraph.SceneUpdateFragment
 import indigo.shared.datatypes.BindingKey
+import indigo.shared.events.GlobalEvent
+import indigo.shared.scenegraph.SceneUpdateFragment
+import indigo.shared.subsystems.SubSystem
 import indigo.shared.subsystems.SubSystemFrameContext
 
 /**
@@ -27,6 +27,8 @@ final case class JobMarket(availableJobs: List[Job]) extends SubSystem {
 
   val initialModel: Outcome[List[Job]] =
     Outcome(availableJobs)
+
+  private given CanEqual[Option[Job], Option[Job]] = CanEqual.derived
 
   def update(frameContext: SubSystemFrameContext, jobs: List[Job]): JobMarketEvent => Outcome[List[Job]] = {
     case JobMarketEvent.Post(job) =>
@@ -86,7 +88,7 @@ object JobMarket {
 /**
   * Events that are used to manage the JobMarket
   */
-sealed trait JobMarketEvent extends GlobalEvent with Product with Serializable
+sealed trait JobMarketEvent extends GlobalEvent with Product with Serializable derives CanEqual
 object JobMarketEvent {
 
   /**

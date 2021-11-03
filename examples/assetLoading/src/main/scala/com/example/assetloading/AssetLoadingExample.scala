@@ -21,12 +21,14 @@ object AssetLoadingExample extends IndigoDemo[Unit, Unit, MyGameModel, MyViewMod
         .withSubSystems(AssetBundleLoader)
     }
 
+  given CanEqual[Option[String], Option[String]] = CanEqual.derived
+
   def setup(bootData: Unit, assetCollection: AssetCollection, dice: Dice): Outcome[Startup[Unit]] =
     Outcome {
       assetCollection.findTextDataByName(AssetName("text")) match {
         case Some(value) =>
           println("Loaded text! " + value)
-          Startup.Success(())
+          Startup.Success(()).addShaders(MyColoredEntity.shader)
         case None =>
           Startup.Success(())
       }
@@ -82,15 +84,16 @@ object AssetLoadingExample extends IndigoDemo[Unit, Unit, MyGameModel, MyViewMod
   }
 
   def present(context: FrameContext[Unit], model: MyGameModel, viewModel: MyViewModel): Outcome[SceneUpdateFragment] = {
-    val box = if (model.loaded) {
+    val stuff = if (model.loaded) {
       List(
         Graphic(Rectangle(0, 0, 64, 64), 1, Assets.junctionBoxMaterial)
-          .moveTo(30, 30)
+          .moveTo(30, 30),
+        MyColoredEntity(Point(0, 50))
       )
     } else Nil
 
     Outcome(
-      SceneUpdateFragment(viewModel.button.draw :: box)
+      SceneUpdateFragment(viewModel.button.draw :: stuff)
     )
   }
 }
@@ -107,10 +110,10 @@ object Assets {
 
   def junctionboxImageAssets: Set[AssetType] =
     Set(
-      AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo.value + ".png")),
-      AssetType.Image(junctionBoxEmission, AssetPath("assets/" + junctionBoxEmission.value + ".png")),
-      AssetType.Image(junctionBoxNormal, AssetPath("assets/" + junctionBoxNormal.value + ".png")),
-      AssetType.Image(junctionBoxSpecular, AssetPath("assets/" + junctionBoxSpecular.value + ".png"))
+      AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo + ".png")),
+      AssetType.Image(junctionBoxEmission, AssetPath("assets/" + junctionBoxEmission + ".png")),
+      AssetType.Image(junctionBoxNormal, AssetPath("assets/" + junctionBoxNormal + ".png")),
+      AssetType.Image(junctionBoxSpecular, AssetPath("assets/" + junctionBoxSpecular + ".png"))
     )
 
   def otherAssetsToLoad: Set[AssetType] =
@@ -142,3 +145,29 @@ object Assets {
     )
 
 }
+
+final case class MyColoredEntity(position: Point) extends EntityNode:
+  def size: Size        = Size(32, 32)
+  def flip: Flip        = Flip.default
+  def ref: Point        = Point.zero
+  def rotation: Radians = Radians.zero
+  def scale: Vector2    = Vector2.one
+  def depth: Depth      = Depth(1)
+
+  def withDepth(newDepth: Depth): MyColoredEntity =
+    this
+
+  def toShaderData: ShaderData =
+    ShaderData(MyColoredEntity.shader.id)
+
+object MyColoredEntity:
+  val shader: EntityShader =
+    EntityShader
+      .Source(ShaderId("my-colored-shader"))
+      .withFragmentProgram(
+        """
+        |void fragment() {
+        |  COLOR = vec4(0.0, 1.0, 0.0, 1.0);
+        |}
+        |""".stripMargin
+      )

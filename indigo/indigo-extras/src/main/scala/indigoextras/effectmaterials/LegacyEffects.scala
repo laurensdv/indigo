@@ -1,19 +1,20 @@
 package indigoextras.effectmaterials
 
-import indigo.shared.assets.AssetName
-import indigo.shared.materials.Material
-import indigo.shared.materials.ShaderData
-import indigoextras.shaders.ExtrasShaderLibrary
-import indigo.shared.shader.ShaderPrimitive.{vec3, vec4}
-import indigo.shared.datatypes.RGBA
-import indigo.shared.shader.UniformBlock
-import indigo.shared.shader.Uniform
-import indigo.shared.shader.EntityShader
 import indigo.shaders.ShaderLibrary
-import indigo.shared.shader.ShaderId
-import indigo.shared.shader.ShaderPrimitive
+import indigo.shared.assets.AssetName
 import indigo.shared.datatypes.Fill
 import indigo.shared.datatypes.RGB
+import indigo.shared.datatypes.RGBA
+import indigo.shared.materials.Material
+import indigo.shared.materials.ShaderData
+import indigo.shared.shader.EntityShader
+import indigo.shared.shader.ShaderId
+import indigo.shared.shader.ShaderPrimitive
+import indigo.shared.shader.ShaderPrimitive.vec3
+import indigo.shared.shader.ShaderPrimitive.vec4
+import indigo.shared.shader.Uniform
+import indigo.shared.shader.UniformBlock
+import indigoextras.shaders.ExtrasShaderLibrary
 
 final case class LegacyEffects(
     diffuse: AssetName,
@@ -23,7 +24,7 @@ final case class LegacyEffects(
     saturation: Double,
     border: Border,
     glow: Glow
-) extends Material {
+) extends Material derives CanEqual:
 
   def withAlpha(newAlpha: Double): LegacyEffects =
     this.copy(alpha = newAlpha)
@@ -45,7 +46,7 @@ final case class LegacyEffects(
   def withGlow(newGlow: Glow): LegacyEffects =
     this.copy(glow = newGlow)
 
-  def toShaderData: ShaderData = {
+  def toShaderData: ShaderData =
     val gradientUniforms: List[(Uniform, ShaderPrimitive)] =
       overlay match {
         case Fill.Color(color) =>
@@ -58,25 +59,34 @@ final case class LegacyEffects(
 
         case Fill.LinearGradient(fromPoint, fromColor, toPoint, toColor) =>
           List(
-            Uniform("GRADIENT_FROM_TO")    -> vec4(fromPoint.x.toDouble, fromPoint.y.toDouble, toPoint.x.toDouble, toPoint.y.toDouble),
+            Uniform("GRADIENT_FROM_TO") -> vec4(
+              fromPoint.x.toDouble,
+              fromPoint.y.toDouble,
+              toPoint.x.toDouble,
+              toPoint.y.toDouble
+            ),
             Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
             Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
           )
 
         case Fill.RadialGradient(fromPoint, fromColor, toPoint, toColor) =>
           List(
-            Uniform("GRADIENT_FROM_TO")    -> vec4(fromPoint.x.toDouble, fromPoint.y.toDouble, toPoint.x.toDouble, toPoint.y.toDouble),
+            Uniform("GRADIENT_FROM_TO") -> vec4(
+              fromPoint.x.toDouble,
+              fromPoint.y.toDouble,
+              toPoint.x.toDouble,
+              toPoint.y.toDouble
+            ),
             Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
             Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
           )
       }
 
     val overlayType: Double =
-      overlay match {
+      overlay match
         case _: Fill.Color          => 0.0
         case _: Fill.LinearGradient => 1.0
         case _: Fill.RadialGradient => 2.0
-      }
 
     ShaderData(
       LegacyEffects.entityShader.id,
@@ -104,9 +114,8 @@ final case class LegacyEffects(
       None,
       None
     )
-  }
-}
-object LegacyEffects {
+
+object LegacyEffects:
 
   val entityShader: EntityShader.Source =
     EntityShader.Source(
@@ -123,9 +132,8 @@ object LegacyEffects {
 
   def apply(diffuse: AssetName, alpha: Double): LegacyEffects =
     LegacyEffects(diffuse, alpha, RGBA.None, Fill.Color.default, 1.0, Border.default, Glow.default)
-}
 
-final case class Border(color: RGBA, innerThickness: Thickness, outerThickness: Thickness) {
+final case class Border(color: RGBA, innerThickness: Thickness, outerThickness: Thickness) derives CanEqual:
 
   def withColor(newColor: RGBA): Border =
     this.copy(color = newColor)
@@ -136,10 +144,7 @@ final case class Border(color: RGBA, innerThickness: Thickness, outerThickness: 
   def withOuterThickness(thickness: Thickness): Border =
     this.copy(outerThickness = thickness)
 
-  def hash: String =
-    color.hash + innerThickness.hash + outerThickness.hash
-}
-object Border {
+object Border:
   def inside(color: RGBA): Border =
     Border(color, Thickness.Thin, Thickness.None)
 
@@ -148,26 +153,19 @@ object Border {
 
   val default: Border =
     Border(RGBA.Zero, Thickness.None, Thickness.None)
-}
 
-sealed trait Thickness {
-  def toInt: Int =
-    this match {
-      case Thickness.None  => 0
-      case Thickness.Thin  => 1
-      case Thickness.Thick => 2
-    }
+enum Thickness derives CanEqual:
+  case None, Thin, Thick
 
-  def hash: String =
-    toInt.toString()
-}
-object Thickness {
-  case object None  extends Thickness
-  case object Thin  extends Thickness
-  case object Thick extends Thickness
-}
+object Thickness:
+  extension (t: Thickness)
+    def toInt: Int =
+      t match
+        case Thickness.None  => 0
+        case Thickness.Thin  => 1
+        case Thickness.Thick => 2
 
-final case class Glow(color: RGBA, innerGlowAmount: Double, outerGlowAmount: Double) {
+final case class Glow(color: RGBA, innerGlowAmount: Double, outerGlowAmount: Double) derives CanEqual:
   def withColor(newColor: RGBA): Glow =
     this.copy(color = newColor)
 
@@ -177,10 +175,7 @@ final case class Glow(color: RGBA, innerGlowAmount: Double, outerGlowAmount: Dou
   def withOuterGlowAmount(amount: Double): Glow =
     this.copy(outerGlowAmount = Math.max(0, amount))
 
-  def hash: String =
-    color.hash + innerGlowAmount.toString + outerGlowAmount.toString()
-}
-object Glow {
+object Glow:
   def inside(color: RGBA): Glow =
     Glow(color, 1d, 0d)
 
@@ -189,4 +184,3 @@ object Glow {
 
   val default: Glow =
     Glow(RGBA.Zero, 0d, 0d)
-}

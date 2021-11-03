@@ -65,23 +65,15 @@ object SandboxView {
       currentState.dude.dude.sprite
         .moveBy(8, 10)
         .moveBy(viewModel.offset)
-        .modifyMaterial {
-          case m: Material.ImageEffects =>
-            m.withAlpha(1)
-              .withTint(RGBA.Green.withAmount(0.25))
-              .withSaturation(1.0)
-
-          case m =>
-            m
-        },
+        .modifyMaterial(
+          _.withAlpha(1)
+            .withTint(RGBA.Green.withAmount(0.25))
+            .withSaturation(1.0)
+        ),
       currentState.dude.dude.sprite
         .moveBy(8, -10)
-        .modifyMaterial {
-          case m: Material.ImageEffects => m.withAlpha(0.5).withTint(RGBA.Red.withAmount(0.75))
-          case m                        => m
-        },
-      Clone(dudeCloneId, Depth(1), CloneTransformData.startAt(Point(16, 64)))
-        .withHorizontalFlip(true)
+        .modifyMaterial(_.withAlpha(0.5).withTint(RGBA.Red.withAmount(0.75))),
+      CloneBatch(dudeCloneId, CloneBatchData(16, 64, Radians.zero, -1.0, 1.0))
     )
 
   def lightingLayer(inputState: InputState): List[SceneNode] =
@@ -102,7 +94,7 @@ object SandboxView {
       Text("AB!\n!C", 2, 2, 5, Fonts.fontKey, SandboxAssets.fontMaterial).alignLeft,
       Text("AB!\n!C", 100, 2, 5, Fonts.fontKey, SandboxAssets.fontMaterial).alignCenter,
       Text("AB!\n!C", 200, 2, 5, Fonts.fontKey, SandboxAssets.fontMaterial).alignRight.onEvent {
-        case (bounds, MouseEvent.Click(_, _)) =>
+        case (bounds, MouseEvent.Click(_)) =>
           if (inputState.mouse.wasMouseClickedWithin(bounds))
             println("Hit me!")
           Nil

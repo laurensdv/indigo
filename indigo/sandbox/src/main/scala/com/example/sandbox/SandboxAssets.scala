@@ -1,8 +1,8 @@
 package com.example.sandbox
 
 import indigo._
-import indigoextras.effectmaterials.RefractionEntity
 import indigoextras.effectmaterials.LegacyEffects
+import indigoextras.effectmaterials.RefractionEntity
 
 object SandboxAssets {
 
@@ -21,6 +21,13 @@ object SandboxAssets {
       // .withOverlay(Overlay.Color(RGBA.Magenta.withAlpha(0.75)))
       // .withOverlay(Overlay.LinearGradient(Point.zero, RGBA.Cyan, Point(32, 32), RGBA.Magenta))
       .withOverlay(Fill.RadialGradient(Point(4, 4), RGBA.Cyan, Point(32, 32), RGBA.Magenta))
+
+  val colouredDots: Graphic[Material.Bitmap] = Graphic(32, 32, Material.Bitmap(dots))
+
+  val redDot: Graphic[Material.Bitmap]    = Graphic(Rectangle(0, 0, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
+  val greenDot: Graphic[Material.Bitmap]  = Graphic(Rectangle(16, 0, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
+  val blueDot: Graphic[Material.Bitmap]   = Graphic(Rectangle(0, 16, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
+  val yellowDot: Graphic[Material.Bitmap] = Graphic(Rectangle(16, 16, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
 
   val junctionBoxAlbedo: AssetName    = AssetName("junctionbox_albedo")
   val junctionBoxEmission: AssetName  = AssetName("junctionbox_emission")
@@ -50,24 +57,27 @@ object SandboxAssets {
   val junctionBoxEffectsMaterial: LegacyEffects =
     LegacyEffects(junctionBoxAlbedo)
 
+  val pixelFont: AssetName = AssetName("Pixelated")
+
   def assets: Set[AssetType] =
     Set(
+      AssetType.Font(pixelFont, AssetPath(s"assets/fonts/${pixelFont.toString}.woff2")),
       AssetType.Image(smallFontName, AssetPath("assets/boxy_font.png")),
       AssetType.Image(light, AssetPath("assets/light_texture.png")),
-      AssetType.Text(AssetName(dudeName.value + "-json"), AssetPath("assets/" + dudeName.value + ".json")),
-      AssetType.Image(dudeName, AssetPath("assets/" + dudeName.value + ".png")),
-      AssetType.Image(dots, AssetPath("assets/" + dots.value + ".png")),
+      AssetType.Text(AssetName(dudeName.toString + "-json"), AssetPath("assets/" + dudeName + ".json")),
+      AssetType.Image(dudeName, AssetPath("assets/" + dudeName + ".png")),
+      AssetType.Image(dots, AssetPath("assets/" + dots + ".png")),
       AssetType.Tagged("atlas1")(
-        AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo.value + ".png")),
-        AssetType.Image(junctionBoxEmission, AssetPath("assets/" + junctionBoxEmission.value + ".png")),
-        AssetType.Image(junctionBoxNormal, AssetPath("assets/" + junctionBoxNormal.value + ".png")),
-        AssetType.Image(junctionBoxRoughness, AssetPath("assets/" + junctionBoxRoughness.value + ".png")),
-        AssetType.Image(imageLightName, AssetPath("assets/" + imageLightName.value + ".png")),
-        AssetType.Image(foliageName, AssetPath("assets/" + foliageName.value + ".png")),
-        AssetType.Image(smoothBumpName, AssetPath("assets/" + smoothBumpName.value + ".png")),
-        AssetType.Image(normalMapName, AssetPath("assets/" + normalMapName.value + ".png"))
+        AssetType.Image(junctionBoxAlbedo, AssetPath("assets/" + junctionBoxAlbedo + ".png")),
+        AssetType.Image(junctionBoxEmission, AssetPath("assets/" + junctionBoxEmission + ".png")),
+        AssetType.Image(junctionBoxNormal, AssetPath("assets/" + junctionBoxNormal + ".png")),
+        AssetType.Image(junctionBoxRoughness, AssetPath("assets/" + junctionBoxRoughness + ".png")),
+        AssetType.Image(imageLightName, AssetPath("assets/" + imageLightName + ".png")),
+        AssetType.Image(foliageName, AssetPath("assets/" + foliageName + ".png")),
+        AssetType.Image(smoothBumpName, AssetPath("assets/" + smoothBumpName + ".png")),
+        AssetType.Image(normalMapName, AssetPath("assets/" + normalMapName + ".png"))
       ),
-      AssetType.Image(trafficLightsName, AssetPath("assets/" + trafficLightsName.value + ".png"))
+      AssetType.Image(trafficLightsName, AssetPath("assets/" + trafficLightsName + ".png"))
     )
 
 }

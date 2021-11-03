@@ -1,13 +1,13 @@
 package com.example.sandbox.scenes
 
+import com.example.sandbox.SandboxAssets
+import com.example.sandbox.SandboxGameModel
+import com.example.sandbox.SandboxStartupData
+import com.example.sandbox.SandboxView
+import com.example.sandbox.SandboxViewModel
+import indigo.ShaderPrimitive._
 import indigo._
 import indigo.scenes._
-import com.example.sandbox.SandboxStartupData
-import com.example.sandbox.SandboxGameModel
-import com.example.sandbox.SandboxViewModel
-import com.example.sandbox.SandboxView
-import indigo.ShaderPrimitive._
-import com.example.sandbox.SandboxAssets
 
 object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
@@ -29,13 +29,24 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   def subSystems: Set[SubSystem] =
     Set()
 
-  def updateModel(context: FrameContext[SandboxStartupData], model: SandboxGameModel): GlobalEvent => Outcome[SandboxGameModel] =
+  def updateModel(
+      context: FrameContext[SandboxStartupData],
+      model: SandboxGameModel
+  ): GlobalEvent => Outcome[SandboxGameModel] =
     _ => Outcome(model)
 
-  def updateViewModel(context: FrameContext[SandboxStartupData], model: SandboxGameModel, viewModel: SandboxViewModel): GlobalEvent => Outcome[SandboxViewModel] =
+  def updateViewModel(
+      context: FrameContext[SandboxStartupData],
+      model: SandboxGameModel,
+      viewModel: SandboxViewModel
+  ): GlobalEvent => Outcome[SandboxViewModel] =
     _ => Outcome(viewModel)
 
-  def present(context: FrameContext[SandboxStartupData], model: SandboxGameModel, viewModel: SandboxViewModel): Outcome[SceneUpdateFragment] = {
+  def present(
+      context: FrameContext[SandboxStartupData],
+      model: SandboxGameModel,
+      viewModel: SandboxViewModel
+  ): Outcome[SceneUpdateFragment] = {
     val scene: SceneUpdateFragment =
       SandboxView
         .updateView(model, viewModel, context.inputState)
@@ -103,10 +114,12 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
 
 }
 
-final case class CustomShape(x: Int, y: Int, width: Int, height: Int, depth: Depth, shader: ShaderData) extends EntityNode {
+final case class CustomShape(x: Int, y: Int, width: Int, height: Int, depth: Depth, shader: ShaderData)
+    extends EntityNode {
   val flip: Flip               = Flip.default
   val bounds: Rectangle        = Rectangle(x, y, width, height)
   val position: Point          = bounds.position
+  val size: Size               = bounds.size
   val ref: Point               = Point.zero
   val rotation: Radians        = Radians.zero
   val scale: Vector2           = Vector2.one
