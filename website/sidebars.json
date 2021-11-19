@@ -32,7 +32,9 @@
     "Presentation": [
       "presentation/animation",
       "presentation/audio",
+      "presentation/boundaries",
       "presentation/cameras",
+      "presentation/clones-and-mutants",
       "presentation/depth",
       "presentation/layers",
       "presentation/lighting",
@@ -52,7 +54,8 @@
     "Shaders": [
       "shaders/shader-overview",
       "shaders/constants",
-      "shaders/blending"
+      "shaders/blending",
+      "shaders/premultiplied-alpha"
     ],
     "Working with Time": [
       "time/signals",

@@ -14,17 +14,18 @@ import com.example.sandbox.scenes.ShapesScene
 import com.example.sandbox.scenes.TextBoxScene
 import com.example.sandbox.scenes.TextureTileScene
 import com.example.sandbox.scenes.UiScene
-import indigo._
+import indigo.*
 import indigo.json.Json
 import indigo.scenes._
+import indigo.syntax.*
 import indigoextras.effectmaterials.LegacyEffects
 import indigoextras.effectmaterials.Refraction
 import indigoextras.geometry.Polygon
 import indigoextras.geometry.Vertex
 import indigoextras.subsystems.FPSCounter
-import indigoextras.ui._
+import indigoextras.ui.*
 
-import scala.scalajs.js.annotation._
+import scala.scalajs.js.annotation.*
 
 @JSExportTopLevel("IndigoGame")
 object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, SandboxGameModel, SandboxViewModel] {
@@ -165,7 +166,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           .withClickActions(Log("Click!"))
           .withDownActions(Log("Down!"))
           .withHoverOverActions(Log("Over!"))
-          .withHoverOutActions(Log("Out!")),
+          .withHoverOutActions(Log("Out!"))
+          .withHoldDownActions(Log("Hold down!")),
         Button(
           buttonAssets = buttonAssets,
           bounds = Rectangle(10, 10, 16, 16),
@@ -176,6 +178,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           .withDownActions(Log("Down!"))
           .withHoverOverActions(Log("Over!"))
           .withHoverOutActions(Log("Out!"))
+          .withHoldDownActions(Log("Hold down!"))
       )
     )
   }
@@ -238,8 +241,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   ): Outcome[SceneUpdateFragment] =
     Outcome(
       SceneUpdateFragment(
-        Layer(BindingKey("fps counter"))
-          .withDepth(Depth(200))
+        Layer("fps counter".bindingKey)
+          .withDepth(200.depth)
           .withCamera(Camera.default)
       )
     )

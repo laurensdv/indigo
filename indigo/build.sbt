@@ -8,9 +8,9 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 
 lazy val indigoVersion = IndigoVersion.getVersion
 // For the docs site
-lazy val indigoDocsVersion  = "0.9.2"
+lazy val indigoDocsVersion  = "0.10.0"
 lazy val scalaJsDocsVersion = "1.7.1"
-lazy val scalaDocsVersion   = "3.0.2"
+lazy val scalaDocsVersion   = "3.1.0"
 //
 
 val scala3Version = "3.1.0"
@@ -194,6 +194,30 @@ lazy val indigoShaders =
       publishLocal := {}
     )
 
+lazy val benchmarks =
+  project
+    .in(file("benchmarks"))
+    .enablePlugins(ScalaJSPlugin, JSDependenciesPlugin)
+    .settings(
+      name         := "indigo-benchmarks",
+      version      := indigoVersion,
+      scalaVersion := scala3Version,
+      organization := "io.indigoengine",
+      libraryDependencies ++= Seq(
+        "com.github.japgolly.scalajs-benchmark" %%% "benchmark"   % "0.10.0"
+      ),
+      jsDependencies ++= Seq(
+        "org.webjars" % "chartjs" % "1.0.2" / "Chart.js" minified "Chart.min.js"
+      )
+    )
+    .settings(
+      publish      := {},
+      publishLocal := {}
+    )
+    .dependsOn(indigo)
+    .dependsOn(indigoExtras)
+    .dependsOn(indigoJsonCirce)
+
 lazy val jsdocs = project
   .settings(
     scalaVersion := scala3Version,
@@ -241,9 +265,16 @@ lazy val indigoProject =
     .enablePlugins(ScalaUnidocPlugin)
     .settings(commonSettings: _*)
     .settings(
-      name := "Indigo",
+      name                                       := "Indigo",
       ScalaUnidoc / unidoc / unidocProjectFilter := inAnyProject -- inProjects(indigoShaders, sandbox, perf, docs),
-      code := { "code ." ! }
+      code                                       := {
+        val command = Seq("code", ".")
+        val run = sys.props("os.name").toLowerCase match {
+          case x if x contains "windows" => Seq("cmd", "/C") ++ command
+          case _ => command
+        }
+        run.!
+      }
     )
     .aggregate(
       indigo,
@@ -252,7 +283,8 @@ lazy val indigoProject =
       indigoShaders,
       sandbox,
       perf,
-      docs
+      docs,
+      benchmarks
     )
 
 addCommandAlias(
