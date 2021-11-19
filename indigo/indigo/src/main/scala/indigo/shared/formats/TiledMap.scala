@@ -187,6 +187,7 @@ object TiledMap {
   private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
       tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
         val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
+        val firstgid: Int =  tiledMap.tilesets.map({tileset => tileset.firstgid}).head //TODO: WHAT IF MULTIPLE TILESETS? OR default to 1 ??
         val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({
           tileset =>
             tileset.tiles.flatMap(tile => {
@@ -204,20 +205,20 @@ object TiledMap {
               tiles ++ Map(
                 i ->
                   {
-                    if(animations.contains(i - 1)) {
-                      if(animations(i - 1).nonEmpty) {
-                        val key = AnimationKey((i - 1).toString)
-                        Sprite(BindingKey((i - 1).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
+                    if(animations.contains(i - firstgid)) {
+                      if(animations(i - firstgid).nonEmpty) {
+                        val key = AnimationKey((i - firstgid).toString)
+                        Sprite(BindingKey((i - firstgid).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
                       } else {
                         Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
                           .withCrop(
-                            Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize.toPoint, tileSize)
+                            Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
                           )
                       }
                     } else {
                       Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
                         .withCrop(
-                          Rectangle(fromIndex(i - 1, tileSheetColumnCount) * tileSize.toPoint, tileSize)
+                          Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
                         )
                     }
                   }
