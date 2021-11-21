@@ -93,6 +93,9 @@ final case class TiledMap(
 
   def toGroup(assetName: AssetName): Option[Group] =
     TiledMap.toGroup(this, assetName)
+
+  def toCLoneGroup(assetName: AssetName): Option[(List[CloneBlank], Group)] =
+    TiledMap.toCloneGroup(this, assetName)
 }
 
 final case class TiledLayer(
