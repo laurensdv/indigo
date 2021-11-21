@@ -7,11 +7,16 @@ import indigo.shared.assets.AssetName
 import indigo.shared.collections._
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.datatypes.Point
+import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Size
-import indigo.shared.datatypes.Radians
 import indigo.shared.materials.Material
-import indigo.shared.scenegraph.{CloneTiles, CloneTileData, CloneId, CloneBatch, CloneBatchData, CloneBlank}
+import indigo.shared.scenegraph.CloneBatch
+import indigo.shared.scenegraph.CloneBatchData
+import indigo.shared.scenegraph.CloneBlank
+import indigo.shared.scenegraph.CloneId
+import indigo.shared.scenegraph.CloneTileData
+import indigo.shared.scenegraph.CloneTiles
 import indigo.shared.scenegraph.Graphic
 import indigo.shared.scenegraph.Group
 import indigo.shared.scenegraph.SceneNode
@@ -211,14 +216,14 @@ object TiledMap {
                 (keyString -> sprite)
             }).toMap
 
-        val animationCloneBlanks: List[CloneBlank] = for ((k, s) <- animationSprites) yield { CloneBlank(CloneId(k), s) }
+        val animationCloneBlanks: List[CloneBlank] = (for ((k, s) <- animationSprites) yield { CloneBlank(CloneId(k), s) }).toList
 
         val tileMapGraphic: Graphic[Material.Bitmap] = Graphic(tiledMap.width * tiledMap.tilewidth, tiledMap.height * tiledMap.tileheight, Material.Bitmap(assetName))
 
         val tileMapCloneBlanks: List[CloneBlank] = List(CloneBlank(CloneId("graphic"), tileMapGraphic))
 
         val layers = tiledMap.layers.filter(_.`type` == "tilelayer").map { layer =>
-            val tilesInUse: Map[Int, CloneId] =
+            val tilesInUse: Map[Int, String] =
                 layer.data.toSet.foldLeft(Map.empty[Int, String]) { (tiles, i) =>
                     tiles ++ Map(
                         i ->
@@ -245,7 +250,7 @@ object TiledMap {
                     )
                 }
 
-            val cloneBatches: List[SceneNode] = for ((key, sprite) <- animationSprites) yield {
+            val cloneBatches: List[SceneNode] = (for ((key, sprite) <- animationSprites) yield {
                 CloneBatch(CloneId(key),
                 layer.data.zipWithIndex.flatMap {
                     case (tileIndex, positionIndex) =>
@@ -261,8 +266,8 @@ object TiledMap {
                                 case _ => Nil
                             }
                             .getOrElse(Nil)
-                        })
-                }
+                        }.toArray)
+                }).toList
 
             val cloneTiles: SceneNode = 
                 CloneTiles(
@@ -281,7 +286,7 @@ object TiledMap {
                                         List(CloneTileData(pt.x, pt.y, Radians.zero, 1, 1, cs.x, cs.y, t.x, t.y))                     
                                     }                         
                                     case _ => Nil
-                                }.getOrElse(Nil)})
+                                }.getOrElse(Nil)}.toArray)
 
             val clones = cloneBatches.appended(cloneTiles)
             Group(clones)
@@ -307,29 +312,29 @@ object TiledMap {
 
         val layers = tiledMap.layers.filter(_.`type` == "tilelayer").map { layer =>
 
-        val tilesInUse: Map[Int, SceneNode] =
-            layer.data.toSet.foldLeft(Map.empty[Int, SceneNode]) { (tiles, i) =>
-                tiles ++ Map(
-                i ->
-                    {
-                    if(animations.contains(i - firstgid)) {
-                      if(animations(i - firstgid).nonEmpty) {
-                        val key = AnimationKey((i - firstgid).toString)
-                        Sprite(BindingKey((i - firstgid).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
-                      } else {
-                        Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
-                          .withCrop(
-                            Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                          )
-                      }
-                    } else {
-                      Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
-                        .withCrop(
-                          Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                        )
-                    }
-                })
-            }
+            val tilesInUse: Map[Int, SceneNode] =
+                layer.data.toSet.foldLeft(Map.empty[Int, SceneNode]) { (tiles, i) =>
+                    tiles ++ Map(
+                    i ->
+                        {
+                        if(animations.contains(i - firstgid)) {
+                          if(animations(i - firstgid).nonEmpty) {
+                            val key = AnimationKey((i - firstgid).toString)
+                            Sprite(BindingKey((i - firstgid).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
+                          } else {
+                            Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
+                              .withCrop(
+                                Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
+                              )
+                          }
+                        } else {
+                          Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
+                            .withCrop(
+                              Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
+                            )
+                        }
+                    })
+                }
 
             Group(
                 layer.data.zipWithIndex.flatMap {
@@ -344,9 +349,10 @@ object TiledMap {
                             case g:SceneNode => List(g)
                         }
                         .getOrElse(Nil)
-                }
-            )
-        }
+                    }
+                )
+            }
+            
         Group(layers)
     }
 }
