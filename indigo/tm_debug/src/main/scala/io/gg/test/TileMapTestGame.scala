@@ -7,7 +7,7 @@ import scala.scalajs.js.annotation._
 import io.gg.test.{TestAssets, TestResource}
 
 @JSExportTopLevel("IndigoGame")
-object PerfGame extends IndigoDemo[Unit, TileMapContext, Unit, Unit] {
+object TileMapTestGame extends IndigoDemo[Unit, TileMapContext, Unit, Unit] {
 
   val targetFPS: Int          = 60
   val viewportWidth: Int      = 800
