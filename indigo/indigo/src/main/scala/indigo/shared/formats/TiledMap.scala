@@ -255,7 +255,7 @@ object TiledMap {
 
             val cloneBatches: List[SceneNode] = (
                 for {
-                    layerDataChunk <- layer.data.zipWithIndex.grouped(512)
+                    layerDataChunk <- layer.data.zipWithIndex.grouped(256)
                     (key, sprite) <- animationSprites
                 } 
                 yield {
@@ -274,12 +274,12 @@ object TiledMap {
                                     case _ => Nil
                                 }
                                 .getOrElse(Nil)
-                            }.toArray)
+                            }.toArray).withStaticBatchKey(BindingKey("batch_" +  System.currentTimeMillis().hashCode().toString))
                 }).toList
 
             val cloneTiles: List[SceneNode] = (
                 for {
-                    layerDataChunk <- layer.data.zipWithIndex.grouped(512)
+                    layerDataChunk <- layer.data.zipWithIndex.grouped(256)
                 } yield {
                     CloneTiles(CloneId("graphic"),
                     layerDataChunk.flatMap {
@@ -296,7 +296,7 @@ object TiledMap {
                                         List(CloneTileData(pos.x, pos.y, Radians.zero, 1, 1, cropPos.x, cropPos.y, tlSize.x, tlSize.y))                     
                                     }                         
                                     case _ => Nil
-                                }.getOrElse(Nil)}.toArray)
+                                }.getOrElse(Nil)}.toArray).withStaticBatchKey(BindingKey("tiles_" +  System.currentTimeMillis().hashCode().toString))
                 }).toList
 
             val clones = cloneBatches ++ cloneTiles
