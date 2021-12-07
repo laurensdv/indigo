@@ -49,7 +49,7 @@ final class RendererWebGL2(
     dynamicText: DynamicText
 ) extends Renderer {
 
-  implicit private val projectionsCache: QuickCache[Array[Float]] = QuickCache.empty
+  implicit private val projectionsCache: QuickCache[scalajs.js.Array[Float]] = QuickCache.empty
 
   private val gl: WebGLRenderingContext =
     cNc.context
@@ -91,11 +91,11 @@ final class RendererWebGL2(
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   var orthographicProjectionMatrix: CheapMatrix4 = CheapMatrix4.identity
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  var defaultLayerProjectionMatrix: Array[Float] = null
+  var defaultLayerProjectionMatrix: scalajs.js.Array[Float] = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  var orthographicProjectionMatrixNoMag: Array[Float] = null
+  var orthographicProjectionMatrixNoMag: scalajs.js.Array[Float] = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  var orthographicProjectionMatrixNoMagFlipped: Array[Float] = null
+  var orthographicProjectionMatrixNoMagFlipped: scalajs.js.Array[Float] = null
 
   def screenWidth: Int  = lastWidth
   def screenHeight: Int = lastHeight
@@ -225,7 +225,7 @@ final class RendererWebGL2(
 
     resize(cNc.canvas, cNc.magnification)
 
-    val frameData = Array[Float](runningTime.toFloat, 0.0f, lastWidth.toFloat, lastHeight.toFloat)
+    val frameData = scalajs.js.Array[Float](runningTime.toFloat, 0.0f, lastWidth.toFloat, lastHeight.toFloat)
     WebGLHelper.attachUBOData(gl2, frameData, frameDataUBOBuffer)
 
     @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
@@ -234,7 +234,7 @@ final class RendererWebGL2(
     sceneData.layers.foreach { layer =>
       WebGLHelper.attachUBOData(gl2, layer.lightsData, lightDataUBOBuffer)
 
-      val layerProjection =
+      val layerProjection: scalajs.js.Array[Float] =
         layer.camera.orElse(sceneData.camera) match
           case None =>
             orthographicProjectionMatrixNoMag
@@ -271,16 +271,13 @@ final class RendererWebGL2(
         customShaders
       )
 
-      def makeCacheName(m: Int, w: Int, h: Int, cx: Int, cy: Int, cz: Double): String =
-        s"${m.toString}_${w.toString()}x${h.toString()}-${cx.toString},${cy.toString}_${cz.toString}"
-
       val projection =
         layer.magnification match
           case None =>
             defaultLayerProjectionMatrix
 
           case Some(m) =>
-            QuickCache(makeCacheName(m, lastWidth, lastHeight, 0, 0, 1.0d)) {
+            QuickCache(m.toString + lastWidth.toString + lastHeight.toString) {
               CameraHelper
                 .calculateCameraMatrix(
                   lastWidth.toDouble,
@@ -314,7 +311,7 @@ final class RendererWebGL2(
         false,
         customShaders,
         StandardShaders.NormalBlend.id,
-        Array()
+        scalajs.js.Array()
       )
 
       // Set the layer blend mode
