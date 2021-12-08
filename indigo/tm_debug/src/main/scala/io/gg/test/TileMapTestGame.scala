@@ -4,15 +4,15 @@ import indigo._
 import indigo.json.Json
 import indigoextras.subsystems.FPSCounter
 import scala.scalajs.js.annotation._
-import io.gg.test.{TestAssets, TestResource}
+import io.gg.test.{TestAssets}
 
 @JSExportTopLevel("IndigoGame")
 object TileMapTestGame extends IndigoDemo[Unit, TileMapContext, Unit, Unit] {
 
   val targetFPS: Int          = 60
-  val viewportWidth: Int      = 800
-  val viewportHeight: Int     = 600
-  val magnificationLevel: Int = 2
+  val viewportWidth: Int      = 1200
+  val viewportHeight: Int     = 750
+  val magnificationLevel: Int = 1
 
   val eventFilters: EventFilters =
     EventFilters(
@@ -69,8 +69,13 @@ object TileMapTestGame extends IndigoDemo[Unit, TileMapContext, Unit, Unit] {
 
   def setup(bootData: Unit, assetCollection: AssetCollection, dice: Dice): Outcome[Startup[TileMapContext]] = {
     val maybeTiledMap = for {
+      j <- assetCollection.findTextDataByName(TestAssets.tilemap)
+      t <- Json.tiledMapFromJson(j)
+    } yield t
+
+    /*val maybeTiledMap = for {
           t <- Json.tiledMapFromJson(TestResource.tileMap)
-        } yield t
+        } yield t*/
 
     val maybeTiledMapCloneGroup: Option[(List[CloneBlank], Group)] = for {
       t <- maybeTiledMap

@@ -1,7 +1,8 @@
 package io.gg.test
 
 object TestResource {
-  val tileMap =
+
+val tileMap: String =
     """
       |{ "compressionlevel":-1,
       | "height":16,

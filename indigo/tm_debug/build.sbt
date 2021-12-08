@@ -8,7 +8,7 @@ lazy val mygame =
   project.in(file("."))
     .enablePlugins(ScalaJSPlugin, SbtIndigo)
     .settings( // Normal SBT settings
-      name := "perf",
+      name := "mygame",
       version := "0.0.1",
       scalaVersion := "3.1.0",
       organization := "indigo",

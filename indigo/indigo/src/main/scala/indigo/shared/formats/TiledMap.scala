@@ -221,7 +221,7 @@ object TiledMap {
 
         val animationCloneBlanks: List[CloneBlank] = (for ((k, s) <- animationSprites) yield { CloneBlank(CloneId(k), s) }).toList
 
-        val tileMapGraphic: Graphic[Material.Bitmap] = Graphic(tiledMap.width * tiledMap.tilewidth, tiledMap.height * tiledMap.tileheight, Material.Bitmap(assetName))
+        val tileMapGraphic: Graphic[Material.Bitmap] = Graphic(tiledMap.tilewidth, tiledMap.tileheight, Material.Bitmap(assetName))
 
         val tileMapCloneBlanks: List[CloneBlank] = List(CloneBlank(CloneId("graphic"), tileMapGraphic))
 
