@@ -225,7 +225,7 @@ object TiledMap {
 
         val tileMapCloneBlanks: List[CloneBlank] = List(CloneBlank(CloneId("graphic"), tileMapGraphic))
 
-        val layers = tiledMap.layers.filter(_.`type` == "tilelayer").map { layer =>
+        val layers = tiledMap.layers.filter(_.`type` == "tilelayer").zipWithIndex.map { case (layer, layerIndex) =>
             val tilesInUse: Map[Int, String] =
                 layer.data.toSet.foldLeft(Map.empty[Int, String]) { (tiles, i) =>
                     tiles ++ Map(
@@ -255,7 +255,7 @@ object TiledMap {
 
             val cloneBatches: List[SceneNode] = (
                 for {
-                    layerDataChunk <- layer.data.zipWithIndex.grouped(256)
+                    layerDataChunk <- List(layer.data.zipWithIndex)//.grouped(512)
                     (key, sprite) <- animationSprites
                 } 
                 yield {
@@ -274,16 +274,18 @@ object TiledMap {
                                     case _ => Nil
                                 }
                                 .getOrElse(Nil)
-                            }.toArray).withStaticBatchKey(BindingKey("batch_" +  System.currentTimeMillis().hashCode().toString))
-                }).toList
+                            }.toArray)
+                }).toList.zipWithIndex.map { case (cb, i) =>
+                  cb//.withStaticBatchKey(BindingKey("batch_" + layerIndex.toString + i.toString))
+                }
 
             val cloneTiles: List[SceneNode] = (
                 for {
-                    layerDataChunk <- layer.data.zipWithIndex.grouped(256)
+                    layerDataChunk <- layer.data.zipWithIndex.grouped(512)
                 } yield {
                     CloneTiles(CloneId("graphic"),
-                    layerDataChunk.flatMap {
-                        case (tileIndex, positionIndex) =>
+                    layerDataChunk.zipWithIndex.flatMap {
+                        case ((tileIndex, positionIndex), i) =>
                             if (tileIndex == 0) Nil
                             else
                                 tilesInUse
@@ -296,14 +298,17 @@ object TiledMap {
                                         List(CloneTileData(pos.x, pos.y, Radians.zero, 1, 1, cropPos.x, cropPos.y, tlSize.x, tlSize.y))                     
                                     }                         
                                     case _ => Nil
-                                }.getOrElse(Nil)}.toArray).withStaticBatchKey(BindingKey("tiles_" +  System.currentTimeMillis().hashCode().toString))
-                }).toList
+                                }.getOrElse(Nil)
+                        }.toArray)
+                }).toList.zipWithIndex.map { case (ct, i) =>
+                  ct.withStaticBatchKey(BindingKey("tiles_" + layerIndex.toString + i.toString))
+                }
 
-            val clones = cloneBatches ++ cloneTiles
-            Group(clones)
-            }
+            cloneBatches ++ cloneTiles
+            //cloneTiles
+        }
 
-        (tileMapCloneBlanks ++ animationCloneBlanks, Group(layers))
+        (tileMapCloneBlanks ++ animationCloneBlanks, Group(layers.flatten))
         }
 
   private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
