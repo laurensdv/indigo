@@ -7,6 +7,7 @@ import indigo.shared.BoundaryLocator
 import indigo.shared.FontRegister
 import indigo.shared.QuickCache
 import indigo.shared.assets.AssetName
+import indigo.shared.config.RenderingTechnology
 import indigo.shared.datatypes.Depth
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Radians
@@ -20,6 +21,7 @@ import indigo.shared.display.DisplayGroup
 import indigo.shared.display.DisplayMutants
 import indigo.shared.display.DisplayObject
 import indigo.shared.display.DisplayText
+import indigo.shared.display.DisplayTextLetters
 import indigo.shared.materials.Material
 import indigo.shared.scenegraph.CloneId
 import indigo.shared.scenegraph.Graphic
@@ -30,7 +32,7 @@ import indigo.shared.shader.Uniform
 import indigo.shared.time.GameTime
 import indigo.shared.time.Seconds
 
-import scalajs.js.JSConverters._
+import scala.collection.immutable.HashMap
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
 class DisplayObjectConversionsTests extends munit.FunSuite {
@@ -42,9 +44,9 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
   val fontRegister      = new FontRegister
   val boundaryLocator   = new BoundaryLocator(animationRegister, fontRegister, new DynamicText)
   val texture = new TextureRefAndOffset(AtlasId("texture"), Vector2(100, 100), Vector2.zero, Vector2(200, 100))
-  val assetMapping: AssetMapping = new AssetMapping(Map(AssetName("texture") -> texture))
+  val assetMapping: AssetMapping = new AssetMapping(HashMap(AssetName("texture") -> texture))
 
-  val cloneBlankMapping: Map[CloneId, DisplayObject] = Map.empty[CloneId, DisplayObject]
+  val cloneBlankMapping: HashMap[CloneId, DisplayObject] = HashMap.empty[CloneId, DisplayObject]
 
   implicit val cache: QuickCache[scalajs.js.Array[Float]] = QuickCache.empty
 
@@ -62,8 +64,11 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
         List(node),
         GameTime.is(Seconds(1)),
         assetMapping,
-        cloneBlankMapping
+        cloneBlankMapping,
+        RenderingTechnology.WebGL2,
+        256
       )
+      ._1
       .head match {
       case _: DisplayCloneBatch =>
         throw new Exception("failed (DisplayCloneBatch)")
@@ -76,6 +81,9 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
 
       case _: DisplayText =>
         throw new Exception("failed (DisplayText)")
+
+      case _: DisplayTextLetters =>
+        throw new Exception("failed (DisplayTextLetters)")
 
       case _: DisplayGroup =>
         throw new Exception("failed (DisplayGroup)")
@@ -93,8 +101,11 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
         List(node),
         GameTime.is(Seconds(1)),
         assetMapping,
-        cloneBlankMapping
+        cloneBlankMapping,
+        RenderingTechnology.WebGL2,
+        256
       )
+      ._1
       .head match {
       case _: DisplayCloneBatch =>
         throw new Exception("failed (DisplayCloneBatch)")
@@ -107,6 +118,9 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
 
       case _: DisplayText =>
         throw new Exception("failed (DisplayText)")
+
+      case _: DisplayTextLetters =>
+        throw new Exception("failed (DisplayTextLetters)")
 
       case _: DisplayObject =>
         throw new Exception("failed (DisplayObject)")
@@ -144,14 +158,14 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
         Uniform("f") -> float(13)
       )
 
-    val expected: scalajs.js.Array[Float] =
+    val expected: Array[Float] =
       Array[Array[Float]](
         Array[Float](1, 2, 0, 0),
         Array[Float](3, 4, 5, 0),
         Array[Float](6, 0, 0, 0),
         Array[Float](7, 8, 0, 0, 9, 10, 0, 0, 11, 12, 0, 0, 0, 0, 0, 0),
         Array[Float](13, 0, 0, 0)
-      ).flatten.toJSArray
+      ).flatten
 
     val actual: scalajs.js.Array[Float] =
       DisplayObjectConversions.packUBO(uniforms)
@@ -171,9 +185,11 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
       )
 
     val expected: scalajs.js.Array[Float] =
-      scalajs.js.Array[scalajs.js.Array[Float]](
-        scalajs.js.Array[Float](1, 0, 2, 3)
-      ).flatten
+      scalajs.js
+        .Array[scalajs.js.Array[Float]](
+          scalajs.js.Array[Float](1, 0, 2, 3)
+        )
+        .flatten
 
     val actual: scalajs.js.Array[Float] =
       DisplayObjectConversions.packUBO(uniforms)
@@ -212,7 +228,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // Exact 3 array.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(3)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(3)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0)
     )
@@ -220,7 +236,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 4 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(4)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(4)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0)
     )
@@ -228,7 +244,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 5 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(5)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(5)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](
         0,
@@ -241,7 +257,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 6 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(6)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(6)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](
         0,
@@ -254,7 +270,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 7 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(7)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(7)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](
         0,
@@ -267,7 +283,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 8 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(8)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(8)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++ List[Float](0, 0, 0, 0) ++
         List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++ List[Float](0, 0, 0, 0) ++
@@ -277,7 +293,7 @@ class DisplayObjectConversionsTests extends munit.FunSuite {
     // 16 array padded.
     assertEquals(
       DisplayObjectConversions
-        .packUBO(uniforms :+ Uniform("VERTICES") -> array(16)(vec2(6.0), vec2(7.0), vec2(8.0)))
+        .packUBO((uniforms :+ Uniform("VERTICES") -> array(16)(vec2(6.0), vec2(7.0), vec2(8.0))))
         .toList,
       expected.toList ++ List[Float](6, 6, 0, 0, 7, 7, 0, 0, 8, 8, 0, 0) ++
         List[Float](0, 0, 0, 0) ++

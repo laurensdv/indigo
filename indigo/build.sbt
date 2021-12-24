@@ -1,6 +1,8 @@
 import scala.sys.process._
 import scala.language.postfixOps
 
+import sbtwelcome._
+
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 ThisBuild / versionScheme                                  := Some("early-semver")
@@ -9,7 +11,7 @@ ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports"
 lazy val indigoVersion = IndigoVersion.getVersion
 // For the docs site
 lazy val indigoDocsVersion  = "0.10.0"
-lazy val scalaJsDocsVersion = "1.7.1"
+lazy val scalaJsDocsVersion = "1.8.0"
 lazy val scalaDocsVersion   = "3.1.0"
 //
 
@@ -130,8 +132,9 @@ lazy val indigo =
     .settings(
       name := "indigo",
       libraryDependencies ++= Seq(
-        "org.scalacheck" %%% "scalacheck"  % "1.15.3" % "test",
-        "org.scala-js"   %%% "scalajs-dom" % "2.0.0"
+        "org.scalacheck" %%% "scalacheck"                  % "1.15.3" % "test",
+        "org.scala-js"   %%% "scalajs-dom"                 % "2.0.0",
+        "org.scala-js"   %%% "scala-js-macrotask-executor" % "1.0.0"
       )
     )
     .settings(
@@ -204,7 +207,7 @@ lazy val benchmarks =
       scalaVersion := scala3Version,
       organization := "io.indigoengine",
       libraryDependencies ++= Seq(
-        "com.github.japgolly.scalajs-benchmark" %%% "benchmark"   % "0.10.0"
+        "com.github.japgolly.scalajs-benchmark" %%% "benchmark" % "0.10.0"
       ),
       jsDependencies ++= Seq(
         "org.webjars" % "chartjs" % "1.0.2" / "Chart.js" minified "Chart.min.js"
@@ -258,6 +261,16 @@ lazy val docs = project
     publishLocal := {}
   )
 
+lazy val rawLogo: String =
+    """
+    |      //                  //  //
+    |                         //
+    |    //  //////      //////  //    ////      //////
+    |   //  //    //  //    //  //  //    //  //    //
+    |  //  //    //  ////////  //  ////////  //////
+    |                                   //
+    |                            //////
+    |""".stripMargin
 // Root
 lazy val indigoProject =
   (project in file("."))
@@ -267,11 +280,11 @@ lazy val indigoProject =
     .settings(
       name                                       := "Indigo",
       ScalaUnidoc / unidoc / unidocProjectFilter := inAnyProject -- inProjects(indigoShaders, sandbox, perf, docs),
-      code                                       := {
+      code := {
         val command = Seq("code", ".")
         val run = sys.props("os.name").toLowerCase match {
           case x if x contains "windows" => Seq("cmd", "/C") ++ command
-          case _ => command
+          case _                         => command
         }
         run.!
       }
@@ -285,6 +298,23 @@ lazy val indigoProject =
       perf,
       docs,
       benchmarks
+    )
+    .settings(
+      logo := rawLogo + s"version ${version.value}",
+      usefulTasks := Seq(
+        UsefulTask("", "cleanAll", "Clean all the projects"),
+        UsefulTask("", "buildAllNoClean", "Rebuild without cleaning"),
+        UsefulTask("", "testAllNoClean", "Test all without cleaning"),
+        UsefulTask("", "crossLocalPublishNoClean", "Locally publish the core modules"),
+        UsefulTask("", "gendocs", "Rebuild the API and markdown docs"),
+        UsefulTask("", "sandboxRun", "Run the sandbox game (fastOptJS + Electron)"),
+        UsefulTask("", "perfRun", "Run the perf game (fastOptJS + Electron)"),
+        UsefulTask("", "code", "Launch VSCode")
+      ),
+      logoColor        := scala.Console.MAGENTA,
+      aliasColor       := scala.Console.CYAN,
+      commandColor     := scala.Console.BLUE_B,
+      descriptionColor := scala.Console.WHITE
     )
 
 addCommandAlias(

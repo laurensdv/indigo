@@ -12,5 +12,8 @@ object Main:
     val body = document.getElementById("body")
     BenchmarkGUI.renderMenu(body)(
       Caching.suite,
-      Collisions.suite
+      Collisions.suite,
+      QuadTreeBenchmarks.suite,
+      BoundaryLocatorBenchmarks.suite,
+      SimpleComparisons.suite
     )

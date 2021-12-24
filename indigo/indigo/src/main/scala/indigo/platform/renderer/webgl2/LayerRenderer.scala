@@ -16,6 +16,7 @@ import indigo.shared.display.DisplayGroup
 import indigo.shared.display.DisplayMutants
 import indigo.shared.display.DisplayObject
 import indigo.shared.display.DisplayText
+import indigo.shared.display.DisplayTextLetters
 import indigo.shared.scenegraph.CloneBatchData
 import indigo.shared.scenegraph.CloneId
 import indigo.shared.scenegraph.CloneTileData
@@ -28,14 +29,13 @@ import org.scalajs.dom.raw.WebGLProgram
 import org.scalajs.dom.raw.WebGLTexture
 
 import scala.annotation.tailrec
-import scala.collection.mutable.HashMap
+import scala.collection.immutable
+import scala.collection.mutable
 import scala.scalajs.js.typedarray.Float32Array
-
-import scalajs.js.JSConverters._
 
 class LayerRenderer(
     gl2: WebGL2RenderingContext,
-    textureLocations: List[TextureLookupResult],
+    textureLocations: scalajs.js.Array[TextureLookupResult],
     maxBatchSize: Int,
     projectionUBOBuffer: => WebGLBuffer,
     frameDataUBOBuffer: => WebGLBuffer,
@@ -45,8 +45,8 @@ class LayerRenderer(
     textTexture: WebGLTexture
 ) {
 
-  private val customDataUBOBuffers: HashMap[String, WebGLBuffer] =
-    HashMap.empty[String, WebGLBuffer]
+  private val customDataUBOBuffers: mutable.HashMap[String, WebGLBuffer] =
+    mutable.HashMap.empty[String, WebGLBuffer]
 
   // Instance Array Buffers
   private val translateScaleInstanceArray: WebGLBuffer       = gl2.createBuffer()
@@ -204,12 +204,12 @@ class LayerRenderer(
     textureSizeAtlasSizeData((i * 4) + 3) = 0
   }
 
+  private val refData: scalajs.js.Array[Float] =
+    scalajs.js.Array(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f, 0.0f, 0.0f)
+
   def init(): LayerRenderer =
-
     // pre-populate array
-    val refData: scalajs.js.Array[Float] =
-      List.fill(20)(0.0f).toArray.toJSArray
-
     WebGLHelper.attachUBOData(gl2, refData, cloneReferenceUBOBuffer)
 
     this
@@ -239,7 +239,7 @@ class LayerRenderer(
       gl2.uniformMatrix4fv(
         location = gl2.getUniformLocation(currentProgram, "u_baseTransform"),
         transpose = false,
-        value = Float32Array(baseTransform.toArray.toJSArray)
+        value = Float32Array(baseTransform.toArray)
       )
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
@@ -257,7 +257,7 @@ class LayerRenderer(
       atlasName: Option[AtlasId],
       currentShader: ShaderId,
       currentUniformHash: String,
-      customShaders: HashMap[ShaderId, WebGLProgram],
+      customShaders: mutable.HashMap[ShaderId, WebGLProgram],
       baseTransform: CheapMatrix4,
       renderMode: Int
   ): Unit = {
@@ -433,11 +433,11 @@ class LayerRenderer(
     gl2.drawArraysInstanced(TRIANGLE_STRIP, 0, 4, 1)
 
   def drawLayer(
-      cloneBlankDisplayObjects: Map[CloneId, DisplayObject],
-      displayEntities: scalajs.js.Array[DisplayEntity],
+      cloneBlankDisplayObjects: => immutable.HashMap[CloneId, DisplayObject],
+      displayEntities: => scalajs.js.Array[DisplayEntity],
       frameBufferComponents: FrameBufferComponents,
       clearColor: RGBA,
-      customShaders: HashMap[ShaderId, WebGLProgram]
+      customShaders: => mutable.HashMap[ShaderId, WebGLProgram]
   ): Unit = {
 
     FrameBufferFunctions.switchToFramebuffer(gl2, frameBufferComponents.frameBuffer, clearColor, true)
@@ -457,9 +457,9 @@ class LayerRenderer(
     )
   )
   private def renderEntities(
-      cloneBlankDisplayObjects: Map[CloneId, DisplayObject],
-      displayEntities: scalajs.js.Array[DisplayEntity],
-      customShaders: HashMap[ShaderId, WebGLProgram],
+      cloneBlankDisplayObjects: => immutable.HashMap[CloneId, DisplayObject],
+      displayEntities: => scalajs.js.Array[DisplayEntity],
+      customShaders: => mutable.HashMap[ShaderId, WebGLProgram],
       baseTransform: CheapMatrix4
   ): Unit = {
 
@@ -488,6 +488,15 @@ class LayerRenderer(
         batchCount = 0
       else
         sortedEntities(i) match {
+          case d: DisplayTextLetters if d.letters.isEmpty =>
+            i += 1
+
+          case d: DisplayTextLetters =>
+            drawBuffer(batchCount)
+            batchCount = 0
+            renderEntities(cloneBlankDisplayObjects, d.letters, customShaders, baseTransform)
+            i += 1
+
           case d: DisplayGroup if d.entities.isEmpty =>
             i += 1
 

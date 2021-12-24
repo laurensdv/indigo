@@ -9,7 +9,6 @@ import indigo.shared.datatypes.Size
 import indigo.shared.datatypes.TextAlignment
 import indigo.shared.datatypes.Vector3
 import indigo.shared.datatypes.mutable.CheapMatrix4
-import indigo.shared.platform.DisplayObjectConversions
 import indigo.shared.scenegraph.CloneBatch
 import indigo.shared.scenegraph.CloneTiles
 import indigo.shared.scenegraph.EntityNode
@@ -29,14 +28,16 @@ final class BoundaryLocator(
     dynamicText: DynamicText
 ) {
 
-  implicit private val maybeBoundsCache: QuickCache[Option[Rectangle]] = QuickCache.empty
-  implicit private val boundsCache: QuickCache[Rectangle]              = QuickCache.empty
-  implicit private val textLinesCache: QuickCache[List[TextLine]]      = QuickCache.empty
+  implicit private val maybeBoundsCache: QuickCache[Option[Rectangle]]      = QuickCache.empty
+  implicit private val boundsCache: QuickCache[Rectangle]                   = QuickCache.empty
+  implicit private val textLinesCache: QuickCache[List[TextLine]]           = QuickCache.empty
+  implicit private val textAllLineBoundsCache: QuickCache[Array[Rectangle]] = QuickCache.empty
 
   def purgeCache(): Unit = {
     maybeBoundsCache.purgeAllNow()
     boundsCache.purgeAllNow()
     textLinesCache.purgeAllNow()
+    textAllLineBoundsCache.purgeAllNow()
   }
 
   def measureText(t: TextBox): Rectangle =
@@ -128,13 +129,15 @@ final class BoundaryLocator(
 
   // Text / Fonts
 
-  private def textLineBounds(lineText: String, fontInfo: FontInfo): Rectangle =
-    lineText
-      .toCharArray()
-      .map(c => fontInfo.findByCharacter(c).bounds)
-      .foldLeft(Rectangle.zero) { (acc, curr) =>
-        Rectangle(0, 0, acc.width + curr.width, Math.max(acc.height, curr.height))
-      }
+  def textLineBounds(lineText: String, fontInfo: FontInfo): Rectangle =
+    QuickCache(s"""textline-${fontInfo.fontKey}-$lineText""") {
+      lineText
+        .toCharArray()
+        .map(c => fontInfo.findByCharacter(c).bounds)
+        .foldLeft(Rectangle.zero) { (acc, curr) =>
+          Rectangle(0, 0, acc.width + curr.width, Math.max(acc.height, curr.height))
+        }
+    }
 
   def textAsLinesWithBounds(text: String, fontKey: FontKey): List[TextLine] =
     QuickCache(s"""text-lines-$fontKey-$text""") {
@@ -154,10 +157,27 @@ final class BoundaryLocator(
         }
     }
 
+  def textAllLineBounds(text: String, fontKey: FontKey): Array[Rectangle] =
+    QuickCache(s"""text-all-line-bounds-$fontKey-$text""") {
+      fontRegister
+        .findByFontKey(fontKey)
+        .map { fontInfo =>
+          text.linesIterator.toArray
+            .map(lineText => textLineBounds(lineText, fontInfo))
+            .foldLeft((0, Array[Rectangle]())) { case ((yPos, lines), lineBounds) =>
+              (yPos + lineBounds.height, lines ++ Array(lineBounds.moveTo(0, yPos)))
+            }
+            ._2
+        }
+        .getOrElse {
+          IndigoLogger.errorOnce(s"Cannot build Text line bounds, missing Font with key: ${fontKey.toString()}")
+          Array()
+        }
+    }
+
   def textBounds(text: Text[_]): Rectangle =
     val unaligned =
-      textAsLinesWithBounds(text.text, text.fontKey)
-        .map(_.lineBounds)
+      textAllLineBounds(text.text, text.fontKey)
         .fold(Rectangle.zero) { (acc, next) =>
           acc.resize(Size(Math.max(acc.width, next.width), acc.height + next.height))
         }

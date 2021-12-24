@@ -9,11 +9,13 @@ import indigo.platform.renderer.shared.LoadedTextureAsset
 import indigo.platform.renderer.shared.TextureLookupResult
 import indigo.platform.renderer.shared.WebGLHelper
 import indigo.shared.config.GameViewport
+import indigo.shared.config.RenderingTechnology
 import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.mutable.CheapMatrix4
 import indigo.shared.display.DisplayEntity
 import indigo.shared.display.DisplayGroup
 import indigo.shared.display.DisplayObject
+import indigo.shared.display.DisplayTextLetters
 import indigo.shared.events.ViewportResize
 import indigo.shared.platform.ProcessedSceneData
 import indigo.shared.platform.RendererConfig
@@ -30,14 +32,14 @@ import org.scalajs.dom.raw.WebGLUniformLocation
 
 import scala.scalajs.js.typedarray.Float32Array
 
-import scalajs.js.JSConverters._
-
 final class RendererWebGL1(
     config: RendererConfig,
-    loadedTextureAssets: List[LoadedTextureAsset],
+    loadedTextureAssets: scalajs.js.Array[LoadedTextureAsset],
     cNc: ContextAndCanvas,
     globalEventStream: GlobalEventStream
 ) extends Renderer {
+
+  val renderingTechnology: RenderingTechnology = RenderingTechnology.WebGL1
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var resizeRun: Boolean = false
@@ -55,7 +57,7 @@ final class RendererWebGL1(
   private val vertexBuffer: WebGLBuffer = gl.createBuffer()
   private val standardShaderProgram     = WebGLHelper.shaderProgramSetup(gl, "Pixel", indigo.shaders.WebGL1)
 
-  private val textureLocations: List[TextureLookupResult] =
+  private val textureLocations: scalajs.js.Array[TextureLookupResult] =
     gl.pixelStorei(UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
     loadedTextureAssets.map(li => TextureLookupResult(li.name, WebGLHelper.organiseImage(gl, li.data)))
 
@@ -96,7 +98,7 @@ final class RendererWebGL1(
     gl.clearColor(config.clearColor.r, config.clearColor.g, config.clearColor.b, config.clearColor.a)
     gl.clear(COLOR_BUFFER_BIT)
 
-    val gameProjection: scala.scalajs.js.Array[Double] = orthographicProjectionMatrix.toArray.map(_.toDouble).toJSArray
+    val gameProjection: scala.scalajs.js.Array[Double] = orthographicProjectionMatrix.toArray.map(_.toDouble)
 
     sceneData.layers.foreach { layer =>
       val maybeCamera: Option[Camera] =
@@ -122,7 +124,6 @@ final class RendererWebGL1(
               )
               .toArray
               .map(_.toDouble)
-              .toJSArray
 
           case (None, Some(c)) =>
             CameraHelper
@@ -139,7 +140,6 @@ final class RendererWebGL1(
               )
               .toArray
               .map(_.toDouble)
-              .toJSArray
 
           case (Some(m), Some(c)) =>
             CameraHelper
@@ -156,7 +156,6 @@ final class RendererWebGL1(
               )
               .toArray
               .map(_.toDouble)
-              .toJSArray
         }
 
       drawLayer(layer.entities, standardShaderProgram, projection)
@@ -184,7 +183,7 @@ final class RendererWebGL1(
     gl.uniformMatrix4fv(
       location = gl.getUniformLocation(shaderProgram, "u_baseTransform"),
       transpose = false,
-      value = Float32Array(baseTransform.toArray.toJSArray)
+      value = Float32Array(baseTransform.toArray)
     )
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
@@ -204,9 +203,16 @@ final class RendererWebGL1(
 
         case g: DisplayGroup =>
           (g, AtlasId(""))
+
+        case l: DisplayTextLetters =>
+          (l, AtlasId(""))
       }
       .sortWith((d1, d2) => d1._1.z > d2._1.z)
       .foreach {
+        case (letters: DisplayTextLetters, _) =>
+          renderEntities(letters.letters, shaderProgram, baseTransform)
+          setBaseTransform
+
         case (group: DisplayGroup, _) =>
           renderEntities(group.entities, shaderProgram, group.transform)
           setBaseTransform

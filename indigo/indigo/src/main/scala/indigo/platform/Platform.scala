@@ -27,6 +27,7 @@ import indigo.shared.shader.RawShaderCode
 import org.scalajs.dom
 import org.scalajs.dom.Element
 import org.scalajs.dom.html.Canvas
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits._
 
 import scala.util.Failure
 import scala.util.Success
@@ -148,8 +149,6 @@ class Platform(
         shaders
       )
     }
-
-  implicit private val ec: scala.concurrent.ExecutionContext = scalajs.concurrent.JSExecutionContext.queue
 
   // @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   def toggleFullScreen(): Unit =

@@ -49,7 +49,8 @@ class GameLoop[StartUpData, GameModel, ViewModel](
       // Model updates cut off
       if (gameConfig.advanced.disableSkipModelUpdates || timeDelta < gameConfig.haltModelUpdatesAt) {
 
-        val gameTime        = new GameTime(Millis(time).toSeconds, Seconds(timeDelta.toDouble / 1000d), GameTime.FPS(gameConfig.frameRate))
+        val gameTime =
+          new GameTime(Millis(time).toSeconds, Seconds(timeDelta.toDouble / 1000d), GameTime.FPS(gameConfig.frameRate))
         val collectedEvents = gameEngine.globalEventStream.collect ++ List(FrameTick)
         val dice            = Dice.fromSeconds(gameTime.running)
 
@@ -62,7 +63,16 @@ class GameLoop[StartUpData, GameModel, ViewModel](
 
         if (gameConfig.advanced.disableSkipViewUpdates || timeDelta < gameConfig.haltViewUpdatesAt) {
           val processedFrame: Outcome[(GameModel, ViewModel, SceneUpdateFragment)] =
-            frameProcessor.run(startUpData, gameModelState, viewModelState, gameTime, collectedEvents, inputState, dice, boundaryLocator)
+            frameProcessor.run(
+              startUpData,
+              gameModelState,
+              viewModelState,
+              gameTime,
+              collectedEvents,
+              inputState,
+              dice,
+              boundaryLocator
+            )
 
           // Persist frame state
           val scene =
@@ -80,7 +90,12 @@ class GameLoop[StartUpData, GameModel, ViewModel](
 
           // Process events
           scene.layers.foreach { layer =>
-            SceneGraphViewEvents.collectViewEvents(boundaryLocator, layer.nodes, collectedEvents, gameEngine.globalEventStream.pushGlobalEvent)
+            SceneGraphViewEvents.collectViewEvents(
+              boundaryLocator,
+              layer.nodes,
+              collectedEvents,
+              gameEngine.globalEventStream.pushGlobalEvent
+            )
           }
 
           // Play audio
@@ -90,14 +105,25 @@ class GameLoop[StartUpData, GameModel, ViewModel](
           val sceneData = sceneProcessor.processScene(
             gameTime,
             scene,
-            gameEngine.assetMapping
+            gameEngine.assetMapping,
+            gameEngine.renderer.renderingTechnology,
+            gameConfig.advanced.batchSize
           )
 
           // Render scene
           gameEngine.renderer.drawScene(sceneData, gameTime.running)
         } else {
           val processedFrame: Outcome[(GameModel, ViewModel)] =
-            frameProcessor.runSkipView(startUpData, gameModelState, viewModelState, gameTime, collectedEvents, inputState, dice, boundaryLocator)
+            frameProcessor.runSkipView(
+              startUpData,
+              gameModelState,
+              viewModelState,
+              gameTime,
+              collectedEvents,
+              inputState,
+              dice,
+              boundaryLocator
+            )
 
           // Persist frame state
           processedFrame match {
@@ -116,8 +142,7 @@ class GameLoop[StartUpData, GameModel, ViewModel](
       }
 
       gameEngine.platform.tick(gameEngine.gameLoop(time))
-    } else
-      gameEngine.platform.tick(loop(lastUpdateTime))
+    } else gameEngine.platform.tick(loop(lastUpdateTime))
   }
 
 }

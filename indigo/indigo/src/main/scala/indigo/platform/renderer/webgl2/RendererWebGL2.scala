@@ -13,6 +13,7 @@ import indigo.platform.renderer.shared.TextureLookupResult
 import indigo.platform.renderer.shared.WebGLHelper
 import indigo.shared.QuickCache
 import indigo.shared.config.GameViewport
+import indigo.shared.config.RenderingTechnology
 import indigo.shared.datatypes.RGBA
 import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.mutable.CheapMatrix4
@@ -43,11 +44,13 @@ import scala.scalajs.js.typedarray.Float32Array
 @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
 final class RendererWebGL2(
     config: RendererConfig,
-    loadedTextureAssets: List[LoadedTextureAsset],
+    loadedTextureAssets: scalajs.js.Array[LoadedTextureAsset],
     cNc: ContextAndCanvas,
     globalEventStream: GlobalEventStream,
     dynamicText: DynamicText
 ) extends Renderer {
+
+  val renderingTechnology: RenderingTechnology = RenderingTechnology.WebGL2
 
   implicit private val projectionsCache: QuickCache[scalajs.js.Array[Float]] = QuickCache.empty
 
@@ -58,7 +61,7 @@ final class RendererWebGL2(
   private val gl2: WebGL2RenderingContext =
     gl.asInstanceOf[WebGL2RenderingContext]
 
-  private val textureLocations: List[TextureLookupResult] =
+  private val textureLocations: scalajs.js.Array[TextureLookupResult] =
     gl.pixelStorei(UNPACK_PREMULTIPLY_ALPHA_WEBGL, 1);
     loadedTextureAssets.map { li =>
       new TextureLookupResult(li.name, WebGLHelper.organiseImage(gl, li.data))

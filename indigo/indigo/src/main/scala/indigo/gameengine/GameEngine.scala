@@ -29,8 +29,8 @@ import indigo.shared.shader.EntityShader
 import indigo.shared.shader.Shader
 import indigo.shared.shader.ShaderRegister
 import indigo.shared.shader.StandardShaders
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits._
 
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
 final class GameEngine[StartUpData, GameModel, ViewModel](
