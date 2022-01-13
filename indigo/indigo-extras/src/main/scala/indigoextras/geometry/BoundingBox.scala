@@ -118,6 +118,12 @@ object BoundingBox:
   def apply(x: Double, y: Double, width: Double, height: Double): BoundingBox =
     BoundingBox(Vertex(x, y), Vertex(width, height))
 
+  def apply(width: Double, height: Double): BoundingBox =
+    BoundingBox(Vertex.zero, Vertex(width, height))
+
+  def apply(size: Vertex): BoundingBox =
+    BoundingBox(Vertex.zero, size)
+
   def fromTwoVertices(pt1: Vertex, pt2: Vertex): BoundingBox = {
     val x = Math.min(pt1.x, pt2.x)
     val y = Math.min(pt1.y, pt2.y)
@@ -206,7 +212,7 @@ object BoundingBox:
     Math.abs(a.center.x - b.center.x) < a.halfSize.x + b.halfSize.x &&
       Math.abs(a.center.y - b.center.y) < a.halfSize.y + b.halfSize.y
 
-  def lineIntersects(boundingBox: BoundingBox, line: LineSegment): Boolean = {
+  def lineIntersects(boundingBox: BoundingBox, line: LineSegment): Boolean =
     @tailrec
     def rec(remaining: List[LineSegment]): Boolean =
       remaining match {
@@ -220,16 +226,31 @@ object BoundingBox:
           rec(xs)
       }
 
-    rec(boundingBox.toLineSegments)
-  }
+    val containsStart = boundingBox.contains(line.start)
+    val containsEnd   = boundingBox.contains(line.end)
+
+    if containsStart && containsEnd then false
+    else if !line.toBoundingBox.overlaps(boundingBox) then false
+    else rec(boundingBox.toLineSegments)
 
   def lineIntersectsAt(boundingBox: BoundingBox, line: LineSegment): Option[Vertex] =
-    boundingBox.toLineSegments
-      .map(_.intersectsAt(line))
-      .collect { case Some(v) => v }
-      .foldLeft((Option.empty[Vertex], Double.MaxValue)) { (acc, v) =>
-        val dist = v.distanceTo(line.start)
-        if (dist < acc._2) (Some(v), dist)
-        else acc
-      }
-      ._1
+    val containsStart = boundingBox.contains(line.start)
+    val containsEnd   = boundingBox.contains(line.end)
+
+    if containsStart && containsEnd then None
+    else if !line.toBoundingBox.overlaps(boundingBox) then None
+    else
+      val outside =
+        if !containsStart && !containsEnd then line.start
+        else if containsStart then line.end
+        else line.start
+
+      boundingBox.toLineSegments
+        .flatMap { ln =>
+          if ln.isFacingVertex(outside) then
+            val at = ln.intersectsAt(line)
+            if at.isDefined then List(at.get) else Nil
+          else Nil
+        }
+        .sortWith((a, b) => a.distanceTo(outside) < b.distanceTo(outside))
+        .headOption

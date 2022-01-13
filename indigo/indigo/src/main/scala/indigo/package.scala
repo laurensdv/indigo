@@ -9,9 +9,9 @@ object syntax:
     def zoom: Zoom       = Zoom(d)
 
   extension (i: Int)
-    def depth: Depth      = Depth(i)
-    def fps: GameTime.FPS = GameTime.FPS(i)
-    def pixels: Pixels    = Pixels(i)
+    def depth: Depth   = Depth(i)
+    def fps: FPS       = FPS(i)
+    def pixels: Pixels = Pixels(i)
 
   extension (l: Long) def millis: Millis = Millis(l)
 
@@ -58,6 +58,9 @@ val Millis: shared.time.Millis.type = shared.time.Millis
 
 type Seconds = shared.time.Seconds
 val Seconds: shared.time.Seconds.type = shared.time.Seconds
+
+type FPS = shared.time.FPS
+val FPS: shared.time.FPS.type = shared.time.FPS
 
 type Dice = shared.dice.Dice
 val Dice: shared.dice.Dice.type = shared.dice.Dice
@@ -510,6 +513,21 @@ val Group: shared.scenegraph.Group.type = shared.scenegraph.Group
 
 type TextBox = shared.scenegraph.TextBox
 val TextBox: shared.scenegraph.TextBox.type = shared.scenegraph.TextBox
+
+type Clip[M <: Material] = shared.scenegraph.Clip[M]
+val Clip: shared.scenegraph.Clip.type = shared.scenegraph.Clip
+
+type ClipSheet = shared.scenegraph.ClipSheet
+val ClipSheet: shared.scenegraph.ClipSheet.type = shared.scenegraph.ClipSheet
+
+type ClipSheetArrangement = shared.scenegraph.ClipSheetArrangement
+val TexClipSheetArrangementtBox: shared.scenegraph.ClipSheetArrangement.type = shared.scenegraph.ClipSheetArrangement
+
+type ClipPlayDirection = shared.scenegraph.ClipPlayDirection
+val ClipPlayDirection: shared.scenegraph.ClipPlayDirection.type = shared.scenegraph.ClipPlayDirection
+
+type ClipPlayMode = shared.scenegraph.ClipPlayMode
+val ClipPlayMode: shared.scenegraph.ClipPlayMode.type = shared.scenegraph.ClipPlayMode
 
 // TextStyle
 

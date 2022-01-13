@@ -2,7 +2,9 @@ package com.example.sandbox
 
 import com.example.sandbox.scenes.Archetype
 import com.example.sandbox.scenes.BoundsScene
+import com.example.sandbox.scenes.BoxesScene
 import com.example.sandbox.scenes.CameraScene
+import com.example.sandbox.scenes.ClipScene
 import com.example.sandbox.scenes.ConfettiScene
 import com.example.sandbox.scenes.CratesScene
 import com.example.sandbox.scenes.LegacyEffectsScene
@@ -13,6 +15,7 @@ import com.example.sandbox.scenes.RefractionScene
 import com.example.sandbox.scenes.Shaders
 import com.example.sandbox.scenes.ShapesScene
 import com.example.sandbox.scenes.TextBoxScene
+import com.example.sandbox.scenes.TextScene
 import com.example.sandbox.scenes.TextureTileScene
 import com.example.sandbox.scenes.UiScene
 import indigo.*
@@ -31,7 +34,7 @@ import scala.scalajs.js.annotation.*
 @JSExportTopLevel("IndigoGame")
 object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
-  val targetFPS: Int          = 60
+  val targetFPS: FPS          = FPS.`60`
   val magnificationLevel: Int = 2
   val gameWidth: Int          = 228
   val gameHeight: Int         = 128
@@ -39,7 +42,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   val viewportHeight: Int     = gameHeight * magnificationLevel // 256
 
   def initialScene(bootData: SandboxBootData): Option[SceneName] =
-    Some(OriginalScene.name)
+    Some(BoxesScene.name)
 
   def scenes(bootData: SandboxBootData): NonEmptyList[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
     NonEmptyList(
@@ -55,7 +58,10 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       UiScene,
       ConfettiScene,
       MutantsScene,
-      CratesScene
+      CratesScene,
+      ClipScene,
+      TextScene,
+      BoxesScene
     )
 
   val eventFilters: EventFilters = EventFilters.Permissive
@@ -79,8 +85,11 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           magnification = magnificationLevel
         ),
         SandboxBootData(flags.getOrElse("key", "No entry for 'key'."), gameViewport)
-      ).withAssets(SandboxAssets.assets ++ Shaders.assets ++ Archetype.assets)
-        .withFonts(Fonts.fontInfo)
+      ).withAssets(
+        SandboxAssets.assets ++
+          Shaders.assets ++
+          Archetype.assets
+      ).withFonts(Fonts.fontInfo)
         .withSubSystems(
           FPSCounter(
             Point(5, 165),
@@ -111,7 +120,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
 
     def makeStartupData(
         aseprite: Aseprite,
-        spriteAndAnimations: SpriteAndAnimations
+        spriteAndAnimations: SpriteAndAnimations,
+        clips: Map[CycleLabel, Clip[Material.Bitmap]]
     ): Startup.Success[SandboxStartupData] =
       Startup
         .Success(
@@ -122,7 +132,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
                 .withDepth(Depth(3))
                 .withRef(16, 16)      // Initial offset, so when talk about his position it's the center of the sprite
                 .moveTo(screenCenter) // Also place him in the middle of the screen initially
-                .withMaterial(SandboxAssets.dudeMaterial)
+                .withMaterial(SandboxAssets.dudeMaterial),
+              clips
             ),
             screenCenter
           )
@@ -133,7 +144,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       json                <- assetCollection.findTextDataByName(AssetName(SandboxAssets.dudeName.toString + "-json"))
       aseprite            <- Json.asepriteFromJson(json)
       spriteAndAnimations <- aseprite.toSpriteAndAnimations(dice, SandboxAssets.dudeName)
-    } yield makeStartupData(aseprite, spriteAndAnimations)
+      clips               <- aseprite.toClips(SandboxAssets.dudeName)
+    } yield makeStartupData(aseprite, spriteAndAnimations, clips)
 
     Outcome(res.getOrElse(Startup.Failure("Failed to load the dude")))
   }
@@ -218,7 +230,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
             viewModel.offset
         }
 
-      //more stuff
+      // more stuff
       for {
         single <- viewModel.single.update(context)
         multi  <- viewModel.multi.update(context)
@@ -231,6 +243,14 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
     case FullScreenExited =>
       println("Exited full screen mode")
       Outcome(viewModel)
+
+    case KeyboardEvent.KeyDown(Key.PAGE_UP) =>
+      Outcome(viewModel)
+        .addGlobalEvents(SceneEvent.Next)
+
+    case KeyboardEvent.KeyDown(Key.PAGE_DOWN) =>
+      Outcome(viewModel)
+        .addGlobalEvents(SceneEvent.Previous)
 
     case _ =>
       Outcome(viewModel)
@@ -250,7 +270,11 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
     )
 }
 
-final case class Dude(aseprite: Aseprite, sprite: Sprite[Material.ImageEffects])
+final case class Dude(
+    aseprite: Aseprite,
+    sprite: Sprite[Material.ImageEffects],
+    clips: Map[CycleLabel, Clip[Material.Bitmap]]
+)
 final case class SandboxBootData(message: String, gameViewport: GameViewport)
 final case class SandboxStartupData(dude: Dude, viewportCenter: Point)
 final case class SandboxViewModel(

@@ -33,7 +33,13 @@ final class RendererInitialiser(
       canvas: html.Canvas,
       shaders: Set[RawShaderCode]
   ): Renderer = {
-    val (cNc, tech) = setupContextAndCanvas(canvas, config.magnification, config.antiAliasing)
+    val (cNc, tech) = setupContextAndCanvas(
+      canvas,
+      config.magnification,
+      config.antiAliasing,
+      config.premultipliedAlpha,
+      config.transparentBackground
+    )
 
     globalEventStream.pushGlobalEvent(RendererDetails(tech, config.clearColor, config.magnification))
 
@@ -53,8 +59,9 @@ final class RendererInitialiser(
     r
   }
 
-  def createCanvas(width: Int, height: Int, parent: Element): html.Canvas =
-    createNamedCanvas(width, height, "indigo", Some(parent))
+  def createCanvas(width: Int, height: Int, parentElementId: String, parent: Element): html.Canvas =
+    val name = if parentElementId.isEmpty then "indigo" else s"$parentElementId-indigo"
+    createNamedCanvas(width, height, name, Some(parent))
 
   private given CanEqual[Option[Element], Option[Element]] = CanEqual.derived
 
@@ -88,9 +95,11 @@ final class RendererInitialiser(
   private def setupContextAndCanvas(
       canvas: html.Canvas,
       magnification: Int,
-      antiAliasing: Boolean
+      antiAliasing: Boolean,
+      premultipliedAlpha: Boolean,
+      transparentBackground: Boolean
   ): (ContextAndCanvas, RenderingTechnology) = {
-    val (ctx, tech) = getContext(canvas, antiAliasing)
+    val (ctx, tech) = getContext(canvas, antiAliasing, premultipliedAlpha, transparentBackground)
 
     val cNc =
       new ContextAndCanvas(
@@ -108,9 +117,18 @@ final class RendererInitialiser(
       "scalafix:DisableSyntax.throw"
     )
   )
-  private def getContext(canvas: html.Canvas, antiAliasing: Boolean): (WebGLRenderingContext, RenderingTechnology) = {
+  private def getContext(
+      canvas: html.Canvas,
+      antiAliasing: Boolean,
+      premultipliedAlpha: Boolean,
+      transparentBackground: Boolean
+  ): (WebGLRenderingContext, RenderingTechnology) = {
     val args =
-      Dynamic.literal("premultipliedAlpha" -> true, "alpha" -> false, "antialias" -> antiAliasing)
+      Dynamic.literal(
+        "premultipliedAlpha" -> premultipliedAlpha,
+        "alpha"              -> transparentBackground,
+        "antialias"          -> antiAliasing
+      )
 
     val tech: RenderingTechnology.WebGL1.type | RenderingTechnology.WebGL2.type =
       chooseRenderingTechnology(renderingTechnology, args)
@@ -195,7 +213,7 @@ final class RendererInitialiser(
 
   @SuppressWarnings(
     Array(
-      "scalafix:DisableSyntax.null",
+      "scalafix:DisableSyntax.null"
     )
   )
   private def isWebGL2ReallySupported(gl2: raw.WebGLRenderingContext): Boolean = {

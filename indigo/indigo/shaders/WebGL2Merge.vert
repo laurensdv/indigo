@@ -1,6 +1,6 @@
 #version 300 es
 
-precision lowp float;
+precision mediump float;
 
 layout (location = 0) in vec4 a_verticesAndCoords; // a_vertices, a_texcoord
 
@@ -10,7 +10,7 @@ layout (std140) uniform IndigoMergeData {
 };
 
 layout (std140) uniform IndigoFrameData {
-  float TIME; // Running time
+  highp float TIME; // Running time
   vec2 VIEWPORT_SIZE; // Size of the viewport in pixels
 };
 

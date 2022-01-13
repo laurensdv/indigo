@@ -7,7 +7,7 @@ import mill.scalajslib._
 import mill.scalajslib.api._
 import coursier.maven.MavenRepository
 
-import $ivy.`io.indigoengine::mill-indigo:0.10.1-SNAPSHOT`, millindigo._
+import $ivy.`io.indigoengine::mill-indigo:0.11.1-SNAPSHOT`, millindigo._
 
 object snake extends ScalaJSModule with MillIndigo {
   def scalaVersion   = "3.1.0"
@@ -35,7 +35,7 @@ object snake extends ScalaJSModule with MillIndigo {
     }
   }
 
-  val indigoVersion = "0.10.1-SNAPSHOT"
+  val indigoVersion = "0.11.1-SNAPSHOT"
 
   def ivyDeps = Agg(
     ivy"io.indigoengine::indigo-json-circe::$indigoVersion",
@@ -45,14 +45,18 @@ object snake extends ScalaJSModule with MillIndigo {
 
   def scalacOptions = super.scalacOptions() ++ ScalacOptions.compile
 
+  override def useECMAScript2015 = T(true)
+
   object test extends Tests {
     def ivyDeps = Agg(
-      ivy"org.scalameta::munit::0.7.26"
+      ivy"org.scalameta::munit::0.7.29"
     )
 
     def testFramework = "munit.Framework"
 
-    override def moduleKind = T(mill.scalajslib.api.ModuleKind.CommonJSModule)
+    override def moduleKind        = T(mill.scalajslib.api.ModuleKind.CommonJSModule)
+    override def jsEnvConfig       = T(JsEnvConfig.NodeJs(args = List("--dns-result-order=ipv4first")))
+    override def useECMAScript2015 = T(true)
 
     def scalacOptions = super.scalacOptions() ++ ScalacOptions.test
   }

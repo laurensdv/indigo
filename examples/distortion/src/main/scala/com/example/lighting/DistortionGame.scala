@@ -1,16 +1,15 @@
 package com.example.lighting
 
 import indigo._
-
-import scala.scalajs.js.annotation._
-
 import indigoextras.effectmaterials.Refraction
 import indigoextras.effectmaterials.RefractionEntity
+
+import scala.scalajs.js.annotation._
 
 @JSExportTopLevel("IndigoGame")
 object DistortionGame extends IndigoSandbox[Unit, Unit] {
 
-  val targetFPS: Int = 60
+  val targetFPS: FPS = FPS.`60`
 
   private val magnificationLevel: Int = 3
   private val viewportWidth: Int      = 228 * magnificationLevel
