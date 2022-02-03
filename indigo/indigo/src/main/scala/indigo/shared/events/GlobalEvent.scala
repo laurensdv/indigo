@@ -87,14 +87,31 @@ case object FullScreenExited extends ViewEvent
   */
 case object FullScreenExitError extends ViewEvent
 
+/** Follows the MDN spec values https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button Relies on the ordinal
+  * behavior of Scala 3 enums to match the button number
+  */
+enum MouseButton derives CanEqual:
+  case LeftMouseButton, MiddleMouseButton, RightMouseButton, BrowserBackButton, BrowserForwardButton
+
+/** Represents in which direction the mouse wheel was rotated
+  */
+enum MouseWheel derives CanEqual:
+  case ScrollUp, ScrollDown
+
+object MouseButton:
+  def fromOrdinalOpt(ordinal: Int): Option[MouseButton] =
+    if ordinal >= LeftMouseButton.ordinal && ordinal <= BrowserForwardButton.ordinal then
+      Some(MouseButton.fromOrdinal(ordinal))
+    else Option.empty[MouseButton]
+
 /** Represents all mouse events
   */
-sealed trait MouseEvent extends InputEvent {
+sealed trait MouseEvent extends InputEvent:
   val position: Point
   val x: Int
   val y: Int
-}
-object MouseEvent {
+
+object MouseEvent:
 
   /** The mouse has been clicked.
     *
@@ -116,13 +133,19 @@ object MouseEvent {
     *   X coord relative to magnification level
     * @param y
     *   Y coord relative to magnification level
+    * @param button
+    *   Button that triggered this event
     */
-  final case class MouseUp(position: Point) extends MouseEvent:
+  final case class MouseUp(position: Point, button: MouseButton) extends MouseEvent:
     val x: Int = position.x
     val y: Int = position.y
   object MouseUp:
+    def apply(position: Point): MouseUp =
+      MouseUp(position, MouseButton.LeftMouseButton)
     def apply(x: Int, y: Int): MouseUp =
-      MouseUp(Point(x, y))
+      MouseUp(Point(x, y), MouseButton.LeftMouseButton)
+    def apply(x: Int, y: Int, button: MouseButton): MouseUp =
+      MouseUp(Point(x, y), button)
 
   /** The left mouse button was pressed down.
     *
@@ -130,13 +153,19 @@ object MouseEvent {
     *   X coord relative to magnification level
     * @param y
     *   Y coord relative to magnification level
+    * @param button
+    *   Button that triggered this event
     */
-  final case class MouseDown(position: Point) extends MouseEvent:
+  final case class MouseDown(position: Point, button: MouseButton) extends MouseEvent:
     val x: Int = position.x
     val y: Int = position.y
   object MouseDown:
+    def apply(position: Point): MouseDown =
+      MouseDown(position, MouseButton.LeftMouseButton)
     def apply(x: Int, y: Int): MouseDown =
-      MouseDown(Point(x, y))
+      MouseDown(Point(x, y), MouseButton.LeftMouseButton)
+    def apply(x: Int, y: Int, button: MouseButton): MouseDown =
+      MouseDown(Point(x, y), button)
 
   /** The mouse was moved to a new position.
     *
@@ -148,10 +177,27 @@ object MouseEvent {
   final case class Move(position: Point) extends MouseEvent:
     val x: Int = position.x
     val y: Int = position.y
+
   object Move:
     def apply(x: Int, y: Int): Move =
       Move(Point(x, y))
-}
+
+  /** The mouse wheel was rotated a certain amount into the Y axis.
+    *
+    * @param position
+    *   mouse position at where the wheel was actioned
+    * @param amount
+    *   vertical amount of pixels, pages or other unit, depending on delta mode, the Y axis was scrolled
+    */
+  final case class Wheel(position: Point, amount: Double) extends MouseEvent:
+    val x: Int = position.x
+    val y: Int = position.y
+
+  object Wheel:
+    def apply(x: Int, y: Int, amount: Double): Wheel =
+      Wheel(Point(x, y), amount)
+
+end MouseEvent
 
 /** Represents all keyboard events
   */

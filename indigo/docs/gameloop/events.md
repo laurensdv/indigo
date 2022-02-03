@@ -57,14 +57,23 @@ You can create your own events by simply extending `GlobalEvent`.
 
 ### `InputEvent`s
 
+Handling `InputEvent`s can be a bit tricky in some situations, so Indigo includes `Mouse` and `Keyboard` classes that can be accessed from the [frame context](gameloop/frame-context.md), providing a rich interface to gather more complex information from those input devices.
+
 #### `MouseEvent`s
 
 What did the mouse do and at what location?
 
+Up to five mouse buttons are supported, including the most common left, middle and right buttons.
+
+Convenience functions are provided for the left mouse button.
+
 - `Click(x, y)`
-- `MouseUp(x, y)`
-- `MouseDown(x, y)`
+- `MouseUp(x, y, button)`
+- `MouseDown(x, y, button)`
 - `Move(x, y)`
+- `Wheel(x, y, amount)`
+
+Notice however that the `Click` event is restricted to the left mouse button, and `Move` is independent of any button.
 
 #### `KeyboardEvent`s
 

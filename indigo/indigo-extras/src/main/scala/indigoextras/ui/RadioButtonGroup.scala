@@ -15,6 +15,7 @@ import indigo.shared.scenegraph.Sprite
 import indigo.shared.scenegraph.Text
 import indigo.shared.scenegraph.TextBox
 
+import scala.annotation.nowarn
 import scala.annotation.tailrec
 
 /** Represents an individual option button in a radio button group. This class just containing the distinct information
@@ -33,6 +34,7 @@ import scala.annotation.tailrec
   * @param state
   *   The current state of the radio button i.e., selected, hover, or normal
   */
+@nowarn("msg=value leftMouseIsDown in class Mouse is deprecated")
 final case class RadioButton(
     position: Point,
     onSelected: () => List[GlobalEvent],
@@ -42,7 +44,17 @@ final case class RadioButton(
     hitArea: Option[Rectangle],
     buttonAssets: Option[ButtonAssets],
     state: RadioButtonState
-) derives CanEqual {
+) derives CanEqual:
+
+  def moveBy(point: Point): RadioButton =
+    this.copy(position = position + point)
+  def moveBy(x: Int, y: Int): RadioButton =
+    moveBy(Point(x, y))
+
+  def moveTo(point: Point): RadioButton =
+    this.copy(position = point)
+  def moveTo(x: Int, y: Int): RadioButton =
+    moveTo(Point(x, y))
 
   /** Events to fire when selected.
     *
@@ -189,9 +201,8 @@ final case class RadioButton(
     */
   def inHoverState: Boolean =
     state.inHoverState
-}
 
-object RadioButton {
+object RadioButton:
 
   /** Build a individual radio button by specifying it's position.
     *
@@ -200,7 +211,6 @@ object RadioButton {
     */
   def apply(position: Point): RadioButton =
     RadioButton(position, () => Nil, () => Nil, () => Nil, () => Nil, None, None, RadioButtonState.Normal)
-}
 
 /** A group of mutually exclusive radio buttons.
   *
@@ -213,12 +223,13 @@ object RadioButton {
   * @param depth
   *   The depth at which to present the buttons
   */
+@nowarn("msg=value leftMouseIsDown in class Mouse is deprecated")
 final case class RadioButtonGroup(
     buttonAssets: ButtonAssets,
     hitArea: Rectangle,
     depth: Depth,
     options: List[RadioButton]
-) derives CanEqual {
+) derives CanEqual:
 
   /** Specify a new hit area for the radio buttons
     *
@@ -401,9 +412,8 @@ final case class RadioButtonGroup(
         }
       }
     )
-}
 
-object RadioButtonGroup {
+object RadioButtonGroup:
 
   /** Construct a bare bones radio button group, with no buttons in it.
     *
@@ -438,9 +448,7 @@ object RadioButtonGroup {
   ): RadioButtonGroup =
     RadioButtonGroup(buttonAssets, hitArea, Depth.zero, Nil)
 
-}
-
-sealed trait RadioButtonState derives CanEqual {
+sealed trait RadioButtonState derives CanEqual:
   def toButtonState: ButtonState =
     this match {
       case RadioButtonState.Selected => ButtonState.Down
@@ -450,18 +458,16 @@ sealed trait RadioButtonState derives CanEqual {
 
   def inSelectedState: Boolean
   def inHoverState: Boolean
-}
-object RadioButtonState {
-  case object Selected extends RadioButtonState {
+
+object RadioButtonState:
+  case object Selected extends RadioButtonState:
     val inSelectedState: Boolean = true
     val inHoverState: Boolean    = false
-  }
-  case object Hover extends RadioButtonState {
+
+  case object Hover extends RadioButtonState:
     val inSelectedState: Boolean = false
     val inHoverState: Boolean    = true
-  }
-  case object Normal extends RadioButtonState {
+
+  case object Normal extends RadioButtonState:
     val inSelectedState: Boolean = false
     val inHoverState: Boolean    = false
-  }
-}
