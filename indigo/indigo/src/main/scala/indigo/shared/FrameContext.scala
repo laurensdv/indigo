@@ -30,7 +30,7 @@ final class FrameContext[StartUpData](
     val inputState: InputState,
     val boundaryLocator: BoundaryLocator,
     _startUpData: => StartUpData
-) {
+):
 
   lazy val startUpData = _startUpData
   val running: Seconds = gameTime.running
@@ -43,4 +43,5 @@ final class FrameContext[StartUpData](
   def findBounds(sceneNode: SceneNode): Option[Rectangle] =
     boundaryLocator.findBounds(sceneNode)
 
-}
+  def bounds(sceneGraphNode: SceneNode): Rectangle =
+    boundaryLocator.bounds(sceneGraphNode)

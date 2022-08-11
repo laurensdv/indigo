@@ -1,6 +1,7 @@
 package indigo.shared.materials
 
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.Fill
 import indigo.shared.datatypes.RGB
 import indigo.shared.datatypes.RGBA
@@ -8,9 +9,7 @@ import indigo.shared.materials.LightingModel.Lit
 import indigo.shared.materials.LightingModel.Unlit
 import indigo.shared.shader.ShaderId
 import indigo.shared.shader.ShaderPrimitive
-import indigo.shared.shader.ShaderPrimitive.float
-import indigo.shared.shader.ShaderPrimitive.vec3
-import indigo.shared.shader.ShaderPrimitive.vec4
+import indigo.shared.shader.ShaderPrimitive.rawJSArray
 import indigo.shared.shader.StandardShaders
 import indigo.shared.shader.Uniform
 import indigo.shared.shader.UniformBlock
@@ -44,11 +43,20 @@ object Material {
       withFillType(FillType.Tile)
 
     def toImageEffects: Material.ImageEffects =
-      Material.ImageEffects(diffuse, lighting, shaderId)
+      Material.ImageEffects(
+        diffuse,
+        1.0,
+        RGBA.None,
+        Fill.Color.default,
+        1.0,
+        lighting,
+        shaderId,
+        fillType
+      )
 
-    def toShaderData: ShaderData = {
+    lazy val toShaderData: ShaderData = {
 
-      val imageFillType: Double =
+      val imageFillType: Float =
         fillType match {
           case FillType.Normal  => 0.0
           case FillType.Stretch => 1.0
@@ -58,8 +66,8 @@ object Material {
       val uniformBlock: UniformBlock =
         UniformBlock(
           "IndigoBitmapData",
-          List(
-            Uniform("FILLTYPE") -> float(imageFillType)
+          Batch(
+            Uniform("Bitmap_FILLTYPE") -> rawJSArray(scalajs.js.Array(imageFillType))
           )
         )
 
@@ -67,7 +75,7 @@ object Material {
         case Unlit =>
           ShaderData(
             shaderId.getOrElse(StandardShaders.Bitmap.id),
-            List(uniformBlock),
+            Batch(uniformBlock),
             Some(diffuse),
             None,
             None,
@@ -75,7 +83,7 @@ object Material {
           )
 
         case l: Lit =>
-          l.toShaderData(shaderId.getOrElse(StandardShaders.LitBitmap.id), Some(diffuse), List(uniformBlock))
+          l.toShaderData(shaderId.getOrElse(StandardShaders.LitBitmap.id), Some(diffuse), Batch(uniformBlock))
       }
     }
   }
@@ -136,70 +144,46 @@ object Material {
     def toBitmap: Material.Bitmap =
       Material.Bitmap(diffuse, lighting, shaderId, fillType)
 
-    def toShaderData: ShaderData = {
-      val gradientUniforms: List[(Uniform, ShaderPrimitive)] =
-        overlay match {
-          case Fill.Color(color) =>
-            val c = vec4(color.r, color.g, color.b, color.a)
-            List(
-              Uniform("GRADIENT_FROM_TO")    -> vec4(0.0d),
-              Uniform("GRADIENT_FROM_COLOR") -> c,
-              Uniform("GRADIENT_TO_COLOR")   -> c
-            )
-
-          case Fill.LinearGradient(fromPoint, fromColor, toPoint, toColor) =>
-            List(
-              Uniform("GRADIENT_FROM_TO") -> vec4(
-                fromPoint.x.toDouble,
-                fromPoint.y.toDouble,
-                toPoint.x.toDouble,
-                toPoint.y.toDouble
-              ),
-              Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
-              Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
-            )
-
-          case Fill.RadialGradient(fromPoint, fromColor, toPoint, toColor) =>
-            List(
-              Uniform("GRADIENT_FROM_TO") -> vec4(
-                fromPoint.x.toDouble,
-                fromPoint.y.toDouble,
-                toPoint.x.toDouble,
-                toPoint.y.toDouble
-              ),
-              Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
-              Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
-            )
-        }
-
-      val overlayType: Double =
+    lazy val toShaderData: ShaderData = {
+      val overlayType: Float =
         overlay match {
           case _: Fill.Color          => 0.0
           case _: Fill.LinearGradient => 1.0
           case _: Fill.RadialGradient => 2.0
         }
 
-      val imageFillType: Double =
+      val imageFillType: Float =
         fillType match {
           case FillType.Normal  => 0.0
           case FillType.Stretch => 1.0
           case FillType.Tile    => 2.0
         }
 
+      // ALPHA_SATURATION_OVERLAYTYPE_FILLTYPE (vec4), TINT (vec4)
       val effectsUniformBlock: UniformBlock =
         UniformBlock(
           "IndigoImageEffectsData",
-          List(
-            Uniform("ALPHA_SATURATION_OVERLAYTYPE_FILLTYPE") -> vec4(alpha, saturation, overlayType, imageFillType),
-            Uniform("TINT")                                  -> vec4(tint.r, tint.g, tint.b, tint.a)
-          ) ++ gradientUniforms
+          Batch(
+            Uniform("ImageEffects_DATA") -> rawJSArray(
+              scalajs.js.Array(
+                alpha.toFloat,
+                saturation.toFloat,
+                overlayType,
+                imageFillType,
+                tint.r.toFloat,
+                tint.g.toFloat,
+                tint.b.toFloat,
+                tint.a.toFloat
+              )
+            )
+          ) ++ overlay.toUniformData("ImageEffects")
         )
 
       lighting match {
         case Unlit =>
           ShaderData(
             shaderId.getOrElse(StandardShaders.ImageEffects.id),
-            List(effectsUniformBlock),
+            Batch(effectsUniformBlock),
             Some(diffuse),
             None,
             None,
@@ -210,7 +194,7 @@ object Material {
           l.toShaderData(
             shaderId.getOrElse(StandardShaders.LitImageEffects.id),
             Some(diffuse),
-            List(effectsUniformBlock)
+            Batch(effectsUniformBlock)
           )
       }
     }

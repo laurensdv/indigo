@@ -2,6 +2,7 @@ package indigo.shared
 
 import indigo.platform.assets.DynamicText
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.Fill
 import indigo.shared.datatypes.FontChar
 import indigo.shared.datatypes.FontInfo
@@ -9,6 +10,7 @@ import indigo.shared.datatypes.FontKey
 import indigo.shared.datatypes.RGBA
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Stroke
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.Material
 import indigo.shared.scenegraph.Shape
 import indigo.shared.scenegraph.Text
@@ -78,7 +80,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
   object Samples {
     val material = Material.Bitmap(AssetName("font-sheet"))
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 16, 16),
       FontChar("b", 16, 16, 10, 20),
       FontChar("c", 32, 16, 16, 16)
@@ -104,26 +106,30 @@ class BoundaryLocatorTests extends munit.FunSuite {
   import indigo.shared.materials.ShaderData
   import indigo.shared.shader.ShaderId
 
-  test("EntityNode bounds - normal") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point.zero
+  final case class TestEntity(
+      position: Point,
+      size: Size,
+      rotation: Radians,
+      scale: Vector2,
+      depth: Depth,
+      flip: Flip,
+      ref: Point
+  ) extends EntityNode[TestEntity]:
+    def toShaderData: ShaderData                                         = ShaderData(ShaderId("test shader"))
+    def withDepth(newDepth: Depth): TestEntity                           = this
+    val eventHandlerEnabled: Boolean                                     = false
+    def eventHandler: ((TestEntity, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
 
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+  test("EntityNode bounds - normal") {
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip.default,
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(0, 0, 40, 40)
@@ -132,25 +138,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - normal moved") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point(10, 20)
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point.zero
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point(10, 20),
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip.default,
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, Size(30, 40), entity.ref)
     val expected = Rectangle(10, 20, 30, 40)
@@ -159,25 +155,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - flipped") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip(true, true)
-      def ref: Point        = Point.zero
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip(true, true),
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(0, 0, 40, 40)
@@ -186,25 +172,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - centered ref") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point(20, 20)
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip.default,
+      Point(20, 20)
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(-20, -20, 40, 40)
@@ -213,25 +189,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - bottom right ref") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point(40, 40)
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip.default,
+      Point(40, 40)
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(-40, -40, 40, 40)
@@ -240,25 +206,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - bottom negative ref") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2.one
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point(-10, 0)
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2.one,
+      Depth.zero,
+      Flip.default,
+      Point(-10, 0)
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(10, 0, 40, 40)
@@ -267,25 +223,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - normal scaled x1") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2(1, 1)
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point.zero
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2(1, 1),
+      Depth.zero,
+      Flip.default,
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(0, 0, 40, 40)
@@ -294,25 +240,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - normal scaled x2") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2(2, 2)
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point.zero
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2(2, 2),
+      Depth.zero,
+      Flip.default,
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(0, 0, 80, 80)
@@ -321,25 +257,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - center ref scaled x3") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(40, 40)
-      def rotation: Radians = Radians.zero
-      def scale: Vector2    = Vector2(3, 3)
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point(20, 20)
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(40, 40),
+      Radians.zero,
+      Vector2(3, 3),
+      Depth.zero,
+      Flip.default,
+      Point(20, 20)
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(-60, -60, 120, 120)
@@ -348,25 +274,15 @@ class BoundaryLocatorTests extends munit.FunSuite {
   }
 
   test("EntityNode bounds - normal scaled x2 rotated tau / 2") {
-    val entity: EntityNode = new EntityNode {
-      def position: Point   = Point.zero
-      def size: Size        = Size(20, 40)
-      def rotation: Radians = Radians.TAUby2
-      def scale: Vector2    = Vector2(2, 2)
-      def depth: Depth      = Depth.zero
-      def flip: Flip        = Flip.default
-      def ref: Point        = Point.zero
-
-      // Placeholder
-      def bounds: Rectangle                      = Rectangle.zero
-      def toShaderData: ShaderData               = ShaderData(ShaderId("test shader"))
-      def withDepth(newDepth: Depth): EntityNode = this
-      // Members declared in scala.Equals
-      def canEqual(that: Any): Boolean = ???
-      // Members declared in scala.Product
-      def productArity: Int           = ???
-      def productElement(n: Int): Any = ???
-    }
+    val entity = TestEntity(
+      Point.zero,
+      Size(20, 40),
+      Radians.TAUby2,
+      Vector2(2, 2),
+      Depth.zero,
+      Flip.default,
+      Point.zero
+    )
 
     val actual   = BoundaryLocator.findBounds(entity, entity.position, entity.size, entity.ref)
     val expected = Rectangle(-40, -80, 40, 80)
@@ -386,7 +302,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
     val expected =
       Rectangle(0, 0, 200, 100)
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
   test("calculateShapeBounds - box (with stroke)") {
@@ -401,7 +317,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
     val expected =
       Rectangle(15 - 4, 25 - 4, 100 + 8, 200 + 8)
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
   test("calculateShapeBounds - circle") {
@@ -417,7 +333,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
     val expected =
       Rectangle(50 - 17 - 3, 50 - 17 - 3, 17 + 17 + 7, 17 + 17 + 7).toSquare
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
   test("calculateShapeBounds - line") {
@@ -439,7 +355,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
         end.y - start.y + strokeWidth + strokeWidthBy2
       )
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
   test("calculateShapeBounds - line 2") {
@@ -461,13 +377,13 @@ class BoundaryLocatorTests extends munit.FunSuite {
         start.y - end.y + strokeWidth + strokeWidthBy2
       )
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
   test("calculateShapeBounds - polygon") {
 
     val verts =
-      List(
+      Batch(
         Point(50, 10),
         Point(75, 60),
         Point(25, 60)
@@ -483,7 +399,7 @@ class BoundaryLocatorTests extends munit.FunSuite {
     val expected =
       Rectangle(25 - 2, 10 - 2, 50 + 4, 50 + 4).toSquare
 
-    assertEquals(boundaryLocator.shapeBounds(s), expected)
+    assertEquals(BoundaryLocator.findShapeBounds(s), expected)
   }
 
 }

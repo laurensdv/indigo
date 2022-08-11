@@ -9,6 +9,7 @@ import com.example.sandbox.scenes.ConfettiScene
 import com.example.sandbox.scenes.CratesScene
 import com.example.sandbox.scenes.LegacyEffectsScene
 import com.example.sandbox.scenes.LightsScene
+import com.example.sandbox.scenes.ManyEventHandlers
 import com.example.sandbox.scenes.MutantsScene
 import com.example.sandbox.scenes.OriginalScene
 import com.example.sandbox.scenes.RefractionScene
@@ -32,9 +33,8 @@ import indigoextras.ui.*
 import scala.scalajs.js.annotation.*
 
 @JSExportTopLevel("IndigoGame")
-object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, SandboxGameModel, SandboxViewModel] {
+object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
-  val targetFPS: FPS          = FPS.`60`
   val magnificationLevel: Int = 2
   val gameWidth: Int          = 228
   val gameHeight: Int         = 128
@@ -42,7 +42,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   val viewportHeight: Int     = gameHeight * magnificationLevel // 256
 
   def initialScene(bootData: SandboxBootData): Option[SceneName] =
-    Some(BoxesScene.name)
+    Some(LightsScene.name)
 
   def scenes(bootData: SandboxBootData): NonEmptyList[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
     NonEmptyList(
@@ -61,7 +61,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       CratesScene,
       ClipScene,
       TextScene,
-      BoxesScene
+      BoxesScene,
+      ManyEventHandlers
     )
 
   val eventFilters: EventFilters = EventFilters.Permissive
@@ -80,7 +81,6 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       BootResult(
         GameConfig(
           viewport = gameViewport,
-          frameRate = targetFPS,
           clearColor = RGBA(0.4, 0.2, 0.5, 1),
           magnification = magnificationLevel
         ),
@@ -93,8 +93,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
         .withSubSystems(
           FPSCounter(
             Point(5, 165),
-            targetFPS,
-            Option(BindingKey("fps counter"))
+            BindingKey("fps counter")
           )
         )
         .withShaders(
@@ -155,7 +154,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
 
   def initialViewModel(startupData: SandboxStartupData, model: SandboxGameModel): Outcome[SandboxViewModel] = {
     val assets =
-      new InputFieldAssets(
+      InputFieldAssets(
         Text("placeholder", 0, 0, 0, Fonts.fontKey, SandboxAssets.fontMaterial).alignLeft,
         Graphic(0, 0, 16, 16, 2, Material.ImageEffects(SandboxAssets.smallFontName).withTint(RGB(0, 0, 1)))
           .withCrop(188, 78, 14, 23)
@@ -268,7 +267,6 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           .withCamera(Camera.default)
       )
     )
-}
 
 final case class Dude(
     aseprite: Aseprite,

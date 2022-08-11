@@ -7,20 +7,19 @@ import indigo.platform.renderer.shared.WebGLHelper
 import indigo.shared.datatypes.RGBA
 import indigo.shared.display.DisplayObjectUniformData
 import indigo.shared.shader.ShaderId
+import org.scalajs.dom.WebGLBuffer
+import org.scalajs.dom.WebGLProgram
 import org.scalajs.dom.WebGLRenderingContext._
-import org.scalajs.dom.raw.WebGLBuffer
-import org.scalajs.dom.raw.WebGLProgram
-import org.scalajs.dom.raw.WebGLTexture
+import org.scalajs.dom.WebGLTexture
 
-import scala.collection.mutable.HashMap
 import scala.scalajs.js.JSConverters._
 
-class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => WebGLBuffer) {
+class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => WebGLBuffer):
 
   private val displayObjectUBOBuffer: WebGLBuffer =
     gl2.createBuffer()
-  private val customDataUBOBuffers: HashMap[String, WebGLBuffer] =
-    HashMap.empty[String, WebGLBuffer]
+  private val customDataUBOBuffers: scalajs.js.Dictionary[WebGLBuffer] =
+    scalajs.js.Dictionary.empty[WebGLBuffer]
 
   // They're all blocks of 16, it's the only block length allowed in WebGL.
   private val displayObjectUBODataSize: Int = 16
@@ -39,16 +38,16 @@ class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => Web
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoMergeData",
       RendererWebGL2Constants.mergeObjectBlockPointer,
-      displayObjectUBOBuffer
+      displayObjectUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoMergeData")
     )
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoFrameData",
       RendererWebGL2Constants.frameDataBlockPointer,
-      frameDataUBOBuffer
+      frameDataUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoFrameData")
     )
   }
 
@@ -64,7 +63,7 @@ class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => Web
       height: Int,
       clearColor: RGBA,
       isCanvasMerge: Boolean,
-      customShaders: HashMap[ShaderId, WebGLProgram],
+      customShaders: scalajs.js.Dictionary[WebGLProgram],
       shaderId: ShaderId,
       shaderUniformData: scalajs.js.Array[DisplayObjectUniformData]
   ): Unit = {
@@ -78,7 +77,7 @@ class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => Web
 
     // Switch and reference shader
     val activeShader: WebGLProgram =
-      customShaders.get(shaderId) match {
+      customShaders.get(shaderId.toString) match {
         case Some(s) =>
           setupShader(s, projection, width, height)
           s
@@ -97,9 +96,9 @@ class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => Web
         WebGLHelper.bindUBO(
           gl2,
           activeShader,
-          ud.blockName,
           RendererWebGL2Constants.blendDataBlockOffsetPointer + i,
-          buff
+          buff,
+          gl2.getUniformBlockIndex(activeShader, ud.blockName)
         )
       }
     }
@@ -113,26 +112,10 @@ class LayerMergeRenderer(gl2: WebGL2RenderingContext, frameDataUBOBuffer: => Web
 
   }
 
-  @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.while"))
   def setupMergeFragmentShaderState(
       program: WebGLProgram,
       src: FrameBufferComponents.SingleOutput,
       dst: FrameBufferComponents.SingleOutput
-  ): Unit = {
-
-    val uniformTextures: List[(String, WebGLTexture)] =
-      List(
-        "SRC_CHANNEL" -> src.diffuse,
-        "DST_CHANNEL" -> dst.diffuse
-      )
-
-    var i: Int = 0
-
-    while (i < uniformTextures.length) {
-      val tex = uniformTextures(i)
-      WebGLHelper.attach(gl2, program, i + 1, tex._1, tex._2)
-      i = i + 1
-    }
-  }
-
-}
+  ): Unit =
+    WebGLHelper.attach(gl2, program, 0, "SRC_CHANNEL", src.diffuse)
+    WebGLHelper.attach(gl2, program, 1, "DST_CHANNEL", dst.diffuse)

@@ -1,5 +1,6 @@
 package indigoextras.jobs
 
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.dice.Dice
 import indigo.shared.events.FrameTick
@@ -41,7 +42,7 @@ class WorkScheduleTests extends munit.FunSuite {
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
 
-    val gameTime = new GameTime(0, 0, FPS(0))
+    val gameTime = new GameTime(0, 0, None)
 
     val actual = workSchedule.update(gameTime, dice, actor, context)(FrameTick).unsafeGet.workSchedule.jobStack
 
@@ -56,7 +57,7 @@ class WorkScheduleTests extends munit.FunSuite {
     val jobs                   = Fishing(0) :: Nil
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, jobs)
-    val gameTime     = new GameTime(0, 0, FPS(0))
+    val gameTime     = new GameTime(0, 0, None)
 
     workSchedule.update(gameTime, dice, actor, context)(FrameTick).unsafeGet.workSchedule.jobStack.headOption match {
       case Some(Fishing(done)) =>
@@ -76,7 +77,7 @@ class WorkScheduleTests extends munit.FunSuite {
     val expected: List[Job]    = Nil
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
-    val gameTime     = new GameTime(0, 0, FPS(0))
+    val gameTime     = new GameTime(0, 0, None)
 
     val actual = workSchedule
       .update(gameTime, dice, actor, context)(UnrelatedEvent("ignored!"))
@@ -94,7 +95,7 @@ class WorkScheduleTests extends munit.FunSuite {
     val expected: List[Job]    = jobToAllocate :: Nil
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
-    val gameTime     = new GameTime(0, 0, FPS(0))
+    val gameTime     = new GameTime(0, 0, None)
 
     val allocationId = bindingKey
 
@@ -113,7 +114,7 @@ class WorkScheduleTests extends munit.FunSuite {
     val expected: List[Job]    = WanderTo(100) :: Nil
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, Nil)
-    val gameTime     = new GameTime(0, 0, FPS(0))
+    val gameTime     = new GameTime(0, 0, None)
 
     val allocationId = bindingKey
 
@@ -128,8 +129,8 @@ class WorkScheduleTests extends munit.FunSuite {
 
   test("The WorkSchedule.should be able to post to a global job board on destruction") {
 
-    val globalJob                      = CantHave()
-    val expected: List[JobMarketEvent] = JobMarketEvent.Post(globalJob) :: Nil
+    val globalJob                       = CantHave()
+    val expected: Batch[JobMarketEvent] = Batch(JobMarketEvent.Post(globalJob))
 
     val workSchedule = WorkSchedule[SampleActor, SampleContext](bindingKey, SampleActor.worker, List(globalJob))
 
@@ -161,7 +162,7 @@ class WorkScheduleTests extends munit.FunSuite {
     }
   }
 
-  val gameTime = new GameTime(0, 0, FPS(0))
+  val gameTime = new GameTime(0, 0, None)
 
   val workSchedule2 = workSchedule.update(gameTime, dice, actor, context)(FrameTick).unsafeGet.workSchedule
 

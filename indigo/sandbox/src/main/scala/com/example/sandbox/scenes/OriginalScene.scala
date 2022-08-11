@@ -17,7 +17,7 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   def eventFilters: EventFilters =
     EventFilters.Restricted
 
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, SandboxGameModel] =
+  def modelLens: Lens[SandboxGameModel, SandboxGameModel] =
     Lens.keepOriginal
 
   def viewModelLens: Lens[SandboxViewModel, SandboxViewModel] =
@@ -49,7 +49,7 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   ): Outcome[SceneUpdateFragment] = {
     val scene: SceneUpdateFragment =
       SandboxView
-        .updateView(model, viewModel, context.inputState)
+        .updateView(model, viewModel, context.inputState.mouse, context.boundaryLocator)
         .addLayer(
           Layer(
             // viewModel.single.draw(gameTime, boundaryLocator) //|+|
@@ -83,7 +83,7 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
                 Shaders.externalId,
                 UniformBlock(
                   "CustomData",
-                  List(
+                  Batch(
                     Uniform("ALPHA")        -> float(0.75),
                     Uniform("BORDER_COLOR") -> vec3(1.0, 1.0, 0.0)
                   )
@@ -100,7 +100,7 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
                 Shaders.externalId,
                 UniformBlock(
                   "CustomData",
-                  List(
+                  Batch(
                     Uniform("ALPHA")        -> float(0.5),
                     Uniform("BORDER_COLOR") -> vec3(1.0, 0.0, 1.0)
                   )
@@ -115,21 +115,22 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
 }
 
 final case class CustomShape(x: Int, y: Int, width: Int, height: Int, depth: Depth, shader: ShaderData)
-    extends EntityNode {
-  val flip: Flip               = Flip.default
-  val bounds: Rectangle        = Rectangle(x, y, width, height)
-  val position: Point          = bounds.position
-  val size: Size               = bounds.size
-  val ref: Point               = Point.zero
-  val rotation: Radians        = Radians.zero
-  val scale: Vector2           = Vector2.one
-  val toShaderData: ShaderData = shader
+    extends EntityNode[CustomShape]:
+  val flip: Flip                    = Flip.default
+  val position: Point               = Point(x, y)
+  val size: Size                    = Size(width, height)
+  val ref: Point                    = Point.zero
+  val rotation: Radians             = Radians.zero
+  val scale: Vector2                = Vector2.one
+  lazy val toShaderData: ShaderData = shader
 
   def withDepth(newDepth: Depth): CustomShape =
     this.copy(depth = newDepth)
-}
 
-object Shaders {
+  val eventHandlerEnabled: Boolean                                      = false
+  def eventHandler: ((CustomShape, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
+
+object Shaders:
 
   val circleId: ShaderId =
     ShaderId("circle")
@@ -196,5 +197,3 @@ object Shaders {
       AssetType.Text(fragAsset, AssetPath("assets/shader.frag")),
       AssetType.Text(seaAsset, AssetPath("assets/sea.frag"))
     )
-
-}

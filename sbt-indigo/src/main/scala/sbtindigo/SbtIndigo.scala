@@ -12,39 +12,50 @@ object SbtIndigo extends sbt.AutoPlugin {
   override def trigger: PluginTrigger   = allRequirements
 
   object autoImport {
-    val indigoBuild: TaskKey[Unit]            = taskKey[Unit]("Build an Indigo game.")
-    val indigoBuildFull: TaskKey[Unit]        = taskKey[Unit]("Build an Indigo game using full compression.")
-    val indigoRun: TaskKey[Unit]              = taskKey[Unit]("Run an Indigo game.")
-    val indigoRunFull: TaskKey[Unit]          = taskKey[Unit]("Run an Indigo game that has been compressed.")
-    val indigoCordovaBuild: TaskKey[Unit]     = taskKey[Unit]("Build an Indigo game Cordova template.")
-    val indigoCordovaBuildFull: TaskKey[Unit] = taskKey[Unit]("Build an Indigo game Cordova template that has been compressed.")
+    val indigoBuild: TaskKey[Unit]        = taskKey[Unit]("Build an Indigo game.")
+    val indigoBuildFull: TaskKey[Unit]    = taskKey[Unit]("Build an Indigo game using full compression.")
+    val indigoRun: TaskKey[Unit]          = taskKey[Unit]("Run an Indigo game.")
+    val indigoRunFull: TaskKey[Unit]      = taskKey[Unit]("Run an Indigo game that has been compressed.")
+    val indigoCordovaBuild: TaskKey[Unit] = taskKey[Unit]("Build an Indigo game Cordova template.")
+    val indigoCordovaBuildFull: TaskKey[Unit] =
+      taskKey[Unit]("Build an Indigo game Cordova template that has been compressed.")
     val gameAssetsDirectory: SettingKey[String] =
       settingKey[String]("Project relative path to a directory that contains all of the assets the game needs to load.")
-    val showCursor: SettingKey[Boolean]    = settingKey[Boolean]("Show the cursor? True by default.")
-    val title: SettingKey[String]          = settingKey[String]("Title of your game. Defaults to 'Made with Indigo'.")
+    val showCursor: SettingKey[Boolean] = settingKey[Boolean]("Show the cursor? True by default.")
+    val title: SettingKey[String]       = settingKey[String]("Title of your game. Defaults to 'Made with Indigo'.")
+    val backgroundColor: SettingKey[String] =
+      settingKey[String]("HTML page background color CSS property. Defaults to 'initial'.")
     val windowStartWidth: SettingKey[Int]  = settingKey[Int]("Initial window width. Defaults to 550 pixels.")
     val windowStartHeight: SettingKey[Int] = settingKey[Int]("Initial window height. Defaults to 400 pixels.")
+    val disableFrameRateLimit: SettingKey[Boolean] =
+      settingKey[Boolean]("If possible, disables the runtime's frame rate limit. Defaults to false.")
+    val electronInstall: SettingKey[ElectronInstall] = settingKey[ElectronInstall](
+      "How should electron be run? `ElectronInstall.Global | ElectronInstall.Version(version: String) | ElectronInstall.Latest | ElectronInstall.PathToExecutable(path: String)`. Defaults to ElectronInstall.Global."
+    )
   }
 
   import autoImport._
 
   override lazy val projectSettings = Seq(
-    indigoBuild := { indigoBuildTask.value; () },
-    indigoBuildFull := { indigoBuildFullTask.value; () },
-    indigoRun := indigoRunTask.value,
-    indigoRunFull := indigoRunFullTask.value,
-    indigoCordovaBuild := indigoCordovaBuildTask.value,
+    indigoBuild            := { indigoBuildTask.value; () },
+    indigoBuildFull        := { indigoBuildFullTask.value; () },
+    indigoRun              := indigoRunTask.value,
+    indigoRunFull          := indigoRunFullTask.value,
+    indigoCordovaBuild     := indigoCordovaBuildTask.value,
     indigoCordovaBuildFull := indigoCordovaBuildFullTask.value,
-    showCursor := true,
-    title := "Made with Indigo",
-    gameAssetsDirectory := ".",
-    windowStartWidth := 550,
-    windowStartHeight := 400
+    showCursor             := true,
+    title                  := "Made with Indigo",
+    backgroundColor        := "white",
+    gameAssetsDirectory    := ".",
+    windowStartWidth       := 550,
+    windowStartHeight      := 400,
+    disableFrameRateLimit  := false,
+    electronInstall        := indigoplugin.ElectronInstall.Global
   )
 
   def giveScriptBasePath(baseDir: String, scalaVersion: String): String =
-    if(scalaVersion.startsWith("2"))
-      s"$baseDir/target/scala-${scalaVersion.split('.').reverse.tail.reverse.mkString(".")}"
+    if (scalaVersion.startsWith("2"))
+      s"$baseDir/target/scala-${scalaVersion.split('.').init.mkString(".")}"
     else
       s"$baseDir/target/scala-${scalaVersion}"
 
@@ -71,7 +82,8 @@ object SbtIndigo extends sbt.AutoPlugin {
             if (gameAssetsDirectory.value.startsWith("/"))
               gameAssetsDirectory.value
             else baseDir.replace("/.js", "") + "/" + gameAssetsDirectory.value
-          )
+          ),
+          backgroundColor = backgroundColor.value
         ),
         outputDir,
         Keys.projectID.value.name + "-fastopt.js"
@@ -103,7 +115,8 @@ object SbtIndigo extends sbt.AutoPlugin {
             if (gameAssetsDirectory.value.startsWith("/"))
               gameAssetsDirectory.value
             else baseDir + "/" + gameAssetsDirectory.value
-          )
+          ),
+          backgroundColor = backgroundColor.value
         ),
         outputDir,
         Keys.projectID.value.name + "-opt.js"
@@ -123,7 +136,9 @@ object SbtIndigo extends sbt.AutoPlugin {
         buildDir = buildDir,
         title = title.value,
         windowWidth = windowStartWidth.value,
-        windowHeight = windowStartHeight.value
+        windowHeight = windowStartHeight.value,
+        disableFrameRateLimit = disableFrameRateLimit.value,
+        electronInstall = electronInstall.value
       )
     }
 
@@ -138,7 +153,9 @@ object SbtIndigo extends sbt.AutoPlugin {
         buildDir = buildDir,
         title = title.value,
         windowWidth = windowStartWidth.value,
-        windowHeight = windowStartHeight.value
+        windowHeight = windowStartHeight.value,
+        disableFrameRateLimit = disableFrameRateLimit.value,
+        electronInstall = electronInstall.value
       )
     }
 

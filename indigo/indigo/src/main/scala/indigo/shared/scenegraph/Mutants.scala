@@ -1,6 +1,9 @@
 package indigo.shared.scenegraph
 
+import indigo.shared.BoundaryLocator
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes._
+import indigo.shared.events.GlobalEvent
 import indigo.shared.shader.UniformBlock
 
 /** Represents many identical clones of the same clone blank, differentiated only by their shader data. Intended for use
@@ -9,8 +12,8 @@ import indigo.shared.shader.UniformBlock
 final case class Mutants(
     id: CloneId,
     depth: Depth,
-    uniformBlocks: Array[List[UniformBlock]]
-) extends DependentNode
+    uniformBlocks: Array[Batch[UniformBlock]]
+) extends DependentNode[Mutants]
     derives CanEqual:
 
   lazy val scale: Vector2    = Vector2.one
@@ -25,19 +28,22 @@ final case class Mutants(
   def withDepth(newDepth: Depth): Mutants =
     this.copy(depth = newDepth)
 
-  def addBlocks(additionalBlocks: Array[List[UniformBlock]]): Mutants =
+  def addBlocks(additionalBlocks: Array[Batch[UniformBlock]]): Mutants =
     this.copy(uniformBlocks = uniformBlocks ++ additionalBlocks)
+
+  val eventHandlerEnabled: Boolean                                  = false
+  def eventHandler: ((Mutants, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
 
 object Mutants:
 
-  def apply(id: CloneId, uniformBlocks: Array[List[UniformBlock]]): Mutants =
+  def apply(id: CloneId, uniformBlocks: Array[Batch[UniformBlock]]): Mutants =
     Mutants(
       id,
       Depth.zero,
       uniformBlocks
     )
 
-  def apply(id: CloneId, uniformBlocks: List[UniformBlock]): Mutants =
+  def apply(id: CloneId, uniformBlocks: Batch[UniformBlock]): Mutants =
     Mutants(
       id,
       Depth.zero,

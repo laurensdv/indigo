@@ -29,15 +29,13 @@ import indigo.shared.shader.StandardShaders
 import indigo.shared.time.Seconds
 import org.scalajs.dom
 import org.scalajs.dom.Element
+import org.scalajs.dom.WebGLBuffer
+import org.scalajs.dom.WebGLFramebuffer
+import org.scalajs.dom.WebGLProgram
 import org.scalajs.dom.WebGLRenderingContext
 import org.scalajs.dom.WebGLRenderingContext._
 import org.scalajs.dom.html
-import org.scalajs.dom.raw
-import org.scalajs.dom.raw.WebGLBuffer
-import org.scalajs.dom.raw.WebGLFramebuffer
-import org.scalajs.dom.raw.WebGLProgram
 
-import scala.collection.mutable
 import scala.scalajs.js.Dynamic
 import scala.scalajs.js.typedarray.Float32Array
 
@@ -80,8 +78,8 @@ final class RendererWebGL2(
 
   private val vao = gl2.createVertexArray()
 
-  private val customShaders: mutable.HashMap[ShaderId, WebGLProgram] =
-    new mutable.HashMap()
+  private val customShaders: scalajs.js.Dictionary[WebGLProgram] =
+    scalajs.js.Dictionary.empty
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var resizeRun: Boolean = false
@@ -147,9 +145,9 @@ final class RendererWebGL2(
   def init(shaders: Set[RawShaderCode]): Unit = {
 
     shaders.foreach { shader =>
-      if (!customShaders.contains(shader.id))
+      if (!customShaders.contains(shader.id.toString))
         customShaders.put(
-          shader.id,
+          shader.id.toString,
           WebGLHelper.shaderProgramSetup(gl, shader.id.toString, shader)
         )
     }
@@ -255,7 +253,7 @@ final class RendererWebGL2(
                 c.rotation,
                 c.isLookAt
               )
-              .toArray
+              .toJSArray
 
       WebGLHelper.attachUBOData(gl2, layerProjection, projectionUBOBuffer)
 
@@ -293,7 +291,7 @@ final class RendererWebGL2(
                   Radians.zero,
                   false
                 )
-                .toArray
+                .toJSArray
             }
 
       // Clear the blend mode
@@ -404,10 +402,10 @@ final class RendererWebGL2(
 
       orthographicProjectionMatrix =
         CheapMatrix4.orthographic(actualWidth.toFloat / magnification, actualHeight.toFloat / magnification)
-      defaultLayerProjectionMatrix = orthographicProjectionMatrix.scale(1.0, -1.0, 1.0).toArray
-      orthographicProjectionMatrixNoMag = CheapMatrix4.orthographic(actualWidth.toFloat, actualHeight.toFloat).toArray
+      defaultLayerProjectionMatrix = orthographicProjectionMatrix.scale(1.0, -1.0, 1.0).toJSArray
+      orthographicProjectionMatrixNoMag = CheapMatrix4.orthographic(actualWidth.toFloat, actualHeight.toFloat).toJSArray
       orthographicProjectionMatrixNoMagFlipped =
-        CheapMatrix4.orthographic(actualWidth.toFloat, actualHeight.toFloat).scale(1.0, -1.0, 1.0).toArray
+        CheapMatrix4.orthographic(actualWidth.toFloat, actualHeight.toFloat).scale(1.0, -1.0, 1.0).toJSArray
 
       layerEntityFrameBuffer = FrameBufferFunctions.createFrameBufferSingle(gl, actualWidth, actualHeight)
       scalingFrameBuffer = FrameBufferFunctions.createFrameBufferSingle(gl, actualWidth, actualHeight)

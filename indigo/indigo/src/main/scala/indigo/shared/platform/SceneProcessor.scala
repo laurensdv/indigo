@@ -10,6 +10,7 @@ import indigo.shared.datatypes.RGBA
 import indigo.shared.display.DisplayLayer
 import indigo.shared.display.DisplayObject
 import indigo.shared.display.DisplayObjectUniformData
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.BlendMaterial
 import indigo.shared.materials.BlendShaderData
 import indigo.shared.platform.AssetMapping
@@ -30,7 +31,6 @@ import indigo.shared.scenegraph.SpotLight
 import indigo.shared.scenegraph.Sprite
 import indigo.shared.time.GameTime
 
-import scala.collection.immutable.HashMap
 import scala.scalajs.js.JSConverters._
 
 final class SceneProcessor(
@@ -58,12 +58,14 @@ final class SceneProcessor(
       scene: SceneUpdateFragment,
       assetMapping: AssetMapping,
       renderingTechnology: RenderingTechnology,
-      maxBatchSize: Int
+      maxBatchSize: Int,
+      inputEvents: => scalajs.js.Array[GlobalEvent],
+      sendEvent: GlobalEvent => Unit
   ): ProcessedSceneData = {
 
     def cloneBlankToDisplayObject(blank: CloneBlank): Option[DisplayObject] =
       blank.cloneable() match
-        case s: Shape =>
+        case s: Shape[_] =>
           Some(displayObjectConverterClone.shapeToDisplayObject(s))
 
         case g: Graphic[_] =>
@@ -86,14 +88,14 @@ final class SceneProcessor(
               )
             }
 
-        case e: EntityNode =>
+        case e: EntityNode[_] =>
           Some(displayObjectConverterClone.sceneEntityToDisplayObject(e, assetMapping))
 
         case _ =>
           None
 
-    val cloneBlankDisplayObjects: HashMap[CloneId, DisplayObject] =
-      scene.cloneBlanks.foldLeft(HashMap.empty[CloneId, DisplayObject]) { (acc, blank) =>
+    val cloneBlankDisplayObjects: scalajs.js.Dictionary[DisplayObject] =
+      scene.cloneBlanks.foldLeft(scalajs.js.Dictionary.empty[DisplayObject]) { (acc, blank) =>
         val maybeDO =
           if blank.isStatic then
             QuickCache(blank.id.toString) {
@@ -102,11 +104,13 @@ final class SceneProcessor(
           else cloneBlankToDisplayObject(blank)
 
         maybeDO match
-          case None                => acc
-          case Some(displayObject) => acc + (blank.id -> displayObject)
+          case None => acc
+          case Some(displayObject) =>
+            acc.put(blank.id.toString, displayObject)
+            acc
       }
 
-    val displayLayers: scalajs.js.Array[(DisplayLayer, scalajs.js.Array[(CloneId, DisplayObject)])] =
+    val displayLayers: scalajs.js.Array[(DisplayLayer, scalajs.js.Array[(String, DisplayObject)])] =
       scene.layers.toJSArray
         .filter(l => l.visible.getOrElse(true))
         .zipWithIndex
@@ -115,18 +119,20 @@ final class SceneProcessor(
           val shaderData = blending.blendMaterial.toShaderData
 
           val conversionResults = displayObjectConverter
-            .sceneNodesToDisplayObjects(
-              l.nodes,
+            .processSceneNodes(
+              l.nodes.toJSArray,
               gameTime,
               assetMapping,
               cloneBlankDisplayObjects,
               renderingTechnology,
-              maxBatchSize
+              maxBatchSize,
+              inputEvents,
+              sendEvent
             )
 
           val layer = DisplayLayer(
             conversionResults._1,
-            SceneProcessor.makeLightsData(scene.lights ++ l.lights),
+            SceneProcessor.makeLightsData((scene.lights ++ l.lights).toJSArray),
             blending.clearColor.getOrElse(RGBA.Zero),
             l.magnification,
             l.depth.getOrElse(Depth(i)),
@@ -143,9 +149,12 @@ final class SceneProcessor(
 
     val sceneBlend = scene.blendMaterial.getOrElse(BlendMaterial.Normal).toShaderData
 
+    displayObjectConverter.purgeEachFrame()
+    displayObjectConverterClone.purgeEachFrame()
+
     new ProcessedSceneData(
       displayLayers.map(_._1),
-      cloneBlankDisplayObjects.concat(displayLayers.flatMap(_._2)),
+      cloneBlankDisplayObjects.addAll(displayLayers.flatMap(_._2)),
       sceneBlend.shaderId,
       SceneProcessor.mergeShaderToUniformData(sceneBlend),
       scene.camera
@@ -167,14 +176,12 @@ object SceneProcessor {
       scalajs.js.Array[Float]()
     )
 
-  private val missingLightData: HashMap[Int, List[LightData]] =
-    HashMap.from(
-      (0 to 8).map { i =>
-        (i -> List.fill(i)(LightData.empty))
-      }
-    )
+  private val missingLightData: scalajs.js.Array[scalajs.js.Array[LightData]] =
+    (0 to 8).map { i =>
+      List.fill(i)(LightData.empty).toJSArray
+    }.toJSArray
 
-  def makeLightsData(lights: List[Light]): scalajs.js.Array[Float] = {
+  def makeLightsData(lights: scalajs.js.Array[Light]): scalajs.js.Array[Float] = {
     val limitedLights = lights.take(MaxLights)
     val count         = limitedLights.length
     val fullLights    = limitedLights.map(makeLightData) ++ missingLightData(MaxLights - count)
@@ -306,7 +313,7 @@ object SceneProcessor {
       DisplayObjectUniformData(
         uniformHash = ub.uniformHash,
         blockName = ub.blockName,
-        data = DisplayObjectConversions.packUBO(ub.uniforms)
+        data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
       )
     }
 }

@@ -14,7 +14,7 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
   def eventFilters: EventFilters =
     EventFilters.Restricted
 
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, SandboxGameModel] =
+  def modelLens: Lens[SandboxGameModel, SandboxGameModel] =
     Lens.keepOriginal
 
   def viewModelLens: Lens[SandboxViewModel, SandboxViewModel] =
@@ -39,9 +39,9 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
   ): GlobalEvent => Outcome[SandboxViewModel] =
     _ => Outcome(viewModel)
 
-  val boxStroke = Stroke(1, RGBA.Black)
+  val boxStroke  = Stroke(1, RGBA.Black)
   val lineStroke = Stroke(1, RGBA.Cyan)
-  val fill   = Fill.Color(RGBA.Zero)
+  val fill       = Fill.Color(RGBA.Zero)
 
   def makeLine(dice: Dice): Shape.Line =
     if dice.rollBoolean then
@@ -60,11 +60,13 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
       boxStroke
     )
 
-  val shapes: List[Shape] =
+  val shapes: Batch[Shape[_]] =
     val d = Dice.fromSeed(0)
-    (1 to 30).toList.flatMap { _ =>
-      List(makeLine(d), makeBox(d))
-    }
+    Batch.fromList(
+      (1 to 30).toList.flatMap { _ =>
+        List(makeLine(d), makeBox(d))
+      }
+    )
 
   def present(
       context: FrameContext[SandboxStartupData],

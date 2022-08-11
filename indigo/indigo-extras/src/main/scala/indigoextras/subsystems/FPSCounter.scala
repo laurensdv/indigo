@@ -17,18 +17,29 @@ import indigo.shared.scenegraph.Shape
 import indigo.shared.scenegraph.TextBox
 import indigo.shared.subsystems.SubSystem
 import indigo.shared.subsystems.SubSystemFrameContext
+import indigo.shared.subsystems.SubSystemId
 import indigo.shared.time.FPS
 import indigo.shared.time.Seconds
 
 final case class FPSCounter(
+    id: SubSystemId,
     startPosition: Point,
-    targetFPS: FPS,
+    targetFPS: Option[FPS],
     layerKey: Option[BindingKey],
     fontFamily: FontFamily,
     fontSize: Pixels
 ) extends SubSystem:
   type EventType      = GlobalEvent
   type SubSystemModel = FPSCounterState
+
+  private val idealFps: Int = targetFPS.getOrElse(FPS.`60`).toInt
+  private val decideNextFps: Int => Int =
+    targetFPS match
+      case None =>
+        frameCountSinceInterval => frameCountSinceInterval + 1
+
+      case Some(target) =>
+        frameCountSinceInterval => Math.min(target.toInt, frameCountSinceInterval + 1)
 
   def eventFilter: GlobalEvent => Option[EventType] = {
     case FrameTick          => Some(FrameTick)
@@ -44,13 +55,12 @@ final case class FPSCounter(
       if (context.gameTime.running >= (model.lastInterval + Seconds(1)))
         Outcome(
           model.copy(
-            fps = Math.min(targetFPS.toInt, model.frameCountSinceInterval + 1),
+            fps = decideNextFps(model.frameCountSinceInterval),
             lastInterval = context.gameTime.running,
             frameCountSinceInterval = 0
           )
         )
-      else
-        Outcome(model.copy(frameCountSinceInterval = model.frameCountSinceInterval + 1))
+      else Outcome(model.copy(frameCountSinceInterval = model.frameCountSinceInterval + 1))
 
     case FPSCounter.Move(to) =>
       Outcome(model.copy(position = to))
@@ -59,12 +69,16 @@ final case class FPSCounter(
       Outcome(model)
   }
 
+  private val textBox: TextBox =
+    TextBox("")
+      .withFontFamily(fontFamily)
+      .withFontSize(fontSize)
+
   def present(context: SubSystemFrameContext, model: FPSCounterState): Outcome[SceneUpdateFragment] =
     val text: TextBox =
-      TextBox(s"""FPS ${model.fps.toString}""")
-        .withFontFamily(fontFamily)
-        .withColor(pickTint(targetFPS.toInt, model.fps))
-        .withFontSize(fontSize)
+      textBox
+        .withText(s"""FPS ${model.fps.toString}""")
+        .withColor(pickTint(idealFps, model.fps))
         .moveTo(model.position + 2)
 
     val size: Rectangle =
@@ -99,14 +113,31 @@ final case class FPSCounter(
 
 object FPSCounter:
 
-  def apply(position: Point, targetFPS: FPS, layerKey: Option[BindingKey]): SubSystem =
-    FPSCounter(position, targetFPS, layerKey, FontFamily.sansSerif, Pixels(12))
+  val DefaultId: SubSystemId = SubSystemId("[indigo_FPSCounter_subsystem]")
 
-  def apply(position: Point, targetFPS: FPS, layerKey: BindingKey): SubSystem =
-    FPSCounter(position, targetFPS, Option(layerKey), FontFamily.sansSerif, Pixels(12))
+  def apply(position: Point): SubSystem =
+    FPSCounter(DefaultId, position, None, None, FontFamily.sansSerif, Pixels(12))
 
   def apply(position: Point, targetFPS: FPS): SubSystem =
-    FPSCounter(position, targetFPS, None, FontFamily.sansSerif, Pixels(12))
+    FPSCounter(DefaultId, position, Option(targetFPS), None, FontFamily.sansSerif, Pixels(12))
+
+  def apply(position: Point, layerKey: BindingKey): SubSystem =
+    FPSCounter(DefaultId, position, None, Option(layerKey), FontFamily.sansSerif, Pixels(12))
+
+  def apply(position: Point, targetFPS: FPS, layerKey: BindingKey): SubSystem =
+    FPSCounter(DefaultId, position, Option(targetFPS), Option(layerKey), FontFamily.sansSerif, Pixels(12))
+
+  def apply(id: SubSystemId, position: Point): SubSystem =
+    FPSCounter(id, position, None, None, FontFamily.sansSerif, Pixels(12))
+
+  def apply(id: SubSystemId, position: Point, targetFPS: FPS): SubSystem =
+    FPSCounter(id, position, Option(targetFPS), None, FontFamily.sansSerif, Pixels(12))
+
+  def apply(id: SubSystemId, position: Point, layerKey: BindingKey): SubSystem =
+    FPSCounter(id, position, None, Option(layerKey), FontFamily.sansSerif, Pixels(12))
+
+  def apply(id: SubSystemId, position: Point, targetFPS: FPS, layerKey: BindingKey): SubSystem =
+    FPSCounter(id, position, Option(targetFPS), Option(layerKey), FontFamily.sansSerif, Pixels(12))
 
   final case class Move(to: Point) extends GlobalEvent
 

@@ -3,19 +3,20 @@ import Misc._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala3Version = "3.1.0"
+val scala3Version = "3.1.2"
 
 ThisBuild / versionScheme                                  := Some("early-semver")
-ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.5.0"
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
 ThisBuild / scalaVersion                                   := scala3Version
 
 lazy val indigoVersion = IndigoVersion.getVersion
 // For the docs site
-lazy val indigoDocsVersion  = "0.11.0"
-lazy val scalaJsDocsVersion = "1.8.0"
-lazy val scalaDocsVersion   = "3.1.0"
-lazy val sbtDocsVersion     = "1.6.1"
-lazy val millDocsVersion    = "0.9.9"
+lazy val indigoDocsVersion  = "0.13.0"
+lazy val tyrianDocsVersion  = "0.5.1"
+lazy val scalaJsDocsVersion = "1.10.0"
+lazy val scalaDocsVersion   = "3.1.2"
+lazy val sbtDocsVersion     = "1.6.2"
+lazy val millDocsVersion    = "0.10.4"
 
 lazy val commonSettings: Seq[sbt.Def.Setting[_]] = Seq(
   version            := indigoVersion,
@@ -63,7 +64,7 @@ lazy val indigoProject =
     .settings(
       neverPublish,
       commonSettings,
-      name        := "Indigo",
+      name        := "IndigoProject",
       code        := codeTaskDefinition,
       usefulTasks := customTasksAliases,
       presentationSettings(version),
@@ -84,7 +85,18 @@ lazy val sandbox =
       name                := "sandbox",
       showCursor          := true,
       title               := "Sandbox",
-      gameAssetsDirectory := "assets"
+      gameAssetsDirectory := "assets",
+      disableFrameRateLimit := (sys.props("os.name").toLowerCase match {
+        case x if x contains "windows" => false
+        case _                         => true
+      }),
+      electronInstall := (sys.props("os.name").toLowerCase match {
+        case x if x.contains("windows") || x.contains("linux") =>
+          indigoplugin.ElectronInstall.Version("^18.0.0")
+
+        case _ =>
+          indigoplugin.ElectronInstall.Global
+      })
     )
 
 lazy val perf =
@@ -100,7 +112,18 @@ lazy val perf =
       title               := "Perf",
       gameAssetsDirectory := "assets",
       windowStartWidth    := 800,
-      windowStartHeight   := 600
+      windowStartHeight   := 600,
+      disableFrameRateLimit := (sys.props("os.name").toLowerCase match {
+        case x if x contains "windows" => false
+        case _                         => true
+      }),
+      electronInstall := (sys.props("os.name").toLowerCase match {
+        case x if x.contains("windows") || x.contains("linux") =>
+          indigoplugin.ElectronInstall.Version("^18.0.0")
+
+        case _ =>
+          indigoplugin.ElectronInstall.Global
+      })
     )
 
 // Indigo Extensions
@@ -161,14 +184,19 @@ lazy val jsdocs = project
   .settings(
     neverPublish,
     organization := "io.indigoengine",
-    libraryDependencies ++= Dependencies.jsDocs.value
+    libraryDependencies ++= Dependencies.jsDocs.value,
+    libraryDependencies ++= Seq(
+      "io.indigoengine" %%% "indigo-json-circe"    % indigoDocsVersion,
+      "io.indigoengine" %%% "indigo"               % indigoDocsVersion,
+      "io.indigoengine" %%% "indigo-extras"        % indigoDocsVersion,
+      "io.indigoengine" %%% "tyrian-io"            % tyrianDocsVersion,
+      "io.indigoengine" %%% "tyrian-indigo-bridge" % tyrianDocsVersion
+    )
   )
   .enablePlugins(ScalaJSPlugin)
 
 lazy val docs = project
   .in(file("indigo-docs"))
-  .dependsOn(indigoExtras)
-  .dependsOn(indigoJsonCirce)
   .enablePlugins(MdocPlugin)
   .settings(
     neverPublish,
@@ -183,12 +211,15 @@ lazy val docs = project
       "MILL_VERSION"    -> millDocsVersion
     )
   )
+  .settings(
+    run / fork := true
+  )
 
 addCommandAlias(
   "gendocs",
   List(
     "cleanAll",
-    "unidoc",   // Docs in ./target/scala-3.1.0/unidoc/
+    "unidoc",   // Docs in ./target/scala-3.1.2/unidoc/
     "docs/mdoc" // Docs in ./indigo/indigo-docs/target/mdoc
   ).mkString(";", ";", "")
 )

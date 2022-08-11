@@ -18,7 +18,7 @@ object UiScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewMo
   def eventFilters: EventFilters =
     EventFilters.Permissive
 
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, SandboxGameModel] =
+  def modelLens: Lens[SandboxGameModel, SandboxGameModel] =
     Lens.keepOriginal
 
   def viewModelLens: Lens[SandboxViewModel, SandboxViewModel] =
@@ -51,8 +51,8 @@ object UiScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewMo
     case _ =>
       Outcome(viewModel)
 
-  val points: List[Point] =
-    List(
+  val points: Batch[Point] =
+    Batch(
       Point(10, 10),
       Point(20, 70),
       Point(90, 90),

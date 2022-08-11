@@ -21,21 +21,21 @@ import indigo.shared.scenegraph.CloneBatchData
 import indigo.shared.scenegraph.CloneId
 import indigo.shared.scenegraph.CloneTileData
 import indigo.shared.shader.ShaderId
+import org.scalajs.dom
+import org.scalajs.dom.WebGLBuffer
+import org.scalajs.dom.WebGLProgram
 import org.scalajs.dom.WebGLRenderingContext
 import org.scalajs.dom.WebGLRenderingContext._
-import org.scalajs.dom.raw
-import org.scalajs.dom.raw.WebGLBuffer
-import org.scalajs.dom.raw.WebGLProgram
-import org.scalajs.dom.raw.WebGLTexture
+import org.scalajs.dom.WebGLTexture
 
 import scala.annotation.tailrec
 import scala.collection.immutable
-import scala.collection.mutable
+import scala.scalajs.js
 import scala.scalajs.js.typedarray.Float32Array
 
 class LayerRenderer(
     gl2: WebGL2RenderingContext,
-    textureLocations: scalajs.js.Array[TextureLookupResult],
+    textureLocations: js.Array[TextureLookupResult],
     maxBatchSize: Int,
     projectionUBOBuffer: => WebGLBuffer,
     frameDataUBOBuffer: => WebGLBuffer,
@@ -45,8 +45,8 @@ class LayerRenderer(
     textTexture: WebGLTexture
 ) {
 
-  private val customDataUBOBuffers: mutable.HashMap[String, WebGLBuffer] =
-    mutable.HashMap.empty[String, WebGLBuffer]
+  private val customDataUBOBuffers: js.Dictionary[WebGLBuffer] =
+    js.Dictionary.empty[WebGLBuffer]
 
   // Instance Array Buffers
   private val translateScaleInstanceArray: WebGLBuffer       = gl2.createBuffer()
@@ -65,18 +65,18 @@ class LayerRenderer(
   }
 
   // Instance Data Arrays
-  private val translateScaleData: scalajs.js.Array[Float]       = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val refFlipData: scalajs.js.Array[Float]              = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val sizeAndFrameScaleData: scalajs.js.Array[Float]    = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val channelOffsets01Data: scalajs.js.Array[Float]     = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val channelOffsets23Data: scalajs.js.Array[Float]     = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val textureSizeAtlasSizeData: scalajs.js.Array[Float] = scalajs.js.Array[Float](4f * maxBatchSize)
-  private val rotationData: scalajs.js.Array[Float]             = scalajs.js.Array[Float](1f * maxBatchSize)
+  private val translateScaleData: js.Array[Float]       = js.Array[Float](4f * maxBatchSize)
+  private val refFlipData: js.Array[Float]              = js.Array[Float](4f * maxBatchSize)
+  private val sizeAndFrameScaleData: js.Array[Float]    = js.Array[Float](4f * maxBatchSize)
+  private val channelOffsets01Data: js.Array[Float]     = js.Array[Float](4f * maxBatchSize)
+  private val channelOffsets23Data: js.Array[Float]     = js.Array[Float](4f * maxBatchSize)
+  private val textureSizeAtlasSizeData: js.Array[Float] = js.Array[Float](4f * maxBatchSize)
+  private val rotationData: js.Array[Float]             = js.Array[Float](1f * maxBatchSize)
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var lastRenderMode: Int = 0
 
-  inline private def bindData(buffer: WebGLBuffer, data: scalajs.js.Array[Float]): Unit = {
+  inline private def bindData(buffer: WebGLBuffer, data: js.Array[Float]): Unit = {
     gl2.bindBuffer(ARRAY_BUFFER, buffer)
     gl2.bufferData(ARRAY_BUFFER, new Float32Array(data), STATIC_DRAW)
   }
@@ -204,9 +204,9 @@ class LayerRenderer(
     textureSizeAtlasSizeData((i * 4) + 3) = 0
   }
 
-  private val refData: scalajs.js.Array[Float] =
-    scalajs.js.Array(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-      0.0f, 0.0f, 0.0f, 0.0f)
+  private val refData: js.Array[Float] =
+    js.Array(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+      0.0f, 0.0f)
 
   def init(): LayerRenderer =
     // pre-populate array
@@ -218,12 +218,13 @@ class LayerRenderer(
       d: DisplayObject,
       atlasName: Option[AtlasId],
       currentShader: ShaderId,
-      currentUniformHash: String
+      currentUniformHash: js.Array[String]
   ): Boolean = {
-    val uniformHash: String = d.shaderUniformData.map(_.uniformHash).mkString
+    val uniformHash: js.Array[String] = d.shaderUniformData.map(_.uniformHash)
 
     d.shaderId != currentShader ||
-    (uniformHash.nonEmpty && uniformHash != currentUniformHash) ||
+    (uniformHash.nonEmpty && (uniformHash.length != currentUniformHash.length ||
+      !uniformHash.sameElements(currentUniformHash))) ||
     d.atlasName != atlasName ||
     lastRenderMode != 0
   }
@@ -239,7 +240,7 @@ class LayerRenderer(
       gl2.uniformMatrix4fv(
         location = gl2.getUniformLocation(currentProgram, "u_baseTransform"),
         transpose = false,
-        value = Float32Array(baseTransform.toArray)
+        value = Float32Array(baseTransform.toJSArray)
       )
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
@@ -256,17 +257,18 @@ class LayerRenderer(
       d: DisplayObject,
       atlasName: Option[AtlasId],
       currentShader: ShaderId,
-      currentUniformHash: String,
-      customShaders: mutable.HashMap[ShaderId, WebGLProgram],
+      currentUniformHash: js.Array[String],
+      customShaders: js.Dictionary[WebGLProgram],
       baseTransform: CheapMatrix4,
       renderMode: Int
   ): Unit = {
+    val shaderHasChanged: Boolean = d.shaderId != currentShader
 
     // Switch and reference shader
     val activeShader: WebGLProgram =
-      if d.shaderId != currentShader then
+      if shaderHasChanged then
         try {
-          currentProgram = customShaders(d.shaderId)
+          currentProgram = customShaders(d.shaderId.toString)
           setupShader(currentProgram)
           currentProgram
         } catch {
@@ -278,25 +280,30 @@ class LayerRenderer(
       else currentProgram
 
     // Base transform
-    if d.shaderId != currentShader then setBaseTransform(baseTransform)
-    if d.shaderId != currentShader || lastRenderMode != renderMode then
+    if shaderHasChanged then setBaseTransform(baseTransform)
+    if shaderHasChanged || lastRenderMode != renderMode then
       lastRenderMode = renderMode
       setMode(renderMode)
 
     // UBO data
-    val uniformHash: String = d.shaderUniformData.map(_.uniformHash).mkString
-    if uniformHash.nonEmpty && uniformHash != currentUniformHash then
+    if d.shaderUniformData.nonEmpty then
       d.shaderUniformData.zipWithIndex.foreach { case (ud, i) =>
-        val buff = customDataUBOBuffers.getOrElseUpdate(ud.blockName, gl2.createBuffer())
+        currentUniformHash.lift(i) match
+          case Some(hash) if !shaderHasChanged && hash == ud.uniformHash =>
+            // This data has already been set on the shader.
+            ()
 
-        WebGLHelper.attachUBOData(gl2, ud.data, buff)
-        WebGLHelper.bindUBO(
-          gl2,
-          activeShader,
-          ud.blockName,
-          RendererWebGL2Constants.customDataBlockOffsetPointer + i,
-          buff
-        )
+          case _ =>
+            val buff = customDataUBOBuffers.getOrElseUpdate(ud.blockName, gl2.createBuffer())
+
+            WebGLHelper.attachUBOData(gl2, ud.data, buff)
+            WebGLHelper.bindUBO(
+              gl2,
+              activeShader,
+              RendererWebGL2Constants.customDataBlockOffsetPointer + i,
+              buff,
+              gl2.getUniformBlockIndex(activeShader, ud.blockName)
+            )
       }
 
     // Atlas
@@ -320,30 +327,30 @@ class LayerRenderer(
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoProjectionData",
       RendererWebGL2Constants.projectionBlockPointer,
-      projectionUBOBuffer
+      projectionUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoProjectionData")
     )
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoFrameData",
       RendererWebGL2Constants.frameDataBlockPointer,
-      frameDataUBOBuffer
+      frameDataUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoFrameData")
     )
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoCloneReferenceData",
       RendererWebGL2Constants.cloneReferenceDataBlockPointer,
-      cloneReferenceUBOBuffer
+      cloneReferenceUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoCloneReferenceData")
     )
     WebGLHelper.bindUBO(
       gl2,
       program,
-      "IndigoDynamicLightingData",
       RendererWebGL2Constants.lightDataBlockPointer,
-      lightDataUBOBuffer
+      lightDataUBOBuffer,
+      gl2.getUniformBlockIndex(program, "IndigoDynamicLightingData")
     )
 
     // Instance attributes
@@ -433,11 +440,11 @@ class LayerRenderer(
     gl2.drawArraysInstanced(TRIANGLE_STRIP, 0, 4, 1)
 
   def drawLayer(
-      cloneBlankDisplayObjects: => immutable.HashMap[CloneId, DisplayObject],
-      displayEntities: => scalajs.js.Array[DisplayEntity],
+      cloneBlankDisplayObjects: => js.Dictionary[DisplayObject],
+      displayEntities: => js.Array[DisplayEntity],
       frameBufferComponents: FrameBufferComponents,
       clearColor: RGBA,
-      customShaders: => mutable.HashMap[ShaderId, WebGLProgram]
+      customShaders: => js.Dictionary[WebGLProgram]
   ): Unit = {
 
     FrameBufferFunctions.switchToFramebuffer(gl2, frameBufferComponents.frameBuffer, clearColor, true)
@@ -457,26 +464,26 @@ class LayerRenderer(
     )
   )
   private def renderEntities(
-      cloneBlankDisplayObjects: => immutable.HashMap[CloneId, DisplayObject],
-      displayEntities: => scalajs.js.Array[DisplayEntity],
-      customShaders: => mutable.HashMap[ShaderId, WebGLProgram],
+      cloneBlankDisplayObjects: => js.Dictionary[DisplayObject],
+      displayEntities: => js.Array[DisplayEntity],
+      customShaders: => js.Dictionary[WebGLProgram],
       baseTransform: CheapMatrix4
   ): Unit = {
 
-    val count: Int                    = displayEntities.length
-    var i: Int                        = 0
-    var batchCount: Int               = 0
-    var atlasName: Option[AtlasId]    = None
-    var currentShader: ShaderId       = ShaderId("")
-    var currentShaderHash: String     = ""
-    var currentBaseTransformHash: Int = 0
+    val count: Int                          = displayEntities.length
+    var i: Int                              = 0
+    var batchCount: Int                     = 0
+    var atlasName: Option[AtlasId]          = None
+    var currentShader: ShaderId             = ShaderId("")
+    var currentShaderHash: js.Array[String] = new js.Array()
+    var currentBaseTransformHash: Int       = 0
 
     // Clones
     var currentCloneId: CloneId        = CloneId("")
     var currentCloneRef: DisplayObject = null
 
     //
-    val sortedEntities: scalajs.js.Array[DisplayEntity] =
+    val sortedEntities: js.Array[DisplayEntity] =
       displayEntities.sortWith((d1, d2) => d1.z > d2.z)
 
     while (i <= count)
@@ -496,7 +503,7 @@ class LayerRenderer(
             batchCount = 0
             atlasName = None
             currentShader = ShaderId("")
-            currentShaderHash = ""
+            currentShaderHash = new js.Array()
             renderEntities(cloneBlankDisplayObjects, d.letters, customShaders, baseTransform)
             i += 1
 
@@ -508,7 +515,7 @@ class LayerRenderer(
             batchCount = 0
             atlasName = None
             currentShader = ShaderId("")
-            currentShaderHash = ""
+            currentShaderHash = new js.Array()
             renderEntities(cloneBlankDisplayObjects, d.entities, customShaders, d.transform * baseTransform)
             setBaseTransform(baseTransform)
             i += 1
@@ -527,7 +534,7 @@ class LayerRenderer(
             batchCount = 0
             atlasName = d.atlasName
             currentShader = d.shaderId
-            currentShaderHash = d.shaderUniformData.map(_.uniformHash).mkString
+            currentShaderHash = d.shaderUniformData.map(_.uniformHash)
 
           case d: DisplayObject =>
             updateData(d, batchCount)
@@ -541,7 +548,7 @@ class LayerRenderer(
             var refreshCloneUBO  = false
 
             if c.id.toString != currentCloneId.toString then
-              cloneBlankDisplayObjects.get(c.id) match
+              cloneBlankDisplayObjects.get(c.id.toString) match
                 case None => ()
                 case Some(d) =>
                   currentCloneId = c.id
@@ -571,7 +578,7 @@ class LayerRenderer(
               batchCount = 0
               atlasName = currentCloneRef.atlasName
               currentShader = currentCloneRef.shaderId
-              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash).mkString
+              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash)
 
             i += 1
 
@@ -582,7 +589,7 @@ class LayerRenderer(
             var refreshCloneUBO  = false
 
             if c.id.toString != currentCloneId.toString then
-              cloneBlankDisplayObjects.get(c.id) match
+              cloneBlankDisplayObjects.get(c.id.toString) match
                 case None => ()
                 case Some(d) =>
                   currentCloneId = c.id
@@ -612,7 +619,7 @@ class LayerRenderer(
               batchCount = 0
               atlasName = currentCloneRef.atlasName
               currentShader = currentCloneRef.shaderId
-              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash).mkString
+              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash)
 
             i += 1
 
@@ -622,7 +629,7 @@ class LayerRenderer(
             var cloneBlankExists = false
 
             if c.id.toString != currentCloneId.toString then
-              cloneBlankDisplayObjects.get(c.id) match
+              cloneBlankDisplayObjects.get(c.id.toString) match
                 case None => ()
                 case Some(d) =>
                   currentCloneId = c.id
@@ -648,7 +655,7 @@ class LayerRenderer(
               batchCount = 0
               atlasName = currentCloneRef.atlasName
               currentShader = currentCloneRef.shaderId
-              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash).mkString
+              currentShaderHash = currentCloneRef.shaderUniformData.map(_.uniformHash)
 
             i += 1
 
@@ -659,7 +666,7 @@ class LayerRenderer(
             val shaderId = indigo.shared.shader.StandardShaders.Bitmap.id
             val activeShader: WebGLProgram =
               if (currentShader != shaderId) {
-                customShaders.get(shaderId) match {
+                customShaders.get(shaderId.toString) match {
                   case Some(s) =>
                     currentProgram = s
                     setupShader(s)
@@ -685,13 +692,13 @@ class LayerRenderer(
 
             // UBO data
             val buff = customDataUBOBuffers.getOrElseUpdate("[indigo_internal_buffer_textbox]", gl2.createBuffer())
-            WebGLHelper.attachUBOData(gl2, scalajs.js.Array[Float](0), buff)
+            WebGLHelper.attachUBOData(gl2, js.Array[Float](0), buff)
             WebGLHelper.bindUBO(
               gl2,
               activeShader,
-              "IndigoBitmapData",
               RendererWebGL2Constants.customDataBlockOffsetPointer,
-              buff
+              buff,
+              gl2.getUniformBlockIndex(activeShader, "IndigoBitmapData")
             )
             //
 
@@ -708,7 +715,7 @@ class LayerRenderer(
             updateTextData(t, 0)
             batchCount = 1
             atlasName = None
-            currentShaderHash = ""
+            currentShaderHash = new js.Array()
             i += 1
         }
   }
@@ -719,8 +726,8 @@ class LayerRenderer(
     val code = refDisplayObject.hashCode
     if currentRefUBOHash == code then ()
     else
-      val refData: scalajs.js.Array[Float] =
-        scalajs.js.Array(
+      val refData: js.Array[Float] =
+        js.Array(
           refDisplayObject.refX,
           refDisplayObject.refY,
           refDisplayObject.flipX,
@@ -827,29 +834,45 @@ class LayerRenderer(
       updateData(refDisplayObject, 0)
       prepareCloneProgramBuffer()
 
-      val count: Int                 = c.cloneData.length
-      var i: Int                     = 0
-      var currentUniformHash: String = ""
+      val count: Int                              = c.cloneData.length
+      var i: Int                                  = 0
+      var currentUniformHash: js.Array[String]    = new js.Array()
+      val blockIndexLookup: js.Dictionary[Double] = js.Dictionary()
 
       while (i < count) {
         val shaderUniformData = c.cloneData(i)
 
         // UBO data
-        val uniformHash: String = shaderUniformData.map(_.uniformHash).mkString
-        if uniformHash.nonEmpty && uniformHash != currentUniformHash then
+        if shaderUniformData.nonEmpty then
           shaderUniformData.zipWithIndex.foreach { case (ud, i) =>
-            val buff = customDataUBOBuffers.getOrElseUpdate(ud.blockName, gl2.createBuffer())
+            currentUniformHash.lift(i) match
+              case Some(hash) if hash == ud.uniformHash =>
+                // This data has already been set on the shader.
+                ()
 
-            WebGLHelper.attachUBOData(gl2, ud.data, buff)
-            WebGLHelper.bindUBO(
-              gl2,
-              activeShader,
-              ud.blockName,
-              RendererWebGL2Constants.customDataBlockOffsetPointer + i,
-              buff
-            )
+              case _ =>
+                val blockName = ud.blockName
+
+                val buff = customDataUBOBuffers.getOrElseUpdate(blockName, gl2.createBuffer())
+
+                val blockIndex: Double =
+                  blockIndexLookup.get(blockName) match
+                    case Some(idx) => idx
+                    case None =>
+                      val idx = gl2.getUniformBlockIndex(activeShader, blockName)
+                      blockIndexLookup.update(blockName, idx)
+                      idx
+
+                WebGLHelper.attachUBOData(gl2, ud.data, buff)
+                WebGLHelper.bindUBO(
+                  gl2,
+                  activeShader,
+                  RendererWebGL2Constants.customDataBlockOffsetPointer + i,
+                  buff,
+                  blockIndex
+                )
           }
-          currentUniformHash = uniformHash
+          currentUniformHash = shaderUniformData.map(_.uniformHash)
 
         drawSingleCloneProgram()
 

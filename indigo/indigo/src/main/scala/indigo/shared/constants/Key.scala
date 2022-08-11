@@ -20,6 +20,7 @@ final case class Key(code: Int, key: String) derives CanEqual {
       case _ => false
     }
 
+  override def hashCode: Int = code
 }
 
 object Key {
@@ -127,7 +128,7 @@ object Key {
   val GRAVE_ACCENT: Key     = 192
   val OPEN_BRACKET: Key     = 219 -> "("
   val BACK_SLASH: Key       = 220 -> "\\"
-  val CLOSE_BRAKET: Key     = 221 -> ")"
+  val CLOSE_BRACKET: Key    = 221 -> ")"
   val SINGLE_QUOTE: Key     = 222 -> "\'"
 
   val printable: List[Key] =
@@ -193,7 +194,7 @@ object Key {
       GRAVE_ACCENT,
       OPEN_BRACKET,
       BACK_SLASH,
-      CLOSE_BRAKET,
+      CLOSE_BRACKET,
       SINGLE_QUOTE
     )
 }

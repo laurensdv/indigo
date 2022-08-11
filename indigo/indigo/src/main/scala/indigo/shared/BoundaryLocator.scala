@@ -1,6 +1,7 @@
 package indigo.shared
 
 import indigo.platform.assets.DynamicText
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.FontInfo
 import indigo.shared.datatypes.FontKey
 import indigo.shared.datatypes.Point
@@ -26,37 +27,42 @@ final class BoundaryLocator(
     animationsRegister: AnimationsRegister,
     fontRegister: FontRegister,
     dynamicText: DynamicText
-) {
+):
 
   implicit private val maybeBoundsCache: QuickCache[Option[Rectangle]]      = QuickCache.empty
   implicit private val boundsCache: QuickCache[Rectangle]                   = QuickCache.empty
-  implicit private val textLinesCache: QuickCache[List[TextLine]]           = QuickCache.empty
+  implicit private val textLinesCache: QuickCache[Batch[TextLine]]          = QuickCache.empty
   implicit private val textAllLineBoundsCache: QuickCache[Array[Rectangle]] = QuickCache.empty
 
-  def purgeCache(): Unit = {
+  private[indigo] def purgeCache(): Unit = {
     maybeBoundsCache.purgeAllNow()
     boundsCache.purgeAllNow()
     textLinesCache.purgeAllNow()
     textAllLineBoundsCache.purgeAllNow()
   }
 
-  def measureText(t: TextBox): Rectangle =
+  /** Measures the size of a `TextBox` using the browsers canvas APIs. This is a slow operation.
+    */
+  def measureText(textBox: TextBox): Rectangle =
     val rect =
       dynamicText
         .measureText(
-          t.text,
-          t.style,
-          t.size.width,
-          t.size.height
+          textBox.text,
+          textBox.style,
+          textBox.size.width,
+          textBox.size.height
         )
-        .moveTo(t.position)
+        .moveTo(textBox.position)
 
-    BoundaryLocator.findBounds(t, rect.position, rect.size, t.ref)
+    BoundaryLocator.findBounds(textBox, rect.position, rect.size, textBox.ref)
 
-  def findBounds(sceneGraphNode: SceneNode): Option[Rectangle] =
-    sceneGraphNode match {
-      case s: Shape =>
-        Option(shapeBounds(s)).map(rect => BoundaryLocator.findBounds(s, rect.position, rect.size, s.ref))
+  /** Safely finds the bounds of any given scene node, if the node has bounds. It is not possible to sensibly measure
+    * the bounds of some node types, such as clones, and some nodes are dependant on external data that may be missing.
+    */
+  def findBounds(sceneNode: SceneNode): Option[Rectangle] =
+    sceneNode match {
+      case s: Shape[_] =>
+        Option(BoundaryLocator.findShapeBounds(s))
 
       case g: Graphic[_] =>
         Option(g.bounds)
@@ -64,11 +70,11 @@ final class BoundaryLocator(
       case t: TextBox =>
         Option(t.bounds)
 
-      case s: EntityNode =>
+      case s: EntityNode[_] =>
         Option(BoundaryLocator.findBounds(s, s.position, s.size, s.ref))
 
       case g: Group =>
-        Option(groupBounds(g)).map(rect => BoundaryLocator.findBounds(g, rect.position, rect.size, g.ref))
+        Option(groupBounds(g))
 
       case _: CloneBatch =>
         None
@@ -80,42 +86,39 @@ final class BoundaryLocator(
         None
 
       case s: Sprite[_] =>
-        spriteBounds(s).map(rect => BoundaryLocator.findBounds(s, rect.position, rect.size, s.ref))
+        spriteBounds(s)
 
       case t: Text[_] =>
-        Option(textBounds(t)).map { rect =>
-
-          val offset: Int =
-            t.alignment match {
-              case TextAlignment.Left   => 0
-              case TextAlignment.Center => rect.size.width / 2
-              case TextAlignment.Right  => rect.size.width
-            }
-
-          BoundaryLocator.findBounds(t, rect.position, rect.size, t.ref + Point(offset, 0))
-        }
+        Option(textBounds(t))
 
       case _ =>
         None
     }
 
-  def groupBounds(group: Group): Rectangle =
-    group.children match {
-      case Nil =>
-        Rectangle.zero
+  /** Finds the bounds or returns a `Rectangle` of size zero for convenience.
+    */
+  def bounds(sceneNode: SceneNode): Rectangle =
+    findBounds(sceneNode).getOrElse(Rectangle.zero)
 
-      case x :: xs =>
-        xs.foldLeft(findBounds(x)) { (acc, node) =>
-          (acc, findBounds(node)) match
-            case (Some(a), Some(b)) => Option(Rectangle.expandToInclude(a, b))
-            case (r @ Some(_), _)   => r
-            case (_, r @ Some(_))   => r
-            case (r, _)             => r
-        }.map(_.moveBy(group.position))
+  private def groupBounds(group: Group): Rectangle =
+    val rect =
+      if group.children.isEmpty then Rectangle.zero
+      else
+        group.children.tail
+          .foldLeft(findBounds(group.children.head)) { (acc, node) =>
+            (acc, findBounds(node)) match
+              case (Some(a), Some(b)) => Option(Rectangle.expandToInclude(a, b))
+              case (r @ Some(_), _)   => r
+              case (_, r @ Some(_))   => r
+              case (r, _)             => r
+          }
+          .map(_.moveBy(group.position))
           .getOrElse(Rectangle.zero)
-    }
 
-  def spriteBounds(sprite: Sprite[_]): Option[Rectangle] =
+    BoundaryLocator.findBounds(group, rect.position, rect.size, group.ref)
+  end groupBounds
+
+  def spriteFrameBounds(sprite: Sprite[_]): Option[Rectangle] =
     QuickCache(s"""sprite-${sprite.bindingKey.toString}-${sprite.animationKey.toString}""") {
       animationsRegister.fetchAnimationInLastState(sprite.bindingKey, sprite.animationKey) match {
         case Some(animation) =>
@@ -126,6 +129,9 @@ final class BoundaryLocator(
           None
       }
     }
+
+  private def spriteBounds(sprite: Sprite[_]): Option[Rectangle] =
+    spriteFrameBounds(sprite).map(rect => BoundaryLocator.findBounds(sprite, rect.position, rect.size, sprite.ref))
 
   // Text / Fonts
 
@@ -139,21 +145,21 @@ final class BoundaryLocator(
         }
     }
 
-  def textAsLinesWithBounds(text: String, fontKey: FontKey): List[TextLine] =
+  def textAsLinesWithBounds(text: String, fontKey: FontKey): Batch[TextLine] =
     QuickCache(s"""text-lines-$fontKey-$text""") {
       fontRegister
         .findByFontKey(fontKey)
         .map { fontInfo =>
           text.linesIterator.toList
             .map(lineText => new TextLine(lineText, textLineBounds(lineText, fontInfo)))
-            .foldLeft((0, List[TextLine]())) { case ((yPos, lines), textLine) =>
-              (yPos + textLine.lineBounds.height, lines ++ List(textLine.moveTo(0, yPos)))
+            .foldLeft((0, Batch.empty[TextLine])) { case ((yPos, lines), textLine) =>
+              (yPos + textLine.lineBounds.height, lines ++ Batch(textLine.moveTo(0, yPos)))
             }
             ._2
         }
         .getOrElse {
           IndigoLogger.errorOnce(s"Cannot build Text lines, missing Font with key: ${fontKey.toString()}")
-          Nil
+          Batch.empty
         }
     }
 
@@ -182,9 +188,35 @@ final class BoundaryLocator(
           acc.resize(Size(Math.max(acc.width, next.width), acc.height + next.height))
         }
 
-    unaligned.moveTo(text.position)
+    val rect =
+      unaligned.moveTo(text.position)
 
-  def shapeBounds(shape: Shape): Rectangle =
+    val offset: Int =
+      text.alignment match {
+        case TextAlignment.Left   => 0
+        case TextAlignment.Center => rect.size.width / 2
+        case TextAlignment.Right  => rect.size.width
+      }
+
+    BoundaryLocator.findBounds(text, rect.position, rect.size, text.ref + Point(offset, 0))
+
+object BoundaryLocator:
+  def findBounds(entity: SceneNode, position: Point, size: Size, ref: Point): Rectangle =
+    val m =
+      CheapMatrix4.identity
+        .translate(-ref.x.toFloat, -ref.y.toFloat, 0.0f)
+        .rotate(entity.rotation.toFloat)
+        .scale(entity.scale.x.toFloat, entity.scale.y.toFloat, 1.0f)
+        .translate(position.x.toFloat, position.y.toFloat, 0.0f)
+
+    Rectangle.fromPoints(
+      m.transform(Vector3(0, 0, 0)).toPoint,
+      m.transform(Vector3(size.width, 0, 0)).toPoint,
+      m.transform(Vector3(size.width, size.height, 0)).toPoint,
+      m.transform(Vector3(0, size.height, 0)).toPoint
+    )
+
+  def untransformedShapeBounds(shape: Shape[_]): Rectangle =
     shape match
       case s: Shape.Box =>
         Rectangle(
@@ -204,22 +236,6 @@ final class BoundaryLocator(
       case s: Shape.Polygon =>
         Rectangle.fromPointCloud(s.vertices).expand(s.stroke.width / 2)
 
-}
-
-object BoundaryLocator:
-  def findBounds(entity: SceneNode, position: Point, size: Size, ref: Point): Rectangle =
-    val m =
-      CheapMatrix4.identity
-        .translate(-ref.x.toFloat, -ref.y.toFloat, 0.0f)
-        .rotate(entity.rotation.toFloat)
-        .scale(entity.scale.x.toFloat, entity.scale.y.toFloat, 1.0f)
-        .translate(position.x.toFloat, position.y.toFloat, 0.0f)
-
-    Rectangle.fromPointCloud(
-      List(
-        m.transform(Vector3(0, 0, 0)).toPoint,
-        m.transform(Vector3(size.width, 0, 0)).toPoint,
-        m.transform(Vector3(size.width, size.height, 0)).toPoint,
-        m.transform(Vector3(0, size.height, 0)).toPoint
-      )
-    )
+  def findShapeBounds(shape: Shape[_]): Rectangle =
+    val rect = untransformedShapeBounds(shape)
+    findBounds(shape, rect.position, rect.size, shape.ref)

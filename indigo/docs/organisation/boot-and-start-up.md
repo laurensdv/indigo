@@ -26,8 +26,8 @@ Sandbox games (that implement `IndigoSandbox`) have a different boot sequence th
 
 `IndigoGame`'s and `IndigoDemo`s have a boot method such as this one, where "`BootData`" is some user defined type:
 
-```scala mdoc:silent
-import indigo._
+```scala mdoc:js:shared
+import indigo.*
 
 final case class BootData(myData: String)
 
@@ -46,8 +46,8 @@ Let's look at the [Snake game on our website as a simple example](https://indigo
 
 Well we use a flag, like this:
 
-```scala mdoc:silent:reset
-import indigo._
+```scala mdoc:js
+import indigo.*
 
 def boot(flags: Map[String, String]): Outcome[BootResult[GameViewport]] = {
   val assetPath: String =
@@ -73,6 +73,16 @@ Flags can represent anything you like. In the Snake example we are providing the
 
 The main limitation on flags is that they are typed to `Map[String, String]`, which is bothersome if you're trying to supply a number for instance. Perhaps the best way to use more sophisticated data at start up would be to supply JSON by setting a data flag, e.g. `{ data = '{width: 10, height: 10}' }`, and then pulling out the data flag at boot time and parsing the JSON string.
 
+#### Halting a game
+
+If you are embedding your game in a web page, you may have the need to stop a running game and free up it's resources, which you can do by calling the opposite function to `launch`, called `halt`:
+
+```javascript
+IndigoGame.halt();
+```
+
+Calling `halt` does not clean up your page in any way, the assumption is that you will remove the relevant HTML dom nodes.
+
 #### BootResult[_]
 
 In a simple game, all of your animations, fonts, subsystems, shaders, and assets can be declared during the boot stage. For more complex games, such as ones that have a pre-loader, you should only include the elements you need for the preloader scene here.
@@ -81,7 +91,7 @@ In a simple game, all of your animations, fonts, subsystems, shaders, and assets
 
 Optionally the boot sequence can result in a value, particularly since the boot sequence has access to the initial flags. For example you might return:
 
-```scala mdoc:silent
+```scala mdoc:js
 final case class BootData(runFullScreen: Boolean)
 ```
 
@@ -97,7 +107,7 @@ If "boot" is for marshaling your foundation game settings (bootstrapping), then 
 
 The setup function signature looks like this:
 
-```scala mdoc:silent
+```scala mdoc:js
 final case class StartUpData(debugMode: Boolean) // an example custom start up data type
 
 def setup(bootData: BootData, assetCollection: AssetCollection, dice: Dice): Outcome[Startup[StartUpData]] = ???
@@ -113,7 +123,7 @@ Unlike image and sound assets which are referenced directly in the presentation 
 
 If your setup function has succeeded:
 
-```scala mdoc:silent
+```scala
 // This is a made up user defined type that represents some result of the Startup process
 final case class MyStartUpData(maxParticles: Int)
 case object MyGameEvent extends GlobalEvent
@@ -133,7 +143,7 @@ If you don't need say anything other than "success", you can just say `Startup.S
 
 Should your setup function has fail, you should report errors like this:
 
-```scala mdoc:silent
+```scala mdoc:js
 Startup.Failure(
   "error message 1",
   "error message 2",

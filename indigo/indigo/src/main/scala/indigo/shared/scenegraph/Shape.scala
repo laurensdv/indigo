@@ -1,6 +1,7 @@
 package indigo.shared.scenegraph
 
 import indigo.shared.BoundaryLocator
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.Depth
 import indigo.shared.datatypes.Fill
 import indigo.shared.datatypes.Flip
@@ -11,6 +12,7 @@ import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Size
 import indigo.shared.datatypes.Stroke
 import indigo.shared.datatypes.Vector2
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.LightingModel
 import indigo.shared.materials.LightingModel.Lit
 import indigo.shared.materials.LightingModel.Unlit
@@ -25,37 +27,35 @@ import indigo.shared.shader.UniformBlock
   * quite versitile and support different fills and stroke effects, even lighting. Due to the way strokes around shapes
   * are drawn, the corners are always rounded.
   */
-sealed trait Shape extends RenderNode with Cloneable with SpatialModifiers[Shape] derives CanEqual {
-  def moveTo(pt: Point): Shape
-  def moveTo(x: Int, y: Int): Shape
-  def withPosition(newPosition: Point): Shape
+sealed trait Shape[T <: Shape[_]] extends RenderNode[T] with Cloneable with SpatialModifiers[T] derives CanEqual:
+  def moveTo(pt: Point): T
+  def moveTo(x: Int, y: Int): T
+  def withPosition(newPosition: Point): T
 
-  def moveBy(pt: Point): Shape
-  def moveBy(x: Int, y: Int): Shape
+  def moveBy(pt: Point): T
+  def moveBy(x: Int, y: Int): T
 
-  def rotateTo(angle: Radians): Shape
-  def rotateBy(angle: Radians): Shape
-  def withRotation(newRotation: Radians): Shape
+  def rotateTo(angle: Radians): T
+  def rotateBy(angle: Radians): T
+  def withRotation(newRotation: Radians): T
 
-  def scaleBy(amount: Vector2): Shape
-  def scaleBy(x: Double, y: Double): Shape
-  def withScale(newScale: Vector2): Shape
+  def scaleBy(amount: Vector2): T
+  def scaleBy(x: Double, y: Double): T
+  def withScale(newScale: Vector2): T
 
-  def transformTo(newPosition: Point, newRotation: Radians, newScale: Vector2): Shape
-  def transformBy(positionDiff: Point, rotationDiff: Radians, scaleDiff: Vector2): Shape
+  def transformTo(newPosition: Point, newRotation: Radians, newScale: Vector2): T
+  def transformBy(positionDiff: Point, rotationDiff: Radians, scaleDiff: Vector2): T
 
-  def withDepth(newDepth: Depth): Shape
+  def withDepth(newDepth: Depth): T
 
-  def flipHorizontal(isFlipped: Boolean): Shape
-  def flipVertical(isFlipped: Boolean): Shape
-  def withFlip(newFlip: Flip): Shape
+  def flipHorizontal(isFlipped: Boolean): T
+  def flipVertical(isFlipped: Boolean): T
+  def withFlip(newFlip: Flip): T
 
-  def calculatedBounds(locator: BoundaryLocator): Rectangle =
-    val rect = locator.shapeBounds(this)
-    BoundaryLocator.findBounds(this, rect.position, rect.size, ref)
-}
+  def bounds: Rectangle =
+    BoundaryLocator.findShapeBounds(this)
 
-object Shape {
+object Shape:
 
   /** Draws a coloured box that occupies a rectangle on the screen.
     */
@@ -64,13 +64,15 @@ object Shape {
       fill: Fill,
       stroke: Stroke,
       lighting: LightingModel,
+      eventHandlerEnabled: Boolean,
+      eventHandler: ((Box, GlobalEvent)) => Option[GlobalEvent],
       rotation: Radians,
       scale: Vector2,
       depth: Depth,
       ref: Point,
       flip: Flip,
       shaderId: Option[ShaderId]
-  ) extends Shape {
+  ) extends Shape[Box] {
 
     lazy val position: Point =
       dimensions.position - (stroke.width / 2)
@@ -149,6 +151,15 @@ object Shape {
 
     def withShaderId(newShaderId: ShaderId): Box =
       this.copy(shaderId = Option(newShaderId))
+
+    def withEventHandler(f: ((Box, GlobalEvent)) => Option[GlobalEvent]): Box =
+      this.copy(eventHandler = f, eventHandlerEnabled = true)
+    def onEvent(f: PartialFunction[(Box, GlobalEvent), GlobalEvent]): Box =
+      withEventHandler(f.lift)
+    def enableEvents: Box =
+      this.copy(eventHandlerEnabled = true)
+    def disableEvents: Box =
+      this.copy(eventHandlerEnabled = false)
   }
   object Box {
 
@@ -158,6 +169,8 @@ object Shape {
         fill,
         Stroke.None,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -172,6 +185,8 @@ object Shape {
         fill,
         stroke,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -190,13 +205,15 @@ object Shape {
       fill: Fill,
       stroke: Stroke,
       lighting: LightingModel,
+      eventHandlerEnabled: Boolean,
+      eventHandler: ((Circle, GlobalEvent)) => Option[GlobalEvent],
       rotation: Radians,
       scale: Vector2,
       depth: Depth,
       ref: Point,
       flip: Flip,
       shaderId: Option[ShaderId]
-  ) extends Shape {
+  ) extends Shape[Circle] {
 
     lazy val position: Point =
       center - radius - (stroke.width / 2)
@@ -277,6 +294,15 @@ object Shape {
     def withShaderId(newShaderId: ShaderId): Circle =
       this.copy(shaderId = Option(newShaderId))
 
+    def withEventHandler(f: ((Circle, GlobalEvent)) => Option[GlobalEvent]): Circle =
+      this.copy(eventHandler = f, eventHandlerEnabled = true)
+    def onEvent(f: PartialFunction[(Circle, GlobalEvent), GlobalEvent]): Circle =
+      withEventHandler(f.lift)
+    def enableEvents: Circle =
+      this.copy(eventHandlerEnabled = true)
+    def disableEvents: Circle =
+      this.copy(eventHandlerEnabled = false)
+
   }
   object Circle {
 
@@ -287,6 +313,8 @@ object Shape {
         fill,
         Stroke.None,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -302,6 +330,8 @@ object Shape {
         fill,
         stroke,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -319,20 +349,22 @@ object Shape {
       end: Point,
       stroke: Stroke,
       lighting: LightingModel,
+      eventHandlerEnabled: Boolean,
+      eventHandler: ((Line, GlobalEvent)) => Option[GlobalEvent],
       rotation: Radians,
       scale: Vector2,
       depth: Depth,
       ref: Point,
       flip: Flip,
       shaderId: Option[ShaderId]
-  ) extends Shape {
+  ) extends Shape[Line] {
 
     lazy val position: Point =
       Point(Math.min(start.x, end.x), Math.min(start.y, end.y)) - (stroke.width / 2)
 
     lazy val size: Size =
       Rectangle
-        .fromTwoPoints(
+        .fromPoints(
           position,
           Point(Math.max(start.x, end.x), Math.max(start.y, end.y)) + stroke.width
         )
@@ -420,6 +452,15 @@ object Shape {
 
     def withShaderId(newShaderId: ShaderId): Line =
       this.copy(shaderId = Option(newShaderId))
+
+    def withEventHandler(f: ((Line, GlobalEvent)) => Option[GlobalEvent]): Line =
+      this.copy(eventHandler = f, eventHandlerEnabled = true)
+    def onEvent(f: PartialFunction[(Line, GlobalEvent), GlobalEvent]): Line =
+      withEventHandler(f.lift)
+    def enableEvents: Line =
+      this.copy(eventHandlerEnabled = true)
+    def disableEvents: Line =
+      this.copy(eventHandlerEnabled = false)
   }
   object Line {
 
@@ -429,6 +470,8 @@ object Shape {
         end,
         stroke,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -442,17 +485,19 @@ object Shape {
   /** Draws an arbitrary polygon with up to 16 vertices.
     */
   final case class Polygon(
-      vertices: List[Point],
+      vertices: Batch[Point],
       fill: Fill,
       stroke: Stroke,
       lighting: LightingModel,
+      eventHandlerEnabled: Boolean,
+      eventHandler: ((Polygon, GlobalEvent)) => Option[GlobalEvent],
       rotation: Radians,
       scale: Vector2,
       depth: Depth,
       ref: Point,
       flip: Flip,
       shaderId: Option[ShaderId]
-  ) extends Shape {
+  ) extends Shape[Polygon] {
 
     private lazy val verticesBounds: Rectangle =
       Rectangle.fromPointCloud(vertices).expand(stroke.width / 2)
@@ -480,7 +525,7 @@ object Shape {
     def modifyLighting(modifier: LightingModel => LightingModel): Polygon =
       this.copy(lighting = modifier(lighting))
 
-    private def relativeShift(by: Point): List[Point] =
+    private def relativeShift(by: Point): Batch[Point] =
       vertices.map(_.moveBy(by - position))
 
     def moveTo(pt: Point): Polygon =
@@ -533,15 +578,26 @@ object Shape {
     def withShaderId(newShaderId: ShaderId): Polygon =
       this.copy(shaderId = Option(newShaderId))
 
+    def withEventHandler(f: ((Polygon, GlobalEvent)) => Option[GlobalEvent]): Polygon =
+      this.copy(eventHandler = f, eventHandlerEnabled = true)
+    def onEvent(f: PartialFunction[(Polygon, GlobalEvent), GlobalEvent]): Polygon =
+      withEventHandler(f.lift)
+    def enableEvents: Polygon =
+      this.copy(eventHandlerEnabled = true)
+    def disableEvents: Polygon =
+      this.copy(eventHandlerEnabled = false)
+
   }
   object Polygon {
 
-    def apply(vertices: List[Point], fill: Fill): Polygon =
+    def apply(vertices: Batch[Point], fill: Fill): Polygon =
       Polygon(
         vertices,
         fill,
         Stroke.None,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -550,12 +606,14 @@ object Shape {
         None
       )
 
-    def apply(vertices: List[Point], fill: Fill, stroke: Stroke): Polygon =
+    def apply(vertices: Batch[Point], fill: Fill, stroke: Stroke): Polygon =
       Polygon(
         vertices,
         fill,
         stroke,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -566,10 +624,12 @@ object Shape {
 
     def apply(fill: Fill, stroke: Stroke)(vertices: Point*): Polygon =
       Polygon(
-        vertices.toList,
+        Batch.fromSeq(vertices),
         fill,
         stroke,
         LightingModel.Unlit,
+        false,
+        Function.const(None),
         Radians.zero,
         Vector2.one,
         Depth.zero,
@@ -580,66 +640,46 @@ object Shape {
 
   }
 
-  def gradientUniforms(fill: Fill): List[(Uniform, vec4)] =
+  def fillType(fill: Fill): Float =
     fill match {
-      case Fill.Color(color) =>
-        val c = vec4(color.r, color.g, color.b, color.a)
-        List(
-          Uniform("GRADIENT_FROM_TO")    -> vec4(0.0d),
-          Uniform("GRADIENT_FROM_COLOR") -> c,
-          Uniform("GRADIENT_TO_COLOR")   -> c
-        )
-
-      case Fill.LinearGradient(fromPoint, fromColor, toPoint, toColor) =>
-        List(
-          Uniform("GRADIENT_FROM_TO") -> vec4(
-            fromPoint.x.toDouble,
-            fromPoint.y.toDouble,
-            toPoint.x.toDouble,
-            toPoint.y.toDouble
-          ),
-          Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
-          Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
-        )
-
-      case Fill.RadialGradient(fromPoint, fromColor, toPoint, toColor) =>
-        List(
-          Uniform("GRADIENT_FROM_TO") -> vec4(
-            fromPoint.x.toDouble,
-            fromPoint.y.toDouble,
-            toPoint.x.toDouble,
-            toPoint.y.toDouble
-          ),
-          Uniform("GRADIENT_FROM_COLOR") -> vec4(fromColor.r, fromColor.g, fromColor.b, fromColor.a),
-          Uniform("GRADIENT_TO_COLOR")   -> vec4(toColor.r, toColor.g, toColor.b, toColor.a)
-        )
+      case _: Fill.Color          => 0.0f
+      case _: Fill.LinearGradient => 1.0f
+      case _: Fill.RadialGradient => 2.0f
     }
 
-  def fillType(fill: Fill): float =
-    fill match {
-      case _: Fill.Color          => float(0.0)
-      case _: Fill.LinearGradient => float(1.0)
-      case _: Fill.RadialGradient => float(2.0)
-    }
-
-  def toShaderData(shape: Shape, bounds: Rectangle): ShaderData =
+  def toShaderData(shape: Shape[_], bounds: Rectangle): ShaderData =
     shape match
       case s: Shape.Box =>
+        // A terrible fix, but it works. In cases where we have a perfect aspect
+        // division, like 1.0 to 0.5, the resulting SDF is a jagged line. So by
+        // crudly adding a very small number, we avoid perfect divisions and get
+        // nice straight edges...
+        val avoidPerfection = 0.00001
+
         val aspect: Vector2 =
           if (bounds.size.width > bounds.size.height)
-            Vector2(1.0, bounds.size.height.toDouble / bounds.size.width.toDouble)
+            Vector2(1.0, (bounds.size.height.toDouble / bounds.size.width.toDouble) + avoidPerfection)
           else
-            Vector2(bounds.size.width.toDouble / bounds.size.height.toDouble, 1.0)
+            Vector2((bounds.size.width.toDouble / bounds.size.height.toDouble) + avoidPerfection, 1.0)
 
         val shapeUniformBlock =
           UniformBlock(
             "IndigoShapeData",
-            List(
-              Uniform("ASPECT_RATIO") -> vec2(aspect.x, aspect.y),
-              Uniform("STROKE_WIDTH") -> float(s.stroke.width.toFloat),
-              Uniform("FILL_TYPE")    -> fillType(s.fill),
-              Uniform("STROKE_COLOR") -> vec4(s.stroke.color.r, s.stroke.color.g, s.stroke.color.b, s.stroke.color.a)
-            ) ++ gradientUniforms(s.fill)
+            // ASPECT_RATIO (vec2), STROKE_WIDTH (float), FILL_TYPE (float), STROKE_COLOR (vec4)
+            Batch(
+              Uniform("Shape_DATA") -> rawJSArray(
+                scalajs.js.Array[Float](
+                  aspect.x.toFloat,
+                  aspect.y.toFloat,
+                  s.stroke.width.toFloat,
+                  fillType(s.fill),
+                  s.stroke.color.r.toFloat,
+                  s.stroke.color.g.toFloat,
+                  s.stroke.color.b.toFloat,
+                  s.stroke.color.a.toFloat
+                )
+              )
+            ) ++ s.fill.toUniformData("SHAPE")
           )
 
         s.lighting match {
@@ -650,18 +690,28 @@ object Shape {
             )
 
           case l: Lit =>
-            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeBox.id), None, List(shapeUniformBlock))
+            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeBox.id), None, Batch(shapeUniformBlock))
         }
 
       case s: Shape.Circle =>
         val shapeUniformBlock =
           UniformBlock(
             "IndigoShapeData",
-            List(
-              Uniform("STROKE_WIDTH") -> float(s.stroke.width.toFloat),
-              Uniform("FILL_TYPE")    -> fillType(s.fill),
-              Uniform("STROKE_COLOR") -> vec4(s.stroke.color.r, s.stroke.color.g, s.stroke.color.b, s.stroke.color.a)
-            ) ++ gradientUniforms(s.fill)
+            // STROKE_WIDTH (float), FILL_TYPE (float), STROKE_COLOR (vec4)
+            Batch(
+              Uniform("Shape_DATA") -> rawJSArray(
+                scalajs.js.Array[Float](
+                  s.stroke.width.toFloat,
+                  fillType(s.fill),
+                  0.0f,
+                  0.0f,
+                  s.stroke.color.r.toFloat,
+                  s.stroke.color.g.toFloat,
+                  s.stroke.color.b.toFloat,
+                  s.stroke.color.a.toFloat
+                )
+              )
+            ) ++ s.fill.toUniformData("SHAPE")
           )
 
         s.lighting match {
@@ -672,12 +722,15 @@ object Shape {
             )
 
           case l: Lit =>
-            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeCircle.id), None, List(shapeUniformBlock))
+            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeCircle.id), None, Batch(shapeUniformBlock))
         }
 
       case s: Shape.Line =>
-        // val bounds: Rectangle =
-        //   Rectangle.fromTwoPoints(s.start, s.end)
+        // A terrible fix, but it works. In cases where we have a perfect aspect
+        // division, like 1.0 to 0.5, the resulting SDF is a jagged line. So by
+        // crudly adding a very small number, we avoid perfect divisions and get
+        // nice straight edges...
+        val avoidPerfection = 0.00001f
 
         // Relative to bounds
         val ss = s.start - bounds.position + (s.stroke.width / 2)
@@ -686,11 +739,24 @@ object Shape {
         val shapeUniformBlock =
           UniformBlock(
             "IndigoShapeData",
-            List(
-              Uniform("STROKE_WIDTH") -> float(s.stroke.width.toFloat),
-              Uniform("STROKE_COLOR") -> vec4(s.stroke.color.r, s.stroke.color.g, s.stroke.color.b, s.stroke.color.a),
-              Uniform("START")        -> vec2(ss.x.toFloat, ss.y.toFloat),
-              Uniform("END")          -> vec2(ee.x.toFloat, ee.y.toFloat)
+            // STROKE_WIDTH (float), STROKE_COLOR (vec4), START (vec2), END (vec2)
+            Batch(
+              Uniform("Shape_DATA") -> rawJSArray(
+                scalajs.js.Array[Float](
+                  s.stroke.width.toFloat,
+                  0.0f,
+                  0.0f,
+                  0.0f,
+                  s.stroke.color.r.toFloat,
+                  s.stroke.color.g.toFloat,
+                  s.stroke.color.b.toFloat,
+                  s.stroke.color.a.toFloat,
+                  ss.x.toFloat + avoidPerfection,
+                  ss.y.toFloat + avoidPerfection,
+                  ee.x.toFloat + avoidPerfection,
+                  ee.y.toFloat + avoidPerfection
+                )
+              )
             )
           )
 
@@ -702,11 +768,11 @@ object Shape {
             )
 
           case l: Lit =>
-            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeLine.id), None, List(shapeUniformBlock))
+            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapeLine.id), None, Batch(shapeUniformBlock))
         }
 
       case s: Shape.Polygon =>
-        val verts: List[vec2] =
+        val verts: Batch[vec2] =
           s.vertices.map { v =>
             vec2(
               (v.x - bounds.x).toFloat,
@@ -717,12 +783,21 @@ object Shape {
         val shapeUniformBlock =
           UniformBlock(
             "IndigoShapeData",
-            List(
-              Uniform("STROKE_WIDTH") -> float(s.stroke.width.toFloat),
-              Uniform("FILL_TYPE")    -> fillType(s.fill),
-              Uniform("COUNT")        -> float(verts.length.toFloat),
-              Uniform("STROKE_COLOR") -> vec4(s.stroke.color.r, s.stroke.color.g, s.stroke.color.b, s.stroke.color.a)
-            ) ++ gradientUniforms(s.fill) ++ List(Uniform("VERTICES") -> array[vec2](16, verts))
+            // STROKE_WIDTH (float), FILL_TYPE (float), COUNT (float), STROKE_COLOR (vec4)
+            Batch(
+              Uniform("Shape_DATA") -> rawJSArray(
+                scalajs.js.Array[Float](
+                  s.stroke.width.toFloat,
+                  fillType(s.fill),
+                  verts.length.toFloat,
+                  0.0f,
+                  s.stroke.color.r.toFloat,
+                  s.stroke.color.g.toFloat,
+                  s.stroke.color.b.toFloat,
+                  s.stroke.color.a.toFloat
+                )
+              )
+            ) ++ s.fill.toUniformData("SHAPE") ++ (Batch(Uniform("VERTICES") -> array[vec2](16, verts.toArray)))
           )
 
         s.lighting match {
@@ -733,6 +808,7 @@ object Shape {
             )
 
           case l: Lit =>
-            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapePolygon.id), None, List(shapeUniformBlock))
+            l.toShaderData(s.shaderId.getOrElse(StandardShaders.LitShapePolygon.id), None, Batch(shapeUniformBlock))
         }
-}
+
+end Shape

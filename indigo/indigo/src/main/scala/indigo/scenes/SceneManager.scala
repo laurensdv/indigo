@@ -3,6 +3,7 @@ package indigo.scenes
 import indigo.shared.FrameContext
 import indigo.shared.IndigoLogger
 import indigo.shared.Outcome
+import indigo.shared.collections.Batch
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.events.EventFilters
 import indigo.shared.events.GlobalEvent
@@ -11,29 +12,30 @@ import indigo.shared.subsystems.SubSystemFrameContext
 import indigo.shared.subsystems.SubSystemFrameContext._
 import indigo.shared.subsystems.SubSystemsRegister
 
-import scala.collection.immutable.HashMap
-
 class SceneManager[StartUpData, GameModel, ViewModel](
     scenes: NonEmptyList[Scene[StartUpData, GameModel, ViewModel]],
     scenesFinder: SceneFinder
 ) {
 
-  private
-  given CanEqual[Option[Scene[StartUpData, GameModel, ViewModel]], Option[Scene[StartUpData, GameModel, ViewModel]]] =
+  private given CanEqual[Option[Scene[StartUpData, GameModel, ViewModel]], Option[
+    Scene[StartUpData, GameModel, ViewModel]
+  ]] =
     CanEqual.derived
 
   // Scene management
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var finderInstance: SceneFinder = scenesFinder
 
-  private val subSystemStates: HashMap[SceneName, SubSystemsRegister] =
-    HashMap.from(
-      scenes.toList.map { s =>
-        val r = new SubSystemsRegister()
-        r.register(s.subSystems.toList)
-        (s.name -> r)
-      }
-    )
+  private val subSystemStates: scalajs.js.Dictionary[SubSystemsRegister] =
+    scalajs.js.Dictionary
+      .empty[SubSystemsRegister]
+      .addAll(
+        scenes.toList.map { s =>
+          val r = new SubSystemsRegister()
+          r.register(Batch.fromSet(s.subSystems))
+          (s.name.toString -> r)
+        }
+      )
 
   // Scene delegation
 
@@ -43,8 +45,8 @@ class SceneManager[StartUpData, GameModel, ViewModel](
       finderInstance = finderInstance.forward
       val to = finderInstance.current.name
       val events =
-        if (from == to) Nil
-        else List(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
+        if (from == to) Batch.empty
+        else Batch(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
 
       Outcome(model, events)
 
@@ -53,8 +55,8 @@ class SceneManager[StartUpData, GameModel, ViewModel](
       finderInstance = finderInstance.backward
       val to = finderInstance.current.name
       val events =
-        if (from == to) Nil
-        else List(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
+        if (from == to) Batch.empty
+        else Batch(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
 
       Outcome(model, events)
 
@@ -63,8 +65,8 @@ class SceneManager[StartUpData, GameModel, ViewModel](
       finderInstance = finderInstance.jumpToSceneByName(name)
       val to = finderInstance.current.name
       val events =
-        if (from == to) Nil
-        else List(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
+        if (from == to) Batch.empty
+        else Batch(SceneEvent.SceneChange(from, to, frameContext.gameTime.running))
 
       Outcome(model, events)
 
@@ -82,15 +84,15 @@ class SceneManager[StartUpData, GameModel, ViewModel](
 
   def updateSubSystems(
       frameContext: SubSystemFrameContext,
-      globalEvents: List[GlobalEvent]
+      globalEvents: Batch[GlobalEvent]
   ): Outcome[SubSystemsRegister] =
     scenes
       .find(_.name == finderInstance.current.name)
       .flatMap { scene =>
         subSystemStates
-          .get(scene.name)
+          .get(scene.name.toString)
           .map {
-            _.update(frameContext, globalEvents)
+            _.update(frameContext, globalEvents.toJSArray)
           }
       }
       .getOrElse(
@@ -125,7 +127,7 @@ class SceneManager[StartUpData, GameModel, ViewModel](
 
       case Some(scene) =>
         val subsystemView = subSystemStates
-          .get(scene.name)
+          .get(scene.name.toString)
           .map { ssr =>
             ssr.present(frameContext.forSubSystems)
           }

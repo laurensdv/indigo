@@ -2,6 +2,7 @@ package indigoextras.effectmaterials
 
 import indigo.shaders.ShaderLibrary
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.RGBA
 import indigo.shared.materials.BlendMaterial
 import indigo.shared.materials.BlendShaderData
@@ -69,7 +70,7 @@ final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extend
   def tile: RefractionEntity =
     withFillType(FillType.Tile)
 
-  def toShaderData: ShaderData = {
+  lazy val toShaderData: ShaderData = {
     val imageFillType: Double =
       fillType match {
         case FillType.Normal  => 0.0
@@ -80,14 +81,14 @@ final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extend
     val uniformBlock: UniformBlock =
       UniformBlock(
         "IndigoBitmapData",
-        List(
+        Batch(
           Uniform("FILLTYPE") -> float(imageFillType)
         )
       )
 
     ShaderData(
       Refraction.entityShader.id,
-      List(uniformBlock),
+      Batch(uniformBlock),
       Some(diffuse),
       None,
       None,
@@ -100,13 +101,13 @@ object RefractionEntity:
     RefractionEntity(diffuse, FillType.Normal)
 
 final case class RefractionBlend(multiplier: Double) extends BlendMaterial derives CanEqual {
-  def toShaderData: BlendShaderData =
+  lazy val toShaderData: BlendShaderData =
     BlendShaderData(
       Refraction.blendShader.id,
-      List(
+      Batch(
         UniformBlock(
           "IndigoRefractionBlendData",
-          List(
+          Batch(
             Uniform("REFRACTION_AMOUNT") -> float(multiplier)
           )
         )

@@ -1,6 +1,7 @@
 package indigo.platform
 
 import indigo.platform.assets.AssetCollection
+import indigo.platform.assets.AtlasId
 import indigo.platform.assets.DynamicText
 import indigo.platform.assets.ImageRef
 import indigo.platform.assets.TextureAtlas
@@ -43,13 +44,11 @@ class Platform(
   val rendererInit: RendererInitialiser =
     new RendererInitialiser(gameConfig.advanced.renderingTechnology, globalEventStream, dynamicText)
 
-  @SuppressWarnings(
-    Array(
-      "scalafix:DisableSyntax.null",
-      "scalafix:DisableSyntax.var"
-    )
-  )
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null", "scalafix:DisableSyntax.var"))
   private var _canvas: Canvas = null
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
+  private var _running: Boolean         = true
+  private val _worldEvents: WorldEvents = new WorldEvents
 
   def initialise(shaders: Set[RawShaderCode]): Outcome[(Renderer, AssetMapping)] =
     for {
@@ -57,18 +56,20 @@ class Platform(
       loadedTextureAssets <- extractLoadedTextures(textureAtlas)
       assetMapping        <- setupAssetMapping(textureAtlas)
       canvas              <- createCanvas(parentElementId, gameConfig)
-      _                   <- listenToWorldEvents(canvas, gameConfig.magnification, globalEventStream)
+      _                   <- listenToWorldEvents(canvas, gameConfig, globalEventStream)
       renderer            <- startRenderer(gameConfig, loadedTextureAssets, canvas, shaders)
-    } yield {
-      _canvas = canvas
-
-      (renderer, assetMapping)
-    }
+      _ = _canvas = canvas
+    } yield (renderer, assetMapping)
 
   def tick(loop: Long => Unit): Unit = {
-    dom.window.requestAnimationFrame(t => loop(t.toLong))
+    if _running then dom.window.requestAnimationFrame(t => loop(t.toLong))
     ()
   }
+
+  def kill(): Unit =
+    _running = false
+    _worldEvents.kill()
+    ()
 
   def createTextureAtlas(assetCollection: AssetCollection): Outcome[TextureAtlas] =
     Outcome(
@@ -82,7 +83,7 @@ class Platform(
   def extractLoadedTextures(textureAtlas: TextureAtlas): Outcome[List[LoadedTextureAsset]] =
     Outcome(
       textureAtlas.atlases.toList
-        .map(a => a._2.imageData.map(data => new LoadedTextureAsset(a._1, data)))
+        .map { case (atlasId, atlas) => atlas.imageData.map(data => new LoadedTextureAsset(AtlasId(atlasId), data)) }
         .collect { case Some(s) => s }
     )
 
@@ -90,16 +91,16 @@ class Platform(
     Outcome(
       new AssetMapping(
         mappings = textureAtlas.legend
-          .map { p =>
-            p._1 -> new TextureRefAndOffset(
-              atlasName = p._2.id,
+          .map { case (name, atlasIndex) =>
+            name -> TextureRefAndOffset(
+              atlasName = atlasIndex.id,
               atlasSize = textureAtlas.atlases
-                .get(p._2.id)
+                .get(atlasIndex.id.toString)
                 .map(_.size.value)
                 .map(i => Vector2(i.toDouble))
                 .getOrElse(Vector2.one),
-              offset = p._2.offset.toVector,
-              size = p._2.size.toVector
+              offset = atlasIndex.offset.toVector,
+              size = atlasIndex.size.toVector
             )
           }
       )
@@ -124,10 +125,10 @@ class Platform(
         )
     }
 
-  def listenToWorldEvents(canvas: Canvas, magnification: Int, globalEventStream: GlobalEventStream): Outcome[Unit] =
+  def listenToWorldEvents(canvas: Canvas, gameConfig: GameConfig, globalEventStream: GlobalEventStream): Outcome[Unit] =
     Outcome {
       IndigoLogger.info("Starting world events")
-      WorldEvents.init(canvas, magnification, globalEventStream)
+      _worldEvents.init(canvas, gameConfig.magnification, gameConfig.advanced.disableContextMenu, globalEventStream)
       GamepadInputCaptureImpl.init()
     }
 

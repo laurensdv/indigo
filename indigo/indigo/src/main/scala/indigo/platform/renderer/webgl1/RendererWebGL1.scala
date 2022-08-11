@@ -22,13 +22,12 @@ import indigo.shared.platform.RendererConfig
 import indigo.shared.scenegraph.Camera
 import indigo.shared.shader.RawShaderCode
 import indigo.shared.time.Seconds
+import org.scalajs.dom.WebGLBuffer
+import org.scalajs.dom.WebGLProgram
 import org.scalajs.dom.WebGLRenderingContext
 import org.scalajs.dom.WebGLRenderingContext._
+import org.scalajs.dom.WebGLUniformLocation
 import org.scalajs.dom.html
-import org.scalajs.dom.raw
-import org.scalajs.dom.raw.WebGLBuffer
-import org.scalajs.dom.raw.WebGLProgram
-import org.scalajs.dom.raw.WebGLUniformLocation
 
 import scala.scalajs.js.typedarray.Float32Array
 
@@ -98,7 +97,7 @@ final class RendererWebGL1(
     gl.clearColor(config.clearColor.r, config.clearColor.g, config.clearColor.b, config.clearColor.a)
     gl.clear(COLOR_BUFFER_BIT)
 
-    val gameProjection: scala.scalajs.js.Array[Double] = orthographicProjectionMatrix.toArray.map(_.toDouble)
+    val gameProjection: scala.scalajs.js.Array[Double] = orthographicProjectionMatrix.toJSArray.map(_.toDouble)
 
     sceneData.layers.foreach { layer =>
       val maybeCamera: Option[Camera] =
@@ -122,7 +121,7 @@ final class RendererWebGL1(
                 Radians.zero,
                 false
               )
-              .toArray
+              .toJSArray
               .map(_.toDouble)
 
           case (None, Some(c)) =>
@@ -138,7 +137,7 @@ final class RendererWebGL1(
                 c.rotation,
                 c.isLookAt
               )
-              .toArray
+              .toJSArray
               .map(_.toDouble)
 
           case (Some(m), Some(c)) =>
@@ -154,7 +153,7 @@ final class RendererWebGL1(
                 c.rotation,
                 c.isLookAt
               )
-              .toArray
+              .toJSArray
               .map(_.toDouble)
         }
 
@@ -183,7 +182,7 @@ final class RendererWebGL1(
     gl.uniformMatrix4fv(
       location = gl.getUniformLocation(shaderProgram, "u_baseTransform"),
       transpose = false,
-      value = Float32Array(baseTransform.toArray)
+      value = Float32Array(baseTransform.toJSArray)
     )
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
@@ -236,7 +235,7 @@ final class RendererWebGL1(
 
           gl.drawArrays(TRIANGLE_STRIP, 0, 4)
 
-        case null =>
+        case _ =>
           ()
       }
 
@@ -259,7 +258,7 @@ final class RendererWebGL1(
     }
   }
 
-  def bindAttibuteBuffer(gl: raw.WebGLRenderingContext, attributeLocation: Int, size: Int): Unit = {
+  def bindAttibuteBuffer(gl: WebGLRenderingContext, attributeLocation: Int, size: Int): Unit = {
     gl.enableVertexAttribArray(attributeLocation)
     gl.vertexAttribPointer(
       indx = attributeLocation,
@@ -272,7 +271,7 @@ final class RendererWebGL1(
   }
 
   def setupVertexShaderState(
-      gl: raw.WebGLRenderingContext,
+      gl: WebGLRenderingContext,
       displayObject: DisplayObject,
       shaderProgram: WebGLProgram
   ): Unit = {

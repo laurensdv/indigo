@@ -43,6 +43,20 @@ object syntax:
     def point: Point = Point(t._1, t._2)
     def size: Size   = Size(t._1, t._2)
 
+  extension [A](values: scalajs.js.Array[A]) def toBatch: Batch[A] = Batch.fromJSArray(values)
+  extension [A](values: Array[A]) def toBatch: Batch[A]            = Batch.fromArray(values)
+  extension [A](values: List[A]) def toBatch: Batch[A]             = Batch.fromList(values)
+  extension [A](values: Set[A]) def toBatch: Batch[A]              = Batch.fromSet(values)
+  extension [A](values: Seq[A]) def toBatch: Batch[A]              = Batch.fromSeq(values)
+  extension [A](values: IndexedSeq[A]) def toBatch: Batch[A]       = Batch.fromIndexedSeq(values)
+  extension [A](values: Iterator[A]) def toBatch: Batch[A]         = Batch.fromIterator(values)
+  extension [K, V](values: Map[K, V]) def toBatch: Batch[(K, V)]   = Batch.fromMap(values)
+  extension [A](values: Option[A]) def toBatch: Batch[A]           = Batch.fromOption(values)
+  extension (values: Range) def toBatch: Batch[Int]                = Batch.fromRange(values)
+
+  val ==: = shared.collections.Batch.==:
+  val :== = shared.collections.Batch.:==
+
 end syntax
 
 val logger: indigo.shared.IndigoLogger.type = indigo.shared.IndigoLogger
@@ -148,6 +162,12 @@ val Outcome: shared.Outcome.type = shared.Outcome
 type Key = shared.constants.Key
 val Key: shared.constants.Key.type = shared.constants.Key
 
+type Batch[A] = shared.collections.Batch[A]
+val Batch: shared.collections.Batch.type = shared.collections.Batch
+
+type NonEmptyBatch[A] = shared.collections.NonEmptyBatch[A]
+val NonEmptyBatch: shared.collections.NonEmptyBatch.type = shared.collections.NonEmptyBatch
+
 type NonEmptyList[A] = shared.collections.NonEmptyList[A]
 val NonEmptyList: shared.collections.NonEmptyList.type = shared.collections.NonEmptyList
 
@@ -165,6 +185,9 @@ val SignalFunction: shared.temporal.SignalFunction.type = shared.temporal.Signal
 
 type SubSystem = shared.subsystems.SubSystem
 val SubSystem: shared.subsystems.SubSystem.type = shared.subsystems.SubSystem
+
+type SubSystemId = shared.subsystems.SubSystemId
+val SubSystemId: shared.subsystems.SubSystemId.type = shared.subsystems.SubSystemId
 
 /** defaultGameConfig Provides a useful default config set up:
   *   - Game Viewport = 550 x 400
@@ -191,7 +214,6 @@ type GlobalEvent    = shared.events.GlobalEvent
 type SubSystemEvent = shared.events.SubSystemEvent
 type ViewEvent      = shared.events.ViewEvent
 type InputEvent     = shared.events.InputEvent
-type EventHandler   = shared.scenegraph.EventHandler
 
 type EventFilters = shared.events.EventFilters
 val EventFilters: shared.events.EventFilters.type = shared.events.EventFilters
@@ -387,6 +409,9 @@ val TiledGridLayer: shared.formats.TiledGridLayer.type = shared.formats.TiledGri
 type TiledGridCell[A] = shared.formats.TiledGridCell[A]
 val TiledGridCell: shared.formats.TiledGridCell.type = shared.formats.TiledGridCell
 
+type TileSheet = indigo.shared.formats.TileSheet
+val TileSheet: indigo.shared.formats.TileSheet.type = indigo.shared.formats.TileSheet
+
 type Gamepad = shared.input.Gamepad
 val Gamepad: shared.input.Gamepad.type = shared.input.Gamepad
 
@@ -462,9 +487,9 @@ val BlendFactor: shared.scenegraph.BlendFactor.type = shared.scenegraph.BlendFac
 type SceneNode = shared.scenegraph.SceneNode
 val SceneNode: shared.scenegraph.SceneNode.type = shared.scenegraph.SceneNode
 
-type EntityNode    = shared.scenegraph.EntityNode
-type DependentNode = shared.scenegraph.DependentNode
-type RenderNode    = shared.scenegraph.RenderNode
+type EntityNode[T <: shared.scenegraph.SceneNode]    = shared.scenegraph.EntityNode[T]
+type DependentNode[T <: shared.scenegraph.SceneNode] = shared.scenegraph.DependentNode[T]
+type RenderNode[T <: shared.scenegraph.SceneNode]    = shared.scenegraph.RenderNode[T]
 
 // Audio
 type SceneAudio = shared.scenegraph.SceneAudio
@@ -502,7 +527,7 @@ type AnimationAction = indigo.shared.animation.AnimationAction
 val AnimationAction: indigo.shared.animation.AnimationAction.type = indigo.shared.animation.AnimationAction
 
 // Primitives
-type Shape = shared.scenegraph.Shape
+type Shape[T <: shared.scenegraph.Shape[_]] = shared.scenegraph.Shape[T]
 val Shape: shared.scenegraph.Shape.type = shared.scenegraph.Shape
 
 type Sprite[M <: Material] = shared.scenegraph.Sprite[M]
@@ -611,3 +636,6 @@ val AmbientLight: shared.scenegraph.AmbientLight.type = shared.scenegraph.Ambien
 
 type Falloff = shared.scenegraph.Falloff
 val Falloff: shared.scenegraph.Falloff.type = shared.scenegraph.Falloff
+
+type Lens[A, B] = shared.utils.Lens[A, B]
+val Lens: shared.utils.Lens.type = shared.utils.Lens

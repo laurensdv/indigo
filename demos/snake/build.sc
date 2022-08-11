@@ -7,17 +7,20 @@ import mill.scalajslib._
 import mill.scalajslib.api._
 import coursier.maven.MavenRepository
 
-import $ivy.`io.indigoengine::mill-indigo:0.11.1-SNAPSHOT`, millindigo._
+import $ivy.`io.indigoengine::mill-indigo:0.13.1-SNAPSHOT`, millindigo._
 
 object snake extends ScalaJSModule with MillIndigo {
-  def scalaVersion   = "3.1.0"
-  def scalaJSVersion = "1.8.0"
+  def scalaVersion   = "3.1.2"
+  def scalaJSVersion = "1.10.0"
 
-  val gameAssetsDirectory: os.Path = os.pwd / "assets"
-  val showCursor: Boolean          = true
-  val title: String                = "Snake - Made with Indigo"
-  val windowStartWidth: Int        = 720
-  val windowStartHeight: Int       = 516
+  val gameAssetsDirectory: os.Path     = os.pwd / "assets"
+  val showCursor: Boolean              = true
+  val title: String                    = "Snake - Made with Indigo"
+  val windowStartWidth: Int            = 720
+  val windowStartHeight: Int           = 516
+  val disableFrameRateLimit: Boolean   = false
+  val electronInstall: ElectronInstall = ElectronInstall.Version("^18.0.0")
+  val backgroundColor: String          = "black"
 
   def buildGame() = T.command {
     T {
@@ -35,7 +38,7 @@ object snake extends ScalaJSModule with MillIndigo {
     }
   }
 
-  val indigoVersion = "0.11.1-SNAPSHOT"
+  val indigoVersion = "0.13.1-SNAPSHOT"
 
   def ivyDeps = Agg(
     ivy"io.indigoengine::indigo-json-circe::$indigoVersion",

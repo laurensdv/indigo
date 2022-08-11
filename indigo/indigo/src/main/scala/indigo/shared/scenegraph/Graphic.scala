@@ -8,22 +8,25 @@ import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Size
 import indigo.shared.datatypes.Vector2
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.Material
 import indigo.shared.materials.ShaderData
 
-/** Graphics are used to draw images on the screen, in a cheap efficient but expressive way. Graphics party trick is
+/** Graphics are used to draw images on the screen, in a cheap efficient but expressive way. Graphic's party trick is
   * it's ability to crop images.
   */
 final case class Graphic[M <: Material](
     material: M,
     crop: Rectangle,
+    eventHandlerEnabled: Boolean,
+    eventHandler: ((Graphic[_], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
     depth: Depth,
     ref: Point,
     flip: Flip
-) extends RenderNode
+) extends RenderNode[Graphic[M]]
     with Cloneable
     with SpatialModifiers[Graphic[M]]
     derives CanEqual:
@@ -95,13 +98,24 @@ final case class Graphic[M <: Material](
   def withCrop(x: Int, y: Int, width: Int, height: Int): Graphic[M] =
     withCrop(Rectangle(x, y, width, height))
 
-  def toShaderData: ShaderData =
+  lazy val toShaderData: ShaderData =
     material.toShaderData
+
+  def withEventHandler(f: ((Graphic[_], GlobalEvent)) => Option[GlobalEvent]): Graphic[M] =
+    this.copy(eventHandler = f, eventHandlerEnabled = true)
+  def onEvent(f: PartialFunction[(Graphic[_], GlobalEvent), GlobalEvent]): Graphic[M] =
+    withEventHandler(f.lift)
+  def enableEvents: Graphic[M] =
+    this.copy(eventHandlerEnabled = true)
+  def disableEvents: Graphic[M] =
+    this.copy(eventHandlerEnabled = false)
 
 object Graphic:
 
   def apply[M <: Material](x: Int, y: Int, width: Int, height: Int, depth: Int, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point(x, y),
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -114,6 +128,8 @@ object Graphic:
 
   def apply[M <: Material](x: Int, y: Int, width: Int, height: Int, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point(x, y),
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -126,6 +142,8 @@ object Graphic:
 
   def apply[M <: Material](bounds: Rectangle, depth: Int, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = bounds.position,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -138,6 +156,8 @@ object Graphic:
 
   def apply[M <: Material](bounds: Rectangle, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = bounds.position,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -150,6 +170,8 @@ object Graphic:
 
   def apply[M <: Material](width: Int, height: Int, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -162,6 +184,8 @@ object Graphic:
 
   def apply[M <: Material](size: Size, material: M): Graphic[M] =
     Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,

@@ -26,8 +26,11 @@
       "guides/howto-fire-shader": {
         "title": "How to write a fire shader"
       },
-      "guides/howto-parcel": {
-        "title": "How to bundle up an Indigo game with Parcel.js"
+      "guides/howto-responsive-ui-with-tyrian": {
+        "title": "How to make a responsive UI using Tyrian"
+      },
+      "guides/howto-indigo-game": {
+        "title": "Converting `IndigoSandbox` to `IndigoGame`"
       },
       "information/alternatives": {
         "title": "Alternatives to Indigo"

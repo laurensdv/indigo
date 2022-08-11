@@ -5,6 +5,7 @@ import indigo.shared.animation.AnimationAction
 import indigo.shared.animation.AnimationAction._
 import indigo.shared.animation.AnimationKey
 import indigo.shared.animation.CycleLabel
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes._
 import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.Material
@@ -16,25 +17,22 @@ final case class Sprite[M <: Material](
     bindingKey: BindingKey,
     material: M,
     animationKey: AnimationKey,
-    animationActions: List[AnimationAction],
-    eventHandler: ((Rectangle, GlobalEvent)) => List[GlobalEvent],
+    animationActions: Batch[AnimationAction],
+    eventHandlerEnabled: Boolean,
+    eventHandler: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
     depth: Depth,
     ref: Point,
     flip: Flip
-) extends DependentNode
-    with EventHandler
+) extends DependentNode[Sprite[M]]
     with Cloneable
     with SpatialModifiers[Sprite[M]]
-    derives CanEqual {
+    derives CanEqual:
 
   lazy val x: Int = position.x
   lazy val y: Int = position.y
-
-  def calculatedBounds(locator: BoundaryLocator): Option[Rectangle] =
-    locator.spriteBounds(this).map(rect => BoundaryLocator.findBounds(this, rect.position, rect.size, ref))
 
   def withDepth(newDepth: Depth): Sprite[M] =
     this.copy(depth = newDepth)
@@ -96,26 +94,30 @@ final case class Sprite[M <: Material](
     this.copy(animationKey = newAnimationKey)
 
   def play(): Sprite[M] =
-    this.copy(animationActions = animationActions ++ List(Play))
+    this.copy(animationActions = animationActions ++ Batch(Play))
 
   def changeCycle(label: CycleLabel): Sprite[M] =
-    this.copy(animationActions = animationActions ++ List(ChangeCycle(label)))
+    this.copy(animationActions = animationActions ++ Batch(ChangeCycle(label)))
 
   def jumpToFirstFrame(): Sprite[M] =
-    this.copy(animationActions = animationActions ++ List(JumpToFirstFrame))
+    this.copy(animationActions = animationActions ++ Batch(JumpToFirstFrame))
 
   def jumpToLastFrame(): Sprite[M] =
-    this.copy(animationActions = animationActions ++ List(JumpToLastFrame))
+    this.copy(animationActions = animationActions ++ Batch(JumpToLastFrame))
 
   def jumpToFrame(number: Int): Sprite[M] =
-    this.copy(animationActions = animationActions ++ List(JumpToFrame(number)))
+    this.copy(animationActions = animationActions ++ Batch(JumpToFrame(number)))
 
-  def onEvent(e: ((Rectangle, GlobalEvent)) => List[GlobalEvent]): Sprite[M] =
-    this.copy(eventHandler = e)
+  def withEventHandler(f: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent]): Sprite[M] =
+    this.copy(eventHandler = f, eventHandlerEnabled = true)
+  def onEvent(f: PartialFunction[((Sprite[_], GlobalEvent)), GlobalEvent]): Sprite[M] =
+    withEventHandler(f.lift)
+  def enableEvents: Sprite[M] =
+    this.copy(eventHandlerEnabled = true)
+  def disableEvents: Sprite[M] =
+    this.copy(eventHandlerEnabled = false)
 
-}
-
-object Sprite {
+object Sprite:
   def apply[M <: Material](
       bindingKey: BindingKey,
       x: Int,
@@ -133,8 +135,9 @@ object Sprite {
       flip = Flip.default,
       bindingKey = bindingKey,
       animationKey = animationKey,
-      eventHandler = (_: (Rectangle, GlobalEvent)) => Nil,
-      animationActions = Nil,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
+      animationActions = Batch.empty,
       material = material
     )
 
@@ -146,7 +149,7 @@ object Sprite {
       scale: Vector2,
       animationKey: AnimationKey,
       ref: Point,
-      eventHandler: ((Rectangle, GlobalEvent)) => List[GlobalEvent],
+      eventHandler: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent],
       material: M
   ): Sprite[M] =
     Sprite(
@@ -158,8 +161,9 @@ object Sprite {
       flip = Flip.default,
       bindingKey = bindingKey,
       animationKey = animationKey,
+      eventHandlerEnabled = true,
       eventHandler = eventHandler,
-      animationActions = Nil,
+      animationActions = Batch.empty,
       material = material
     )
 
@@ -173,8 +177,8 @@ object Sprite {
       flip = Flip.default,
       bindingKey = bindingKey,
       animationKey = animationKey,
-      eventHandler = (_: (Rectangle, GlobalEvent)) => Nil,
-      animationActions = Nil,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
+      animationActions = Batch.empty,
       material = material
     )
-}

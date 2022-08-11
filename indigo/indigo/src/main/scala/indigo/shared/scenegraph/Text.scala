@@ -14,29 +14,17 @@ final case class Text[M <: Material](
     alignment: TextAlignment,
     fontKey: FontKey,
     material: M,
-    eventHandler: ((Rectangle, GlobalEvent)) => List[GlobalEvent],
+    eventHandlerEnabled: Boolean,
+    eventHandler: ((Text[_], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
     depth: Depth,
     ref: Point,
     flip: Flip
-) extends DependentNode
-    with EventHandler
+) extends DependentNode[Text[M]]
     with SpatialModifiers[Text[M]]
-    derives CanEqual {
-
-  def calculatedBounds(locator: BoundaryLocator): Option[Rectangle] =
-    Option(locator.textBounds(this)).map { rect =>
-      val offset: Int =
-        alignment match {
-          case TextAlignment.Left   => 0
-          case TextAlignment.Center => rect.size.width / 2
-          case TextAlignment.Right  => rect.size.width
-        }
-
-      BoundaryLocator.findBounds(this, rect.position, rect.size, ref + Point(offset, 0))
-    }
+    derives CanEqual:
 
   lazy val x: Int = position.x
   lazy val y: Int = position.y
@@ -110,12 +98,16 @@ final case class Text[M <: Material](
   def withFontKey(newFontKey: FontKey): Text[M] =
     this.copy(fontKey = newFontKey)
 
-  def onEvent(e: ((Rectangle, GlobalEvent)) => List[GlobalEvent]): Text[M] =
-    this.copy(eventHandler = e)
+  def withEventHandler(f: ((Text[_], GlobalEvent)) => Option[GlobalEvent]): Text[M] =
+    this.copy(eventHandler = f, eventHandlerEnabled = true)
+  def onEvent(f: PartialFunction[((Text[_], GlobalEvent)), GlobalEvent]): Text[M] =
+    withEventHandler(f.lift)
+  def enableEvents: Text[M] =
+    this.copy(eventHandlerEnabled = true)
+  def disableEvents: Text[M] =
+    this.copy(eventHandlerEnabled = false)
 
-}
-
-object Text {
+object Text:
 
   def apply[M <: Material](text: String, x: Int, y: Int, depth: Int, fontKey: FontKey, material: M): Text[M] =
     Text(
@@ -128,7 +120,8 @@ object Text {
       text = text,
       alignment = TextAlignment.Left,
       fontKey = fontKey,
-      eventHandler = (_: (Rectangle, GlobalEvent)) => Nil,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       material = material
     )
 
@@ -143,8 +136,7 @@ object Text {
       text = text,
       alignment = TextAlignment.Left,
       fontKey = fontKey,
-      eventHandler = (_: (Rectangle, GlobalEvent)) => Nil,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       material = material
     )
-
-}

@@ -8,6 +8,7 @@ import indigo.shared.IndigoLogger
 import indigo.shared.QuickCache
 import indigo.shared.animation.AnimationRef
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.config.RenderingTechnology
 import indigo.shared.datatypes.FontChar
 import indigo.shared.datatypes.FontInfo
@@ -29,6 +30,7 @@ import indigo.shared.display.DisplayText
 import indigo.shared.display.DisplayTextLetters
 import indigo.shared.display.SpriteSheetFrame
 import indigo.shared.display.SpriteSheetFrame.SpriteSheetFrameCoordinateOffsets
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.ShaderData
 import indigo.shared.platform.AssetMapping
 import indigo.shared.scenegraph.CloneBatch
@@ -41,7 +43,6 @@ import indigo.shared.scenegraph.Graphic
 import indigo.shared.scenegraph.Group
 import indigo.shared.scenegraph.Mutants
 import indigo.shared.scenegraph.RenderNode
-import indigo.shared.scenegraph.SceneGraphNode
 import indigo.shared.scenegraph.SceneNode
 import indigo.shared.scenegraph.Shape
 import indigo.shared.scenegraph.Sprite
@@ -54,8 +55,6 @@ import indigo.shared.shader.UniformBlock
 import indigo.shared.time.GameTime
 
 import scala.annotation.tailrec
-import scala.collection.immutable.HashMap
-import scala.collection.mutable.ListBuffer
 import scala.scalajs.js.JSConverters._
 
 final class DisplayObjectConversions(
@@ -64,6 +63,7 @@ final class DisplayObjectConversions(
     fontRegister: FontRegister
 ) {
 
+  // Per asset load
   implicit private val textureRefAndOffsetCache: QuickCache[TextureRefAndOffset]           = QuickCache.empty
   implicit private val vector2Cache: QuickCache[Vector2]                                   = QuickCache.empty
   implicit private val frameCache: QuickCache[SpriteSheetFrameCoordinateOffsets]           = QuickCache.empty
@@ -73,6 +73,9 @@ final class DisplayObjectConversions(
   implicit private val uniformsCache: QuickCache[scalajs.js.Array[Float]]                  = QuickCache.empty
   implicit private val textCloneTileDataCache: QuickCache[scalajs.js.Array[CloneTileData]] = QuickCache.empty
   implicit private val displayObjectCache: QuickCache[DisplayObject]                       = QuickCache.empty
+
+  // Per frame
+  implicit private val perFrameAnimCache: QuickCache[Option[AnimationRef]] = QuickCache.empty
 
   // Called on asset load/reload to account for atlas rebuilding etc.
   def purgeCaches(): Unit = {
@@ -85,13 +88,17 @@ final class DisplayObjectConversions(
     uniformsCache.purgeAllNow()
     textCloneTileDataCache.purgeAllNow()
     displayObjectCache.purgeAllNow()
+    perFrameAnimCache.purgeAllNow()
   }
+
+  def purgeEachFrame(): Unit =
+    perFrameAnimCache.purgeAllNow()
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
   private def lookupTexture(assetMapping: AssetMapping, name: AssetName): TextureRefAndOffset =
     QuickCache("tex-" + name.toString) {
       assetMapping.mappings
-        .find(p => p._1 == name)
+        .find(p => p._1 == name.toString)
         .map(_._2)
         .getOrElse {
           throw new Exception("Failed to find texture ref + offset for: " + name)
@@ -131,12 +138,12 @@ final class DisplayObjectConversions(
       )
 
   private def mutantsToDisplayEntities(batch: Mutants): DisplayMutants =
-    val uniformDataConvert: List[UniformBlock] => scalajs.js.Array[DisplayObjectUniformData] = uniformBlocks =>
+    val uniformDataConvert: Batch[UniformBlock] => scalajs.js.Array[DisplayObjectUniformData] = uniformBlocks =>
       uniformBlocks.toJSArray.map { ub =>
         DisplayObjectUniformData(
           uniformHash = ub.uniformHash,
           blockName = ub.blockName,
-          data = DisplayObjectConversions.packUBO(ub.uniforms)
+          data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
         )
       }
 
@@ -146,24 +153,50 @@ final class DisplayObjectConversions(
       cloneData = batch.uniformBlocks.toJSArray.map(uniformDataConvert)
     )
 
-  def sceneNodesToDisplayObjects(
-      sceneNodes: List[SceneGraphNode],
+  def processSceneNodes(
+      sceneNodes: scalajs.js.Array[SceneNode],
       gameTime: GameTime,
       assetMapping: AssetMapping,
-      cloneBlankDisplayObjects: => HashMap[CloneId, DisplayObject],
+      cloneBlankDisplayObjects: => scalajs.js.Dictionary[DisplayObject],
       renderingTechnology: RenderingTechnology,
-      maxBatchSize: Int
-  ): (scalajs.js.Array[DisplayEntity], scalajs.js.Array[(CloneId, DisplayObject)]) =
+      maxBatchSize: Int,
+      inputEvents: => scalajs.js.Array[GlobalEvent],
+      sendEvent: GlobalEvent => Unit
+  ): (scalajs.js.Array[DisplayEntity], scalajs.js.Array[(String, DisplayObject)]) =
     val f =
       sceneNodeToDisplayObject(
         gameTime,
         assetMapping,
         cloneBlankDisplayObjects,
         renderingTechnology,
-        maxBatchSize
+        maxBatchSize,
+        inputEvents,
+        sendEvent
       )
-    val l = sceneNodes.toJSArray.map(f)
-    (l.map(_._1), l.foldLeft(scalajs.js.Array[(CloneId, DisplayObject)]())(_ ++ _._2))
+
+    val l = sceneNodes.map { node =>
+      node match
+        case n: RenderNode[_] =>
+          val nn = n.asInstanceOf[n.Out]
+          if n.eventHandlerEnabled then
+            inputEvents.foreach { e =>
+              n.eventHandler((nn, e)).foreach { ee =>
+                sendEvent(ee)
+              }
+            }
+
+        case n: DependentNode[_] =>
+          val nn = n.asInstanceOf[n.Out]
+          if n.eventHandlerEnabled then
+            inputEvents.foreach { e =>
+              n.eventHandler((nn, e)).foreach { ee =>
+                sendEvent(ee)
+              }
+            }
+
+      f(node)
+    }
+    (l.map(_._1), l.foldLeft(scalajs.js.Array[(String, DisplayObject)]())(_ ++ _._2))
 
   private def groupToMatrix(group: Group): CheapMatrix4 =
     CheapMatrix4.identity
@@ -188,27 +221,29 @@ final class DisplayObjectConversions(
   def sceneNodeToDisplayObject(
       gameTime: GameTime,
       assetMapping: AssetMapping,
-      cloneBlankDisplayObjects: => HashMap[CloneId, DisplayObject],
+      cloneBlankDisplayObjects: => scalajs.js.Dictionary[DisplayObject],
       renderingTechnology: RenderingTechnology,
-      maxBatchSize: Int
-  )(sceneNode: SceneGraphNode): (DisplayEntity, scalajs.js.Array[(CloneId, DisplayObject)]) =
-    val noClones = scalajs.js.Array[(CloneId, DisplayObject)]()
+      maxBatchSize: Int,
+      inputEvents: => scalajs.js.Array[GlobalEvent],
+      sendEvent: GlobalEvent => Unit
+  )(sceneNode: SceneNode): (DisplayEntity, scalajs.js.Array[(String, DisplayObject)]) =
+    val noClones = scalajs.js.Array[(String, DisplayObject)]()
     sceneNode match {
       case x: Graphic[_] =>
         (graphicToDisplayObject(x, assetMapping), noClones)
 
-      case s: Shape =>
+      case s: Shape[_] =>
         (shapeToDisplayObject(s), noClones)
 
       case t: TextBox =>
         (textBoxToDisplayText(t), noClones)
 
-      case s: EntityNode =>
+      case s: EntityNode[_] =>
         (sceneEntityToDisplayObject(s, assetMapping), noClones)
 
       case c: CloneBatch =>
         (
-          cloneBlankDisplayObjects.get(c.id) match {
+          cloneBlankDisplayObjects.get(c.id.toString) match {
             case None =>
               DisplayGroup.empty
 
@@ -220,7 +255,7 @@ final class DisplayObjectConversions(
 
       case c: CloneTiles =>
         (
-          cloneBlankDisplayObjects.get(c.id) match {
+          cloneBlankDisplayObjects.get(c.id.toString) match {
             case None =>
               DisplayGroup.empty
 
@@ -232,7 +267,7 @@ final class DisplayObjectConversions(
 
       case c: Mutants =>
         (
-          cloneBlankDisplayObjects.get(c.id) match {
+          cloneBlankDisplayObjects.get(c.id.toString) match {
             case None =>
               DisplayGroup.empty
 
@@ -244,13 +279,15 @@ final class DisplayObjectConversions(
 
       case g: Group =>
         val children =
-          sceneNodesToDisplayObjects(
-            g.children,
+          processSceneNodes(
+            g.children.toJSArray,
             gameTime,
             assetMapping,
             cloneBlankDisplayObjects,
             renderingTechnology,
-            maxBatchSize
+            maxBatchSize,
+            inputEvents,
+            sendEvent
           )
         (
           DisplayGroup(
@@ -262,8 +299,12 @@ final class DisplayObjectConversions(
         )
 
       case x: Sprite[_] =>
+        val animation = QuickCache("anim-" + x.bindingKey + x.animationKey + x.animationActions.hashCode.toString) {
+          animationsRegister.fetchAnimationForSprite(gameTime, x.bindingKey, x.animationKey, x.animationActions)
+        }
+
         (
-          animationsRegister.fetchAnimationForSprite(gameTime, x.bindingKey, x.animationKey, x.animationActions) match {
+          animation match {
             case None =>
               IndigoLogger.errorOnce(s"Cannot render Sprite, missing Animations with key: ${x.animationKey.toString()}")
               DisplayGroup.empty
@@ -356,13 +397,13 @@ final class DisplayObjectConversions(
               )
             }
           ),
-          scalajs.js.Array((cloneId, clone))
+          scalajs.js.Array((cloneId.toString, clone))
         )
 
-      case _: RenderNode =>
+      case _: RenderNode[_] =>
         (DisplayGroup.empty, noClones)
 
-      case _: DependentNode =>
+      case _: DependentNode[_] =>
         (DisplayGroup.empty, noClones)
     }
 
@@ -375,7 +416,7 @@ final class DisplayObjectConversions(
         lookupTexture(assetMapping, assetName).offset
     }
 
-  def shapeToDisplayObject(leaf: Shape): DisplayObject = {
+  def shapeToDisplayObject(leaf: Shape[_]): DisplayObject = {
 
     val offset = leaf match
       case s: Shape.Box =>
@@ -389,7 +430,7 @@ final class DisplayObjectConversions(
       case _ =>
         Point.zero
 
-    val boundsActual = boundaryLocator.shapeBounds(leaf)
+    val boundsActual = BoundaryLocator.untransformedShapeBounds(leaf)
 
     val shader: ShaderData = Shape.toShaderData(leaf, boundsActual)
     val bounds             = boundsActual.toSquare
@@ -400,7 +441,7 @@ final class DisplayObjectConversions(
         DisplayObjectUniformData(
           uniformHash = ub.uniformHash,
           blockName = ub.blockName,
-          data = DisplayObjectConversions.packUBO(ub.uniforms)
+          data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
         )
       }
 
@@ -434,7 +475,7 @@ final class DisplayObjectConversions(
 
   private given CanEqual[Option[TextureRefAndOffset], Option[TextureRefAndOffset]] = CanEqual.derived
 
-  def sceneEntityToDisplayObject(leaf: EntityNode, assetMapping: AssetMapping): DisplayObject = {
+  def sceneEntityToDisplayObject(leaf: EntityNode[_], assetMapping: AssetMapping): DisplayObject = {
     val shader: ShaderData = leaf.toShaderData
 
     val channelOffset1 = optionalAssetToOffset(assetMapping, shader.channel1)
@@ -468,7 +509,7 @@ final class DisplayObjectConversions(
         DisplayObjectUniformData(
           uniformHash = ub.uniformHash,
           blockName = ub.blockName,
-          data = DisplayObjectConversions.packUBO(ub.uniforms)
+          data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
         )
       }
 
@@ -518,7 +559,7 @@ final class DisplayObjectConversions(
 
   def graphicToDisplayObject(leaf: Graphic[_], assetMapping: AssetMapping): DisplayObject = {
     val shaderData     = leaf.material.toShaderData
-    val shaderDataHash = shaderData.hashCode().toString
+    val shaderDataHash = shaderData.toCacheKey
     val materialName   = shaderData.channel0.get
 
     val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderDataHash, "_e")
@@ -543,7 +584,7 @@ final class DisplayObjectConversions(
         DisplayObjectUniformData(
           uniformHash = ub.uniformHash,
           blockName = ub.blockName,
-          data = DisplayObjectConversions.packUBO(ub.uniforms)
+          data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
         )
       }
 
@@ -581,7 +622,7 @@ final class DisplayObjectConversions(
   ): DisplayObject = {
     val material       = leaf.material
     val shaderData     = material.toShaderData
-    val shaderDataHash = shaderData.hashCode().toString
+    val shaderDataHash = shaderData.toCacheKey
     val materialName   = shaderData.channel0.get
 
     val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderDataHash, "_e")
@@ -599,7 +640,7 @@ final class DisplayObjectConversions(
         )
       }
 
-    val bounds = boundaryLocator.spriteBounds(leaf).getOrElse(Rectangle.zero)
+    val bounds = boundaryLocator.spriteFrameBounds(leaf).getOrElse(Rectangle.zero)
 
     val shaderId = shaderData.shaderId
 
@@ -608,7 +649,7 @@ final class DisplayObjectConversions(
         DisplayObjectUniformData(
           uniformHash = ub.uniformHash,
           blockName = ub.blockName,
-          data = DisplayObjectConversions.packUBO(ub.uniforms)
+          data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
         )
       }
 
@@ -647,7 +688,7 @@ final class DisplayObjectConversions(
 
       val material       = leaf.material
       val shaderData     = material.toShaderData
-      val shaderDataHash = shaderData.hashCode().toString
+      val shaderDataHash = shaderData.toCacheKey
       val materialName   = shaderData.channel0.get
 
       val lineHash: String =
@@ -676,7 +717,7 @@ final class DisplayObjectConversions(
           DisplayObjectUniformData(
             uniformHash = ub.uniformHash,
             blockName = ub.blockName,
-            data = DisplayObjectConversions.packUBO(ub.uniforms)
+            data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
           )
         }
 
@@ -742,7 +783,7 @@ final class DisplayObjectConversions(
       QuickCache(s"[indigo_text_clone_ref][${cloneId.toString}]") {
         val material       = leaf.material
         val shaderData     = material.toShaderData
-        val shaderDataHash = shaderData.hashCode().toString
+        val shaderDataHash = shaderData.toCacheKey
         val materialName   = shaderData.channel0.get
         val emissiveOffset = findAssetOffsetValues(assetMapping, shaderData.channel1, shaderDataHash, "_e")
         val normalOffset   = findAssetOffsetValues(assetMapping, shaderData.channel2, shaderDataHash, "_n")
@@ -755,7 +796,7 @@ final class DisplayObjectConversions(
             DisplayObjectUniformData(
               uniformHash = ub.uniformHash,
               blockName = ub.blockName,
-              data = DisplayObjectConversions.packUBO(ub.uniforms)
+              data = DisplayObjectConversions.packUBO(ub.uniforms, ub.uniformHash, false)
             )
           }
 
@@ -858,6 +899,15 @@ final class DisplayObjectConversions(
         }
         .getOrElse(Vector2.zero)
     }
+
+  extension (sd: ShaderData)
+    def toCacheKey: String =
+      sd.shaderId.toString +
+        sd.channel0.map(_.toString).getOrElse("") +
+        sd.channel1.map(_.toString).getOrElse("") +
+        sd.channel2.map(_.toString).getOrElse("") +
+        sd.channel3.map(_.toString).getOrElse("") +
+        sd.uniformBlocks.map(_.uniformHash).mkString
 }
 
 object DisplayObjectConversions {
@@ -879,14 +929,16 @@ object DisplayObjectConversions {
 
   // takes a list because only converted to JSArray if value not cached.
   def packUBO(
-      uniforms: List[(Uniform, ShaderPrimitive)]
+      uniforms: Batch[(Uniform, ShaderPrimitive)],
+      cacheKey: String,
+      disableCache: Boolean
   )(using QuickCache[scalajs.js.Array[Float]]): scalajs.js.Array[Float] = {
     def rec(
         remaining: scalajs.js.Array[ShaderPrimitive],
         current: scalajs.js.Array[Float],
         acc: scalajs.js.Array[Float]
     ): scalajs.js.Array[Float] =
-      remaining match {
+      remaining match
         case us if us.isEmpty =>
           // println(s"done, expanded: ${current.toList} to ${expandTo4(current).toList}")
           // println(s"result: ${(acc ++ expandTo4(current)).toList}")
@@ -915,9 +967,8 @@ object DisplayObjectConversions {
         case us =>
           // println(s"fits, current is now: ${(current ++ u.toArray).toList}")
           rec(us.tail, current ++ us.head.toJSArray, acc)
-      }
 
-    QuickCache("u" + uniforms.hashCode.toString) {
+    QuickCache(cacheKey, disableCache) {
       rec(uniforms.toJSArray.map(_._2), empty0, empty0)
     }
   }

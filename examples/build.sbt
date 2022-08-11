@@ -3,11 +3,11 @@ import scala.language.postfixOps
 
 import sbtwelcome._
 
-val scala3Version = "3.1.0"
+val scala3Version = "3.1.2"
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.5.0"
+ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
 
 lazy val commonSettings = Seq(
   version      := "0.0.1",
@@ -221,12 +221,13 @@ lazy val fireworks =
     .enablePlugins(SbtIndigo)
     .enablePlugins(ScalaJSPlugin)
     .settings(
-      name                := "fireworks-example",
-      showCursor          := true,
-      title               := "Fireworks!",
-      gameAssetsDirectory := "assets",
-      windowStartWidth    := 1280,
-      windowStartHeight   := 720,
+      name                  := "fireworks-example",
+      showCursor            := true,
+      title                 := "Fireworks!",
+      gameAssetsDirectory   := "assets",
+      windowStartWidth      := 1280,
+      windowStartHeight     := 720,
+      disableFrameRateLimit := true,
       libraryDependencies ++= Seq(
         "org.scalacheck" %%% "scalacheck" % "1.15.3" % "test"
       )

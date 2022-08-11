@@ -7,6 +7,7 @@ import indigo.shared.animation.Cycle
 import indigo.shared.animation.CycleLabel
 import indigo.shared.animation.Frame
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.collections.NonEmptyList
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.datatypes.Depth
@@ -46,7 +47,7 @@ final case class AsepriteFrame(
 
 final case class AsepriteRectangle(x: Int, y: Int, w: Int, h: Int) derives CanEqual:
   def position: Point = Point(x, y)
-  def size: Size = Size(w, h)
+  def size: Size      = Size(w, h)
 
 final case class AsepriteMeta(
     app: String,
@@ -84,13 +85,16 @@ object Aseprite:
             Sprite(
               bindingKey = BindingKey.fromDice(dice),
               material = Material.Bitmap(assetName),
+              animationKey = animations.animationKey,
+              animationActions = Batch.empty,
+              eventHandlerEnabled = false,
+              eventHandler = Function.const(None),
               position = Point(0, 0),
-              depth = Depth.zero,
               rotation = Radians.zero,
               scale = Vector2.one,
-              animationKey = animations.animationKey,
+              depth = Depth.zero,
               ref = Point(0, 0),
-              eventHandler = (_: (Rectangle, GlobalEvent)) => Nil
+              flip = Flip.default
             ),
             animations
           )
@@ -107,6 +111,8 @@ object Aseprite:
               sheet = clipData.sheet,
               playMode = ClipPlayMode.default,
               material = Material.Bitmap(assetName),
+              eventHandlerEnabled = false,
+              eventHandler = Function.const(None),
               position = Point.zero,
               rotation = Radians.zero,
               scale = Vector2.one,

@@ -11,15 +11,57 @@ import indigoplugin.IndigoCordova
 
 trait MillIndigo extends mill.Module {
 
+  /** Title of your game.
+    */
   val title: String
+
+  /** Show the cursor?
+    */
   val showCursor: Boolean
+
+  /** HTML page background color
+    */
+  val backgroundColor: String
+
+  /** Project relative path to a directory that contains all of the assets the game needs to load.
+    */
   val gameAssetsDirectory: Path
+
+  /** Initial window width.
+    */
   val windowStartWidth: Int
+
+  /** Initial window height.
+    */
   val windowStartHeight: Int
+
+  /** If possible, disables the runtime's frame rate limit, recommended to be `false`.
+    */
+  val disableFrameRateLimit: Boolean
+
+  /** How should electron be run? ElectronInstall.Global | ElectronInstall.Version(version: String) |
+    * ElectronInstall.Latest | ElectronInstall.PathToExecutable(path: String)
+    */
+  val electronInstall: ElectronInstall
 
   def indigoBuild(): Command[Path] =
     T.command {
-      val scriptPathBase: Path =  T.dest / os.up / "fastOpt.dest"
+      val scriptPathBase: Path = {
+        val paths =
+          List(
+            T.dest / os.up / "fastOpt.dest",
+            T.dest / os.up / "fastOpt" / "dest"
+          )
+
+        paths.find(os.exists) match {
+          case Some(p) => p
+          case None =>
+            throw new Exception(
+              "Could not find fastOpt dir, did you compile to JS? Tried: " +
+                paths.map(_.toString).mkString("[", ", ", "]")
+            )
+        }
+      }
 
       IndigoBuildMill.build(
         T.dest,
@@ -27,7 +69,8 @@ trait MillIndigo extends mill.Module {
           title,
           showCursor,
           scriptPathBase,
-          gameAssetsDirectory
+          gameAssetsDirectory,
+          backgroundColor
         )
       )
 
@@ -36,8 +79,23 @@ trait MillIndigo extends mill.Module {
 
   def indigoBuildFull(): Command[Path] =
     T.command {
-      val outputDir: Path      = T.dest
-      val scriptPathBase: Path = T.dest / os.up / "fullOpt.dest"
+      val outputDir: Path = T.dest
+      val scriptPathBase: Path = {
+        val paths =
+          List(
+            T.dest / os.up / "fullOpt.dest",
+            T.dest / os.up / "fullOpt" / "dest"
+          )
+
+        paths.find(os.exists) match {
+          case Some(p) => p
+          case None =>
+            throw new Exception(
+              "Could not find fullOpt dir, did you compile to JS? Tried: " +
+                paths.map(_.toString).mkString("[", ", ", "]")
+            )
+        }
+      }
 
       IndigoBuildMill.build(
         outputDir,
@@ -45,7 +103,8 @@ trait MillIndigo extends mill.Module {
           title,
           showCursor,
           scriptPathBase,
-          gameAssetsDirectory
+          gameAssetsDirectory,
+          backgroundColor
         )
       )
 
@@ -57,7 +116,7 @@ trait MillIndigo extends mill.Module {
       val outputDir: Path = T.dest
       val buildDir: Path  = indigoBuild()()
 
-      IndigoRun.run(outputDir, buildDir, title, windowStartWidth, windowStartHeight)
+      IndigoRun.run(outputDir, buildDir, title, windowStartWidth, windowStartHeight, disableFrameRateLimit, electronInstall)
     }
 
   def indigoRunFull(): Command[Unit] =
@@ -65,7 +124,7 @@ trait MillIndigo extends mill.Module {
       val outputDir: Path = T.dest
       val buildDir: Path  = indigoBuildFull()()
 
-      IndigoRun.run(outputDir, buildDir, title, windowStartWidth, windowStartHeight)
+      IndigoRun.run(outputDir, buildDir, title, windowStartWidth, windowStartHeight, disableFrameRateLimit, electronInstall)
     }
 
   def indigoCordovaBuild(): Command[Unit] =

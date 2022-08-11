@@ -1,8 +1,12 @@
+import indigoplugin.ElectronInstall
+
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 //-----------------------------------
 // The essentials.
 //-----------------------------------
 
-val scala3Version = "3.1.0"
+val scala3Version = "3.1.2"
 
 lazy val pirate =
   (project in file("."))
@@ -11,12 +15,12 @@ lazy val pirate =
       SbtIndigo      //  Enable Indigo plugin
     )
     .settings( // Standard SBT settings
-      name := "pirate",
-      version := "0.0.1",
+      name         := "pirate",
+      version      := "0.0.1",
       scalaVersion := scala3Version,
       organization := "pirate",
       libraryDependencies ++= Seq(
-        "org.scalameta" %%% "munit" % "0.7.26" % Test,
+        "org.scalameta"  %%% "munit"      % "0.7.29" % Test,
         "org.scalacheck" %%% "scalacheck" % "1.15.3" % "test"
       ),
       scalacOptions ++= Seq("-language:strictEquality"),
@@ -25,15 +29,18 @@ lazy val pirate =
       Test / scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) }
     )
     .settings( // Indigo specific settings
-      showCursor := true,
-      title := "The Cursed Pirate",
-      gameAssetsDirectory := "assets",
-      windowStartWidth := 1280,
-      windowStartHeight := 720,
+      showCursor            := true,
+      title                 := "The Cursed Pirate",
+      gameAssetsDirectory   := "assets",
+      windowStartWidth      := 1280,
+      windowStartHeight     := 720,
+      disableFrameRateLimit := false,
+      electronInstall       := ElectronInstall.Version("^18.0.0"),
+      backgroundColor       := "black",
       libraryDependencies ++= Seq(
         "io.indigoengine" %%% "indigo-json-circe" % IndigoVersion.getVersion, // Needed for Aseprite & Tiled support
         "io.indigoengine" %%% "indigo"            % IndigoVersion.getVersion, // Important! :-)
-        "io.indigoengine" %%% "indigo-extras"     % IndigoVersion.getVersion // Important! :-)
+        "io.indigoengine" %%% "indigo-extras"     % IndigoVersion.getVersion  // Important! :-)
       )
     )
 

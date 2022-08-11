@@ -12,7 +12,9 @@ import indigoextras.geometry.Vertex
 import indigoextras.ui.HitArea
 
 import scala.annotation.tailrec
-import scala.collection.mutable.ArrayBuffer
+
+import scalajs.js
+import scalajs.js.JSConverters.*
 
 object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
@@ -24,7 +26,7 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   def eventFilters: EventFilters =
     EventFilters.Permissive
 
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, ConfettiModel] =
+  def modelLens: Lens[SandboxGameModel, ConfettiModel] =
     Lens(_.confetti, (m, c) => m.copy(confetti = c))
 
   def viewModelLens: Lens[SandboxViewModel, Unit] =
@@ -66,8 +68,8 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
 
   val cloneId: CloneId = CloneId("dots")
 
-  val cloneBlanks: List[CloneBlank] =
-    List(CloneBlank(cloneId, Graphic(16, 16, Material.Bitmap(SandboxAssets.dots))).static)
+  val cloneBlanks: Batch[CloneBlank] =
+    Batch(CloneBlank(cloneId, Graphic(16, 16, Material.Bitmap(SandboxAssets.dots))).static)
 
   val crops =
     Array(
@@ -82,10 +84,10 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
       .withFontSize(Pixels(12))
       .withColor(RGBA.White)
 
-  def particlesToCloneTiles(particles: Array[Particle]): CloneTiles =
+  def particlesToCloneTiles(particles: js.Array[Particle]): CloneTiles =
     CloneTiles(
       cloneId,
-      particles.map { p =>
+      Batch(particles).map { p =>
         val crop = crops(p.color)
         CloneTileData(p.x, p.y, Radians.zero, p.scale, p.scale, crop(0), crop(1), crop(2), crop(3))
       }
@@ -99,7 +101,7 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
     Outcome(
       SceneUpdateFragment(
         Layer(
-          model.particles.map(particlesToCloneTiles).toList
+          Batch(model.particles.map(particlesToCloneTiles))
         ).withMagnification(1),
         Layer(
           count.withText(s"count: ${model.particles.length * spawnCount}")
@@ -107,10 +109,10 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
       ).addCloneBlanks(cloneBlanks)
     )
 
-final case class ConfettiModel(color: Int, particles: Array[Array[Particle]]):
+final case class ConfettiModel(color: Int, particles: js.Array[js.Array[Particle]]):
   def spawn(dice: Dice, x: Int, y: Int, count: Int): ConfettiModel =
     this.copy(
-      particles = Array((0 until count).toArray.map { _ =>
+      particles = js.Array((0 until count).toJSArray.map { _ =>
         Particle(
           x,
           y,
@@ -143,7 +145,7 @@ final case class ConfettiModel(color: Int, particles: Array[Array[Particle]]):
 
 object ConfettiModel:
   val empty: ConfettiModel =
-    ConfettiModel(0, Array())
+    ConfettiModel(0, js.Array())
 
 final case class Particle(x: Int, y: Int, fx: Float, fy: Float, color: Int, scale: Float)
 object Particle:

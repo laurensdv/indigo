@@ -1,6 +1,7 @@
 package indigo.shared.scenegraph
 
 import indigo.shared.BoundaryLocator
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.Depth
 import indigo.shared.datatypes.Flip
 import indigo.shared.datatypes.Point
@@ -8,6 +9,7 @@ import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Size
 import indigo.shared.datatypes.Vector2
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.Material
 import indigo.shared.materials.ShaderData
 import indigo.shared.shader.ShaderPrimitive.float
@@ -22,13 +24,15 @@ final case class Clip[M <: Material](
     sheet: ClipSheet,
     playMode: ClipPlayMode,
     material: M,
+    eventHandlerEnabled: Boolean,
+    eventHandler: ((Clip[_], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
     depth: Depth,
     ref: Point,
     flip: Flip
-) extends EntityNode
+) extends EntityNode[Clip[M]]
     with Cloneable
     with SpatialModifiers[Clip[M]]
     derives CanEqual:
@@ -71,9 +75,6 @@ final case class Clip[M <: Material](
 
   def withFPS(fps: FPS): Clip[M] =
     this.copy(sheet = sheet.withFPS(fps))
-
-  def bounds: Rectangle =
-    BoundaryLocator.findBounds(this, position, size, ref)
 
   lazy val x: Int = position.x
   lazy val y: Int = position.y
@@ -145,14 +146,14 @@ final case class Clip[M <: Material](
   def withRef(x: Int, y: Int): Clip[M] =
     withRef(Point(x, y))
 
-  def toShaderData: ShaderData =
+  lazy val toShaderData: ShaderData =
     val data = material.toShaderData
     data
       .withShaderId(StandardShaders.shaderIdToClipShaderId(data.shaderId))
       .addUniformBlock(
         UniformBlock(
           "IndigoClipData",
-          List(
+          Batch(
             Uniform("CLIP_SHEET_FRAME_COUNT")    -> float(sheet.frameCount),
             Uniform("CLIP_SHEET_FRAME_DURATION") -> float.fromSeconds(sheet.frameDuration),
             Uniform("CLIP_SHEET_WRAP_AT")        -> float(sheet.wrapAt),
@@ -164,6 +165,15 @@ final case class Clip[M <: Material](
           )
         )
       )
+
+  def withEventHandler(f: ((Clip[_], GlobalEvent)) => Option[GlobalEvent]): Clip[M] =
+    this.copy(eventHandler = f, eventHandlerEnabled = true)
+  def onEvent(f: PartialFunction[(Clip[_], GlobalEvent), GlobalEvent]): Clip[M] =
+    withEventHandler(f.lift)
+  def enableEvents: Clip[M] =
+    this.copy(eventHandlerEnabled = true)
+  def disableEvents: Clip[M] =
+    this.copy(eventHandlerEnabled = false)
 
 object Clip:
 
@@ -179,6 +189,8 @@ object Clip:
       sheet = sheet,
       playMode = playMode,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -198,6 +210,8 @@ object Clip:
       sheet = sheet,
       playMode = ClipPlayMode.default,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -220,6 +234,8 @@ object Clip:
       sheet = sheet,
       playMode = playMode,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point(x, y),
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -241,6 +257,8 @@ object Clip:
       sheet = sheet,
       playMode = ClipPlayMode.default,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point(x, y),
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -260,6 +278,8 @@ object Clip:
       sheet = sheet,
       playMode = playMode,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -278,6 +298,8 @@ object Clip:
       sheet = sheet,
       playMode = ClipPlayMode.default,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = Point.zero,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -298,6 +320,8 @@ object Clip:
       sheet = sheet,
       playMode = playMode,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = position,
       rotation = Radians.zero,
       scale = Vector2.one,
@@ -317,6 +341,8 @@ object Clip:
       sheet = sheet,
       playMode = ClipPlayMode.default,
       material = material,
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
       position = position,
       rotation = Radians.zero,
       scale = Vector2.one,

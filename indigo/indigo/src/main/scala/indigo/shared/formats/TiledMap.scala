@@ -4,8 +4,8 @@ import indigo.shared.animation.Animation
 import indigo.shared.animation.AnimationKey
 import indigo.shared.animation.Frame
 import indigo.shared.assets.AssetName
-import indigo.shared.collections._
-import indigo.shared.datatypes.BindingKey
+import indigo.shared.collections.Batch
+import indigo.shared.collections.NonEmptyList
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Rectangle
@@ -93,9 +93,6 @@ final case class TiledMap(
 
   def toGroup(assetName: AssetName): Option[Group] =
     TiledMap.toGroup(this, assetName)
-
-  def toCLoneGroup(assetName: AssetName): Option[(List[CloneBlank], Group)] =
-    TiledMap.toCloneGroup(this, assetName)
 }
 
 final case class TiledLayer(
@@ -194,123 +191,6 @@ object TiledMap {
       }
     }
 
-  private def toCloneGroup(tiledMap: TiledMap, assetName: AssetName): Option[(List[CloneBlank], Group)] = 
-    tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
-
-        val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
-
-        val firstgid: Int =  tiledMap.tilesets.map({tileset => tileset.firstgid}).head //TODO: WHAT IF MULTIPLE TILESETS? OR default to 1 ??
-
-        val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({ tileset =>
-            tileset.tiles.flatMap(tile => {
-                Option(tile.map {
-                        case tiledTerrainCorner: TiledTerrainCorner if tiledTerrainCorner.animation.nonEmpty =>
-                            (tiledTerrainCorner.id, tiledTerrainCorner.animation)
-                        case tiledTerrainCorner: TiledTerrainCorner => (tiledTerrainCorner.id, None)
-                    })
-                })
-            }).flatten.toMap
-
-        val animationSprites: Map[String, Sprite[Material.Bitmap]] = 
-            (for (a <- animations) yield {
-                val keyString: String = a.toString
-                val key = AnimationKey(keyString)
-                val sprite: Sprite[Material.Bitmap] = Sprite(BindingKey(keyString), 0, 0, 1, key, Material.Bitmap(assetName)).play()
-                (keyString -> sprite)
-            }).toMap
-
-        val animationCloneBlanks: List[CloneBlank] = (for ((k, s) <- animationSprites) yield { CloneBlank(CloneId(k), s) }).toList
-
-        val tileMapGraphic: Graphic[Material.Bitmap] = Graphic(tiledMap.tilewidth, tiledMap.tileheight, Material.Bitmap(assetName))
-
-        val tileMapCloneBlanks: List[CloneBlank] = List(CloneBlank(CloneId("graphic"), tileMapGraphic))
-
-        val layers = tiledMap.layers.filter(_.`type` == "tilelayer").zipWithIndex.map { case (layer, layerIndex) =>
-            val tilesInUse: Map[Int, String] =
-                layer.data.toSet.foldLeft(Map.empty[Int, String]) { (tiles, i) =>
-                    tiles ++ Map(
-                        i ->
-                            {
-                            if(animations.contains(i - firstgid)) {
-                                if(animations(i - firstgid).nonEmpty) {
-                                    (i - firstgid).toString
-                                //Sprite(BindingKey((i - firstgid).toString + System.currentTimeMillis().hashCode().toString), 0, 0, 1, key, Material.Bitmap(assetName))
-                            } else {
-                                /*Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
-                                  .withCrop(
-                                    Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                                  )*/
-                                    "graphic"
-                                }
-                            } else {
-                                /*Graphic(Rectangle(Point.zero, tileSize), 1, Material.Bitmap(assetName))
-                                .withCrop(
-                                  Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                                )*/
-                                    "graphic"
-                            }
-                        }
-                    )
-                }
-
-            val cloneBatches: List[SceneNode] = (
-                for {
-                    layerDataChunk <- List(layer.data.zipWithIndex)//.grouped(512)
-                    (key, sprite) <- animationSprites
-                } 
-                yield {
-                    CloneBatch(CloneId(key),
-                    layerDataChunk.flatMap {
-                        case (tileIndex, positionIndex) =>
-                            if (tileIndex == 0) Nil
-                            else
-                                tilesInUse
-                                .get(tileIndex)
-                                .map {
-                                    case c:String if c == key => {
-                                        val p = fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint
-                                        List(CloneBatchData(p.x, p.y))
-                                    }
-                                    case _ => Nil
-                                }
-                                .getOrElse(Nil)
-                            }.toArray)
-                }).toList.zipWithIndex.map { case (cb, i) =>
-                  cb//.withStaticBatchKey(BindingKey("batch_" + layerIndex.toString + i.toString))
-                }
-
-            val cloneTiles: List[SceneNode] = (
-                for {
-                    layerDataChunk <- layer.data.zipWithIndex.grouped(512)
-                } yield {
-                    CloneTiles(CloneId("graphic"),
-                    layerDataChunk.zipWithIndex.flatMap {
-                        case ((tileIndex, positionIndex), i) =>
-                            if (tileIndex == 0) Nil
-                            else
-                                tilesInUse
-                                .get(tileIndex)
-                                .map {
-                                    case c:String if c == "graphic" => {
-                                        val tlSize = tileSize.toPoint
-                                        val pos = fromIndex(positionIndex, tiledMap.width) * tlSize
-                                        val cropPos = fromIndex(tileIndex - firstgid, tileSheetColumnCount) * tlSize
-                                        List(CloneTileData(pos.x, pos.y, Radians.zero, 1, 1, cropPos.x, cropPos.y, tlSize.x, tlSize.y))                     
-                                    }                         
-                                    case _ => Nil
-                                }.getOrElse(Nil)
-                        }.toArray)
-                }).toList.zipWithIndex.map { case (ct, i) =>
-                  ct.withStaticBatchKey(BindingKey("tiles_" + layerIndex.toString + i.toString))
-                }
-
-            Group(cloneBatches ++ cloneTiles)
-            //cloneTiles
-        }
-
-        (tileMapCloneBlanks ++ animationCloneBlanks, Group(layers))
-        }
-
   private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
         val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
@@ -326,7 +206,7 @@ object TiledMap {
             })
         }).flatten.toMap
 
-        val layers = tiledMap.layers.filter(_.`type` == "tilelayer").map { layer =>
+        val layers: Batch[Group] = Batch.fromList(tiledMap.layers.filter(_.`type` == "tilelayer")).map { layer =>
 
             val tilesInUse: Map[Int, SceneNode] =
                 layer.data.toSet.foldLeft(Map.empty[Int, SceneNode]) { (tiles, i) =>
@@ -353,18 +233,18 @@ object TiledMap {
                 }
 
             Group(
-                layer.data.zipWithIndex.flatMap {
+                Batch.fromList(layer.data).zipWithIndex.flatMap {
                     case (tileIndex, positionIndex) =>
-                    if (tileIndex == 0) Nil
+                    if (tileIndex == 0) Batch.empty
                     else
                         tilesInUse
                         .get(tileIndex)
                         .map {
-                            case g:Sprite[_] => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
-                            case g:Graphic[_] => List(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
-                            case g:SceneNode => List(g)
+                            case g:Sprite[_] => Batch(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
+                            case g:Graphic[_] => Batch(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
+                            case g:SceneNode => Batch(g)
                         }
-                        .getOrElse(Nil)
+                        .getOrElse(Batch.empty)
                     }
                 )
             }

@@ -19,15 +19,15 @@ You can create your own materials, and Indigo comes with two other materials in 
 
 This is the `Bitmap` material:
 
-```scala mdoc:silent
-import indigo._
+```scala mdoc:js:shared
+import indigo.*
 
 Material.Bitmap(AssetName("funny cat"))
 ```
 
 `Bitmap` is a simple flat texture that does nothing more than take the texture and render it as-is. It can be used in a `Graphic` like this:
 
-```scala mdoc:silent
+```scala mdoc:js
 SceneUpdateFragment(
   Graphic(32, 32, Material.Bitmap(AssetName("funny cat")))
 )
@@ -56,7 +56,7 @@ There are some properties that are common to both standard materials.
 
 If you would like to take the basic form of one of the standard shaders (i.e. and the data they provide) and write your own shader, you can swap the shader id like this:
 
-```scala mdoc
+```scala mdoc:js
 Material.Bitmap(AssetName("funny cat"))
   .withShaderId(ShaderId("my bitmap shader"))
 ```
@@ -67,7 +67,7 @@ Arguably you would usually be better off just writing your own Material + Shader
 
 The standard materials support options for telling Indigo how to fill the space with the material.
 
-```scala mdoc:silent
+```scala mdoc:js
 val material = Material.Bitmap(AssetName("funny cat"))
 
 material.normal
@@ -117,7 +117,7 @@ To light a pixel on a surface we need to know it's [normal](https://en.wikipedia
 
 The normal is used to work out how much light from a light source makes it to the camera / eye and therefore allows us (as people) to interpret what angle the surface was at.
 
-Consider a sphere - which is a single surface. The angle of the normal of a sphere's surface rotates around depending on which point of the sphere you're looking at. This change in normal is what gives the appearance of a smooth spherical surface, as a pose to a flat circle.
+Consider a sphere - which is a single surface. The angle of the normal of a sphere's surface rotates around depending on which point of the sphere you're looking at. This change in normal is what gives the appearance of a smooth spherical surface, as opposed to a flat circle.
 
 Knowing that, we can take a completely flat image and _pretend_ it's bumpy or textured by _bending_ the real normal to a new angle at different co-ordinates on the texture.
 

@@ -16,6 +16,7 @@ import indigo.shared.datatypes.TextAlign
 import indigo.shared.datatypes.TextStroke
 import indigo.shared.datatypes.TextStyle
 import indigo.shared.datatypes.Vector2
+import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.ShaderData
 import indigo.shared.shader.StandardShaders
 
@@ -27,13 +28,15 @@ final case class TextBox(
     text: String,
     style: TextStyle,
     size: Size,
+    eventHandlerEnabled: Boolean,
+    eventHandler: ((TextBox, GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
     depth: Depth,
     ref: Point,
     flip: Flip
-) extends RenderNode
+) extends RenderNode[TextBox]
     with SpatialModifiers[TextBox]
     derives CanEqual:
 
@@ -137,12 +140,23 @@ final case class TextBox(
   def withRef(x: Int, y: Int): TextBox =
     withRef(Point(x, y))
 
+  def withEventHandler(f: ((TextBox, GlobalEvent)) => Option[GlobalEvent]): TextBox =
+    this.copy(eventHandler = f, eventHandlerEnabled = true)
+  def onEvent(f: PartialFunction[(TextBox, GlobalEvent), GlobalEvent]): TextBox =
+    withEventHandler(f.lift)
+  def enableEvents: TextBox =
+    this.copy(eventHandlerEnabled = true)
+  def disableEvents: TextBox =
+    this.copy(eventHandlerEnabled = false)
+
 object TextBox:
   def apply(text: String): TextBox =
     TextBox(
       text,
       TextStyle.default,
       Size(300),
+      false,
+      Function.const(None),
       Point.zero,
       Radians.zero,
       Vector2.one,
@@ -156,6 +170,8 @@ object TextBox:
       text,
       TextStyle.default,
       Size(maxWidth, maxHeight),
+      false,
+      Function.const(None),
       Point.zero,
       Radians.zero,
       Vector2.one,

@@ -3,17 +3,19 @@ package indigo.gameengine
 import indigo.shared.BoundaryLocator
 import indigo.shared.IndigoLogger
 import indigo.shared.Outcome
+import indigo.shared.collections.Batch
 import indigo.shared.config.GameConfig
 import indigo.shared.dice.Dice
 import indigo.shared.events.FrameTick
 import indigo.shared.events.InputEvent
 import indigo.shared.events.InputState
 import indigo.shared.platform.SceneProcessor
-import indigo.shared.scenegraph.SceneGraphViewEvents
 import indigo.shared.scenegraph.SceneUpdateFragment
 import indigo.shared.time.GameTime
 import indigo.shared.time.Millis
 import indigo.shared.time.Seconds
+
+import scala.scalajs.js.JSConverters._
 
 final class GameLoop[StartUpData, GameModel, ViewModel](
     boundaryLocator: BoundaryLocator,
@@ -33,26 +35,47 @@ final class GameLoop[StartUpData, GameModel, ViewModel](
   private var _runningTimeReference: Long = 0
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   private var _inputState: InputState = InputState.default
+  @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
+  private var _running: Boolean = true
 
   def gameModelState: GameModel  = _gameModelState
   def viewModelState: ViewModel  = _viewModelState
   def runningTimeReference: Long = _runningTimeReference
 
+  private val runner: (Long, Long, Long) => Unit =
+    gameConfig.frameRateLimit match
+      case None =>
+        (time, timeDelta, lastUpdateTime) =>
+          runFrame(time, timeDelta)
+          gameEngine.platform.tick(gameEngine.gameLoop(time))
+
+      case Some(fps) =>
+        (time, timeDelta, lastUpdateTime) =>
+          if timeDelta >= gameConfig.frameRateDeltaMillis.toLong - 1 then
+            runFrame(time, timeDelta)
+            gameEngine.platform.tick(gameEngine.gameLoop(time))
+          else gameEngine.platform.tick(loop(lastUpdateTime))
+
+  @SuppressWarnings(Array("scalafix:DisableSyntax.null"))
+  def kill(): Unit =
+    _running = false
+    _gameModelState = null.asInstanceOf[GameModel]
+    _viewModelState = null.asInstanceOf[ViewModel]
+    _runningTimeReference = 0
+    _inputState = null
+    ()
+
   def loop(lastUpdateTime: Long): Long => Unit = { time =>
     _runningTimeReference = time
     val timeDelta: Long = time - lastUpdateTime
-
-    if timeDelta >= gameConfig.frameRateDeltaMillis.toLong - 1 then
-      runFrame(time, timeDelta)
-      gameEngine.platform.tick(gameEngine.gameLoop(time))
-    else gameEngine.platform.tick(loop(lastUpdateTime))
+    if _running then runner(time, timeDelta, lastUpdateTime)
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
   private def runFrame(time: Long, timeDelta: Long): Unit =
 
-    val gameTime = new GameTime(Millis(time).toSeconds, Millis(timeDelta).toSeconds, gameConfig.frameRate)
-    val events   = gameEngine.globalEventStream.collect ++ List(FrameTick)
+    val gameTime = new GameTime(Millis(time).toSeconds, Millis(timeDelta).toSeconds, gameConfig.frameRateLimit)
+    val events   = gameEngine.globalEventStream.collect ++ Batch(FrameTick)
 
     // Persist input state
     _inputState = InputState.calculateNext(
@@ -88,16 +111,6 @@ final class GameLoop[StartUpData, GameModel, ViewModel](
           globalEvents.foreach(e => gameEngine.globalEventStream.pushGlobalEvent(e))
           sceneUpdateFragment
 
-    // Process events
-    scene.layers.foreach { layer =>
-      SceneGraphViewEvents.collectViewEvents(
-        boundaryLocator,
-        layer.nodes,
-        events,
-        gameEngine.globalEventStream.pushGlobalEvent
-      )
-    }
-
     // Play audio
     gameEngine.audioPlayer.playAudio(scene.audio)
 
@@ -107,7 +120,9 @@ final class GameLoop[StartUpData, GameModel, ViewModel](
       scene,
       gameEngine.assetMapping,
       gameEngine.renderer.renderingTechnology,
-      gameConfig.advanced.batchSize
+      gameConfig.advanced.batchSize,
+      events.toJSArray,
+      gameEngine.globalEventStream.pushGlobalEvent
     )
 
     // Render scene

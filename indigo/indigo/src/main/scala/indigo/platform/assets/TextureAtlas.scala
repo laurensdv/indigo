@@ -6,11 +6,12 @@ import indigo.shared.assets.AssetName
 import indigo.shared.assets.AssetTag
 import indigo.shared.datatypes.Point
 import org.scalajs.dom
+import org.scalajs.dom.ImageData
 import org.scalajs.dom.html
-import org.scalajs.dom.raw
 
 import scala.annotation.tailrec
-import scala.collection.immutable.HashMap
+
+import scalajs.js.JSConverters._
 
 object TextureAtlas {
 
@@ -52,30 +53,31 @@ object TextureAtlas {
     textureAtlas
   }
 
-  val identity: TextureAtlas = TextureAtlas(HashMap.empty[AtlasId, Atlas], HashMap.empty[AssetName, AtlasIndex])
+  val identity: TextureAtlas = TextureAtlas(scalajs.js.Dictionary.empty[Atlas], scalajs.js.Dictionary.empty[AtlasIndex])
 
 }
 
 // Output
-final case class TextureAtlas(atlases: HashMap[AtlasId, Atlas], legend: HashMap[AssetName, AtlasIndex]) derives CanEqual {
+final case class TextureAtlas(atlases: scalajs.js.Dictionary[Atlas], legend: scalajs.js.Dictionary[AtlasIndex])
+    derives CanEqual {
   def +(other: TextureAtlas): TextureAtlas =
     TextureAtlas(
-      this.atlases ++ other.atlases,
-      this.legend ++ other.legend
+      (atlases ++ other.atlases).toJSDictionary,
+      (legend ++ other.legend).toJSDictionary
     )
 
   def lookUpByName(name: AssetName): Option[AtlasLookupResult] =
-    legend.get(name).flatMap { i =>
-      atlases.get(i.id).map { a =>
+    legend.get(name.toString).flatMap { i =>
+      atlases.get(i.id.toString).map { a =>
         new AtlasLookupResult(name, i.id, a, i.offset)
       }
     }
 
   def report: String = {
-    val atlasRecordToString: HashMap[AssetName, AtlasIndex] => ((AtlasId, Atlas)) => String = leg =>
+    val atlasRecordToString: scalajs.js.Dictionary[AtlasIndex] => ((String, Atlas)) => String = leg =>
       at => {
-        val relevant = leg.filter { (k: (AssetName, AtlasIndex)) =>
-          k._2.id == at._1
+        val relevant = leg.filter { (k: (String, AtlasIndex)) =>
+          k._2.id.toString == at._1
         }
 
         s"Atlas [${at._1}] [${at._2.size.value.toString()}] contains images: ${relevant.toList.map(_._1).mkString(", ")}"
@@ -93,15 +95,16 @@ final case class TextureAtlas(atlases: HashMap[AtlasId, Atlas], legend: HashMap[
 
 opaque type AtlasId = String
 object AtlasId:
-  inline def apply(id: String): AtlasId            = id
-  given CanEqual[AtlasId, AtlasId]                 = CanEqual.derived
-  given CanEqual[Option[AtlasId], Option[AtlasId]] = CanEqual.derived
+  inline def apply(id: String): AtlasId                = id
+  extension (aid: AtlasId) inline def toString: String = aid
+  given CanEqual[AtlasId, AtlasId]                     = CanEqual.derived
+  given CanEqual[Option[AtlasId], Option[AtlasId]]     = CanEqual.derived
 
 final case class AtlasIndex(id: AtlasId, offset: Point, size: Point) derives CanEqual
 
 final case class Atlas(
     size: PowerOfTwo,
-    imageData: Option[raw.ImageData]
+    imageData: Option[ImageData]
 ) derives CanEqual // Yuk. Only optional so that testing is bearable.
 
 final case class AtlasLookupResult(name: AssetName, atlasId: AtlasId, atlas: Atlas, offset: Point) derives CanEqual
@@ -161,30 +164,19 @@ object TextureAtlasFunctions {
 
         }
 
-      // @tailrec
-      // def splitByTags(remaining: List[TextureDetails]): List[List[TextureDetails]] =
-      //   remaining.sortBy(_.tag.getOrElse("")) match {
-
-      //   }
-
       def sortAndGroupByTag: List[TextureDetails] => List[(String, List[TextureDetails])] =
         _.groupBy(_.tag.map(_.toString).getOrElse("")).toList.sortBy(_._1)
 
-      // val x: List[List[TextureDetails]] =
       sortAndGroupByTag(list).flatMap { case (_, tds) =>
         createBuckets(tds, Nil, Nil, Nil, max)
       }
-
-      // x
-
-      // createBuckets(list, Nil, Nil, Nil, max)
     }
 
   // @SuppressWarnings(Array("scalafix:DisableSyntax.asInstanceOf"))
   private def createCanvas(width: Int, height: Int): html.Canvas = {
     val canvas: html.Canvas = dom.document.createElement("canvas").asInstanceOf[html.Canvas]
     // Handy if you want to draw the atlas to the page...
-//    dom.document.body.appendChild(canvas)
+    // dom.document.body.appendChild(canvas)
     canvas.width = width
     canvas.height = height
 
@@ -203,8 +195,8 @@ object TextureAtlasFunctions {
 
     }
 
-    val imageData: raw.ImageData =
-      ctx.getImageData(0, 0, textureMap.size.value, textureMap.size.value).asInstanceOf[raw.ImageData]
+    val imageData: ImageData =
+      ctx.getImageData(0, 0, textureMap.size.value, textureMap.size.value).asInstanceOf[ImageData]
 
     new Atlas(textureMap.size, Option(imageData))
   }
@@ -222,18 +214,18 @@ object TextureAtlasFunctions {
           case n: AtlasQuadNode =>
             val textureMap = n.toTextureMap
 
-            val legend: HashMap[AssetName, AtlasIndex] =
-              textureMap.textureCoords.foldLeft(HashMap.empty[AssetName, AtlasIndex]) { (m, t) =>
+            val legend: scalajs.js.Dictionary[AtlasIndex] =
+              textureMap.textureCoords.foldLeft(scalajs.js.Dictionary.empty[AtlasIndex]) { (m, t) =>
                 val name = t.imageRef.name
                 val size = lookupByName(name).map(img => Point(img.data.width, img.data.height)).getOrElse(Point.zero)
-                m ++ HashMap(name -> new AtlasIndex(atlasId, t.coords, size))
+                (m ++ scalajs.js.Dictionary(name.toString -> new AtlasIndex(atlasId, t.coords, size))).toJSDictionary
               }
 
             val atlas = createAtlasFunc(textureMap, lookupByName)
 
             TextureAtlas(
-              atlases = HashMap(
-                atlasId -> atlas
+              atlases = scalajs.js.Dictionary(
+                atlasId.toString -> atlas
               ),
               legend = legend
             )

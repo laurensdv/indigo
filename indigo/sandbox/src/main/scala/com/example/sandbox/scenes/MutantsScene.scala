@@ -20,7 +20,7 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
   def eventFilters: EventFilters =
     EventFilters.Permissive
 
-  def modelLens: indigo.scenes.Lens[SandboxGameModel, SandboxGameModel] =
+  def modelLens: Lens[SandboxGameModel, SandboxGameModel] =
     Lens.keepOriginal
 
   def viewModelLens: Lens[SandboxViewModel, SandboxViewModel] =
@@ -50,7 +50,7 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
   val cloneBlank = CloneBlank(cloneId, Archetype())
 
   // A pretty mutant data set
-  val data: Array[List[UniformBlock]] =
+  val data: Array[Batch[UniformBlock]] =
     (0 until 100).toArray.map { i =>
       val d  = Dice.fromSeed(i)
       val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
@@ -60,8 +60,8 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
     }
 
   // A large mutant data set (60 fps on my machine)
-  val dataMax: Array[List[UniformBlock]] =
-    (0 until 2100).toArray.map { i =>
+  val dataMax: Array[Batch[UniformBlock]] =
+    (0 until 3500).toArray.map { i =>
       val d  = Dice.fromSeed(i)
       val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
       val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
@@ -70,18 +70,20 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
     }
 
   // Equivalent to dataMax using standard primitives - 1/7 the volume! (60 fps on my machine)
-  val gfx: List[Graphic[Material.ImageEffects]] =
-    (0 until 300).toList.map { i =>
-      val d  = Dice.fromSeed(i)
-      val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
-      val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
-      val a  = 0.1d + (0.8d * d.rollDouble)
-      SandboxAssets.blueDot
-        .moveTo(pt)
-        .withRef(Point.zero)
-        .scaleBy(sc)
-        .modifyMaterial(m => Material.ImageEffects(m.diffuse).withAlpha(a))
-    }
+  val gfx: Batch[Graphic[Material.ImageEffects]] =
+    Batch.fromList(
+      (0 until 300).toList.map { i =>
+        val d  = Dice.fromSeed(i)
+        val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
+        val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
+        val a  = 0.1d + (0.8d * d.rollDouble)
+        SandboxAssets.blueDot
+          .moveTo(pt)
+          .withRef(Point.zero)
+          .scaleBy(sc)
+          .modifyMaterial(m => Material.ImageEffects(m.diffuse).withAlpha(a))
+      }
+    )
 
   def present(
       context: FrameContext[SandboxStartupData],
@@ -96,7 +98,7 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
       ).addCloneBlanks(cloneBlank)
     )
 
-final case class Archetype() extends EntityNode with Cloneable:
+final case class Archetype() extends EntityNode[Archetype] with Cloneable:
   val position: Point                       = Point.zero
   val rotation: Radians                     = Radians.zero
   val scale: Vector2                        = Vector2.one
@@ -106,10 +108,13 @@ final case class Archetype() extends EntityNode with Cloneable:
   val size: Size                            = Size(16)
   def withDepth(newDepth: Depth): Archetype = this
 
-  def toShaderData: ShaderData =
+  lazy val toShaderData: ShaderData =
     ShaderData(Archetype.shaderId)
       .withChannel0(SandboxAssets.dots)
       .withUniformBlocks(Archetype.makeUniformBlock(position, scale, 1.0d))
+
+  val eventHandlerEnabled: Boolean                                    = false
+  def eventHandler: ((Archetype, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
 
 object Archetype:
 
@@ -131,11 +136,11 @@ object Archetype:
       AssetType.Text(fragAsset, AssetPath("assets/mutant.frag"))
     )
 
-  def makeUniformBlock(position: Point, scale: Vector2, alpha: Double): List[UniformBlock] =
-    List(
+  def makeUniformBlock(position: Point, scale: Vector2, alpha: Double): Batch[UniformBlock] =
+    Batch(
       UniformBlock(
         "MutantData",
-        List(
+        Batch(
           Uniform("MOVE_TO")  -> vec2.fromPoint(position),
           Uniform("SCALE_TO") -> vec2.fromVector2(scale),
           Uniform("ALPHA")    -> float(alpha)

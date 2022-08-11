@@ -5,6 +5,7 @@ import indigo.shared.AnimationsRegister
 import indigo.shared.BoundaryLocator
 import indigo.shared.FontRegister
 import indigo.shared.assets.AssetName
+import indigo.shared.collections.Batch
 import indigo.shared.datatypes.FontChar
 import indigo.shared.datatypes.FontInfo
 import indigo.shared.datatypes.FontKey
@@ -24,7 +25,7 @@ class TextTests extends munit.FunSuite {
 
   test("Text entities should be able to correctly calculate the bounds where all are equal") {
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 16, 16),
       FontChar("b", 16, 16, 16, 16),
       FontChar("c", 32, 16, 16, 16)
@@ -39,7 +40,7 @@ class TextTests extends munit.FunSuite {
     val t = Text("abc", 10, 20, 1, fontKey, material)
 
     assertEquals(
-      t.calculatedBounds(boundaryLocator).get,
+      boundaryLocator.findBounds(t).get,
       Rectangle(10, 20, 16 * 3, 16)
     )
 
@@ -48,7 +49,7 @@ class TextTests extends munit.FunSuite {
 
   test("Text entities should be able to correctly calculate the bounds with different sized chars") {
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 10, 10),
       FontChar("b", 30, 16, 20, 20),
       FontChar("c", 60, 16, 30, 30)
@@ -62,7 +63,7 @@ class TextTests extends munit.FunSuite {
 
     val t = Text("abc", 10, 20, 1, fontKey, material)
 
-    val actual   = t.calculatedBounds(boundaryLocator).get // 48 x 16
+    val actual   = boundaryLocator.findBounds(t).get // 48 x 16
     val expected = Rectangle(10, 20, 10 + 20 + 30, 30)     // 60 x 30
 
     assertEquals(actual, expected)
@@ -72,7 +73,7 @@ class TextTests extends munit.FunSuite {
 
   test("Text entities should be able to correctly calculate the bounds where all are equal (align center)") {
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 16, 16),
       FontChar("b", 16, 16, 16, 16),
       FontChar("c", 32, 16, 16, 16)
@@ -88,7 +89,7 @@ class TextTests extends munit.FunSuite {
 
     val width = 16 * 3
 
-    val actual   = t.calculatedBounds(boundaryLocator).get
+    val actual   = boundaryLocator.findBounds(t).get
     val expected = Rectangle(10 - (width / 2), 20, width, 16)
 
     assertEquals(actual, expected)
@@ -98,7 +99,7 @@ class TextTests extends munit.FunSuite {
 
   test("Text entities should be able to correctly calculate the bounds where all are equal (align right)") {
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 16, 16),
       FontChar("b", 16, 16, 16, 16),
       FontChar("c", 32, 16, 16, 16)
@@ -114,7 +115,7 @@ class TextTests extends munit.FunSuite {
 
     val width = 16 * 3
 
-    val actual   = t.calculatedBounds(boundaryLocator).get
+    val actual   = boundaryLocator.findBounds(t).get
     val expected = Rectangle(10 - width, 20, width, 16)
 
     assertEquals(actual, expected)
@@ -125,7 +126,7 @@ class TextTests extends munit.FunSuite {
 
   test("Text entities should be able to correctly calculate the bounds where all are equal (align right, rotated)") {
 
-    val chars = List(
+    val chars = Batch(
       FontChar("a", 0, 16, 16, 16),
       FontChar("b", 16, 16, 16, 16),
       FontChar("c", 32, 16, 16, 16)
@@ -142,7 +143,7 @@ class TextTests extends munit.FunSuite {
 
     val width = 16 * 3
 
-    val actual   = t.calculatedBounds(boundaryLocator).get
+    val actual   = boundaryLocator.findBounds(t).get
     val expected = Rectangle(0, -16, width, 16)
 
     assertEquals(actual, expected)

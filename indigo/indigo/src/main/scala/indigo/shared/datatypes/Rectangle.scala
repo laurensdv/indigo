@@ -1,5 +1,7 @@
 package indigo.shared.datatypes
 
+import indigo.shared.collections.Batch
+
 import scala.annotation.tailrec
 
 final case class Rectangle(position: Point, size: Size) derives CanEqual:
@@ -23,8 +25,11 @@ final case class Rectangle(position: Point, size: Size) derives CanEqual:
   lazy val center: Point      = Point(horizontalCenter, verticalCenter)
   lazy val halfSize: Size     = (size / 2).abs
 
-  lazy val corners: List[Point] =
-    List(topLeft, topRight, bottomRight, bottomLeft)
+  lazy private val halfWidth: Double  = (size.width * 0.5).abs
+  lazy private val halfHeight: Double = (size.height * 0.5).abs
+
+  lazy val corners: Batch[Point] =
+    Batch(topLeft, topRight, bottomRight, bottomLeft)
 
   def contains(pt: Point): Boolean =
     pt.x >= left && pt.x < right && pt.y >= top && pt.y < bottom
@@ -93,34 +98,49 @@ object Rectangle:
   def apply(size: Size): Rectangle =
     Rectangle(Point.zero, size)
 
-  def fromTwoPoints(pt1: Point, pt2: Point): Rectangle = {
+  def fromPoints(pt1: Point, pt2: Point): Rectangle =
     val x = Math.min(pt1.x, pt2.x)
     val y = Math.min(pt1.y, pt2.y)
     val w = Math.max(pt1.x, pt2.x) - x
     val h = Math.max(pt1.y, pt2.y) - y
 
     Rectangle(x, y, w, h)
-  }
 
-  def fromPointCloud(points: List[Point]): Rectangle = {
+  def fromPoints(pt1: Point, pt2: Point, pt3: Point): Rectangle =
+    val x = Math.min(Math.min(pt1.x, pt2.x), pt3.x)
+    val y = Math.min(Math.min(pt1.y, pt2.y), pt3.y)
+    val w = Math.max(Math.max(pt1.x, pt2.x), pt3.x) - x
+    val h = Math.max(Math.max(pt1.y, pt2.y), pt3.y) - y
+
+    Rectangle(x, y, w, h)
+
+  def fromPoints(pt1: Point, pt2: Point, pt3: Point, pt4: Point): Rectangle =
+    val x = Math.min(Math.min(Math.min(pt1.x, pt2.x), pt3.x), pt4.x)
+    val y = Math.min(Math.min(Math.min(pt1.y, pt2.y), pt3.y), pt4.y)
+    val w = Math.max(Math.max(Math.max(pt1.x, pt2.x), pt3.x), pt4.x) - x
+    val h = Math.max(Math.max(Math.max(pt1.y, pt2.y), pt3.y), pt4.y) - y
+
+    Rectangle(x, y, w, h)
+
+  @deprecated("Use `fromPoints(pt1, pt2)` instead")
+  def fromTwoPoints(pt1: Point, pt2: Point): Rectangle =
+    fromPoints(pt1, pt2)
+
+  def fromPointCloud(points: Batch[Point]): Rectangle =
     @tailrec
-    def rec(remaining: List[Point], left: Int, top: Int, right: Int, bottom: Int): Rectangle =
-      remaining match {
-        case Nil =>
-          Rectangle(left, top, right - left, bottom - top)
-
-        case p :: ps =>
-          rec(
-            ps,
-            Math.min(left, p.x),
-            Math.min(top, p.y),
-            Math.max(right, p.x),
-            Math.max(bottom, p.y)
-          )
-      }
+    def rec(remaining: Batch[Point], left: Int, top: Int, right: Int, bottom: Int): Rectangle =
+      if remaining.isEmpty then Rectangle(left, top, right - left, bottom - top)
+      else
+        val p = remaining.head
+        rec(
+          remaining.tail,
+          Math.min(left, p.x),
+          Math.min(top, p.y),
+          Math.max(right, p.x),
+          Math.max(bottom, p.y)
+        )
 
     rec(points, Int.MaxValue, Int.MaxValue, Int.MinValue, Int.MinValue)
-  }
 
   def expand(rectangle: Rectangle, amount: Int): Rectangle =
     Rectangle(
@@ -153,5 +173,5 @@ object Rectangle:
     b.x >= a.x && b.y >= a.y && (b.width + (b.x - a.x)) <= a.width && (b.height + (b.y - a.y)) <= a.height
 
   def overlapping(a: Rectangle, b: Rectangle): Boolean =
-    Math.abs(a.center.x - b.center.x) < a.halfSize.width + b.halfSize.width &&
-      Math.abs(a.center.y - b.center.y) < a.halfSize.height + b.halfSize.height
+    Math.abs(a.center.x - b.center.x) < a.halfWidth + b.halfWidth &&
+      Math.abs(a.center.y - b.center.y) < a.halfHeight + b.halfHeight
