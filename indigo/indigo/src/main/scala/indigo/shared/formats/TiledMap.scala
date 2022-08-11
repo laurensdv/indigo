@@ -304,11 +304,11 @@ object TiledMap {
                   ct.withStaticBatchKey(BindingKey("tiles_" + layerIndex.toString + i.toString))
                 }
 
-            cloneBatches ++ cloneTiles
+            Group(cloneBatches ++ cloneTiles)
             //cloneTiles
         }
 
-        (tileMapCloneBlanks ++ animationCloneBlanks, Group(layers.flatten))
+        (tileMapCloneBlanks ++ animationCloneBlanks, Group(layers))
         }
 
   private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
