@@ -6,6 +6,7 @@ import indigo.shared.animation.Frame
 import indigo.shared.assets.AssetName
 import indigo.shared.collections.Batch
 import indigo.shared.collections.NonEmptyList
+import indigo.shared.datatypes.BindingKey
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Radians
 import indigo.shared.datatypes.Rectangle
