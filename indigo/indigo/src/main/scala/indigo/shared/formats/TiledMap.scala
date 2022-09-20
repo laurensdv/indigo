@@ -122,16 +122,20 @@ object TiledLayer {
     new TiledLayer(name, data, x, y, width, height, opacity, `type`, visible, Some(List[TiledMapObject]()))
 }
 
+final case class TiledMapObjectPolygonPoint(x: Double, y: Double)
+
 final case class TiledMapObject(
-  height: Double,
-  id: Int,
-  rotation: Double,
-  `type`: Option[String],
-  visible: Boolean,
-  width: Double,
-  x: Double,
-  y: Double
+    id: Int,
+    rotation: Double,
+    `type`: Option[String],
+    visible: Boolean,
+    height: Double,
+    width: Double,
+    x: Double,
+    y: Double,
+    polygon: Option[List[TiledMapObjectPolygonPoint]]
 )
+
 
 final case class TileSet(
                           columns: Option[Int],
