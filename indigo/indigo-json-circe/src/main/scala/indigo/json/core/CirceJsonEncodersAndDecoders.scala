@@ -11,7 +11,7 @@ import indigo.shared.formats.TiledFrame
 import indigo.shared.formats.TiledLayer
 import indigo.shared.formats.TiledMap
 import indigo.shared.formats.TiledMapObject
-import indigo.shared.formats.TiledMapObjectPoint
+import indigo.shared.formats.TiledMapObjectPolygonPoint
 import indigo.shared.formats.TiledTerrain
 import indigo.shared.formats.TiledTerrainCorner
 import io.circe.Decoder
@@ -149,13 +149,13 @@ object CirceJsonEncodersAndDecoders {
         )
     }
 
-  implicit val decodeTiledMapObjectPoint: Decoder[TiledMapObjectPoint] =
-    new Decoder[TiledMapObjectPoint] {
-      final def apply(c: HCursor): Decoder.Reuslt[TiledMapObjectPoint] =
+  implicit val decodeTiledMapObjectPolygonPoint: Decoder[TiledMapObjectPolygonPoint] =
+    new Decoder[TiledMapObjectPolygonPoint] {
+      final def apply(c: HCursor): Decoder.Result[TiledMapObjectPolygonPoint] =
         for {
           x       <- c.downField("x").as[Double]
           y       <- c.downField("y").as[Double]
-        } yield TiledMapObjectPoint(
+        } yield TiledMapObjectPolygonPoint(
           x,
           y
         )
@@ -173,7 +173,7 @@ object CirceJsonEncodersAndDecoders {
           width   <- c.downField("width").as[Double]
           x       <- c.downField("x").as[Double]
           y       <- c.downField("y").as[Double]
-          polygon <- c.downField("polygon").as[Option[List[TiledMapObjectPoint]]]
+          polygon <- c.downField("polygon").as[Option[List[TiledMapObjectPolygonPoint]]]
         } yield TiledMapObject(
           height,
           id,
@@ -182,7 +182,8 @@ object CirceJsonEncodersAndDecoders {
           visible,
           width,
           x,
-          y
+          y,
+          polygon
         )
     }
 
