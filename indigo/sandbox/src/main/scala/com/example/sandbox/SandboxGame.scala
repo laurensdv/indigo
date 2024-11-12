@@ -1,32 +1,42 @@
 package com.example.sandbox
 
 import com.example.sandbox.scenes.Archetype
+import com.example.sandbox.scenes.BoundingCircleScene
 import com.example.sandbox.scenes.BoundsScene
 import com.example.sandbox.scenes.BoxesScene
 import com.example.sandbox.scenes.CameraScene
+import com.example.sandbox.scenes.CameraWithCloneTilesScene
+import com.example.sandbox.scenes.CaptureScreenScene
+import com.example.sandbox.scenes.CaptureScreenScene.CaptureScreenSceneViewModel
 import com.example.sandbox.scenes.ClipScene
 import com.example.sandbox.scenes.ConfettiScene
 import com.example.sandbox.scenes.CratesScene
 import com.example.sandbox.scenes.LegacyEffectsScene
 import com.example.sandbox.scenes.LightsScene
+import com.example.sandbox.scenes.LineReflectionScene
 import com.example.sandbox.scenes.ManyEventHandlers
 import com.example.sandbox.scenes.MutantsScene
 import com.example.sandbox.scenes.OriginalScene
+import com.example.sandbox.scenes.PathFindingScene
+import com.example.sandbox.scenes.PointersScene
 import com.example.sandbox.scenes.RefractionScene
 import com.example.sandbox.scenes.Shaders
 import com.example.sandbox.scenes.ShapesScene
 import com.example.sandbox.scenes.TextBoxScene
 import com.example.sandbox.scenes.TextScene
 import com.example.sandbox.scenes.TextureTileScene
+import com.example.sandbox.scenes.TimelineScene
+import com.example.sandbox.scenes.UVShaders
 import com.example.sandbox.scenes.UiScene
+import com.example.sandbox.scenes.UiSceneViewModel
+import com.example.sandbox.scenes.UltravioletScene
+import example.TestFont
 import indigo.*
 import indigo.json.Json
 import indigo.scenes._
 import indigo.syntax.*
 import indigoextras.effectmaterials.LegacyEffects
 import indigoextras.effectmaterials.Refraction
-import indigoextras.geometry.Polygon
-import indigoextras.geometry.Vertex
 import indigoextras.subsystems.FPSCounter
 import indigoextras.ui.*
 
@@ -42,7 +52,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   val viewportHeight: Int     = gameHeight * magnificationLevel // 256
 
   def initialScene(bootData: SandboxBootData): Option[SceneName] =
-    Some(LightsScene.name)
+    Some(UiScene.name)
 
   def scenes(bootData: SandboxBootData): NonEmptyList[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
     NonEmptyList(
@@ -62,12 +72,20 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       ClipScene,
       TextScene,
       BoxesScene,
-      ManyEventHandlers
+      ManyEventHandlers,
+      TimelineScene,
+      UltravioletScene,
+      PointersScene,
+      BoundingCircleScene,
+      LineReflectionScene,
+      CameraWithCloneTilesScene,
+      PathFindingScene,
+      CaptureScreenScene
     )
 
   val eventFilters: EventFilters = EventFilters.Permissive
 
-  def boot(flags: Map[String, String]): Outcome[BootResult[SandboxBootData]] = {
+  def boot(flags: Map[String, String]): Outcome[BootResult[SandboxBootData, SandboxGameModel]] = {
     val gameViewport =
       (flags.get("width"), flags.get("height")) match {
         case (Some(w), Some(h)) =>
@@ -89,21 +107,24 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
         SandboxAssets.assets ++
           Shaders.assets ++
           Archetype.assets
-      ).withFonts(Fonts.fontInfo)
-        .withSubSystems(
-          FPSCounter(
-            Point(5, 165),
-            BindingKey("fps counter")
-          )
+      ).withFonts(
+        Fonts.fontInfo,
+        TestFont.fontInfo
+      ).withSubSystems(
+        FPSCounter[SandboxGameModel](
+          Point(5, 165),
+          BindingKey("fps counter")
         )
-        .withShaders(
-          Shaders.circle,
-          Shaders.external,
-          Shaders.sea,
-          LegacyEffects.entityShader,
-          Archetype.shader
-        )
-        .addShaders(Refraction.shaders)
+      ).withShaders(
+        Shaders.circle,
+        Shaders.external,
+        Shaders.sea,
+        LegacyEffects.entityShader,
+        Archetype.shader,
+        UVShaders.circle,
+        UVShaders.voronoi,
+        UVShaders.redBlend
+      ).addShaders(Refraction.shaders)
     )
   }
 
@@ -134,7 +155,8 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
                 .withMaterial(SandboxAssets.dudeMaterial),
               clips
             ),
-            screenCenter
+            screenCenter,
+            bootData.gameViewport
           )
         )
         .addAnimations(spriteAndAnimations.animations)
@@ -160,38 +182,14 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
           .withCrop(188, 78, 14, 23)
       )
 
-    val buttonAssets: ButtonAssets =
-      ButtonAssets(
-        up = Graphic(0, 0, 16, 16, 2, Material.Bitmap(AssetName("dots"))).withCrop(0, 0, 16, 16),
-        over = Graphic(0, 0, 16, 16, 2, Material.Bitmap(AssetName("dots"))).withCrop(16, 0, 16, 16),
-        down = Graphic(0, 0, 16, 16, 2, Material.Bitmap(AssetName("dots"))).withCrop(16, 16, 16, 16)
-      )
-
     Outcome(
       SandboxViewModel(
         Point.zero,
         InputField("single", assets).withKey(BindingKey("single")).makeSingleLine,
         InputField("multi\nline", assets).withKey(BindingKey("multi")).makeMultiLine.moveTo(5, 5),
         true,
-        HitArea(Polygon.Closed(UiScene.points.map(Vertex.fromPoint)))
-          .moveTo(175, 10)
-          .withUpActions(Log("Up!"))
-          .withClickActions(Log("Click!"))
-          .withDownActions(Log("Down!"))
-          .withHoverOverActions(Log("Over!"))
-          .withHoverOutActions(Log("Out!"))
-          .withHoldDownActions(Log("Hold down!")),
-        Button(
-          buttonAssets = buttonAssets,
-          bounds = Rectangle(10, 10, 16, 16),
-          depth = Depth(2)
-        )
-          .withUpActions(Log("Up!"))
-          .withClickActions(Log("Click!"))
-          .withDownActions(Log("Down!"))
-          .withHoverOverActions(Log("Over!"))
-          .withHoverOutActions(Log("Out!"))
-          .withHoldDownActions(Log("Hold down!"))
+        UiSceneViewModel.initial,
+        CaptureScreenSceneViewModel(None, None, Point.zero)
       )
     )
   }
@@ -245,11 +243,19 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
 
     case KeyboardEvent.KeyDown(Key.PAGE_UP) =>
       Outcome(viewModel)
-        .addGlobalEvents(SceneEvent.Next)
+        .addGlobalEvents(SceneEvent.LoopNext)
 
     case KeyboardEvent.KeyDown(Key.PAGE_DOWN) =>
       Outcome(viewModel)
-        .addGlobalEvents(SceneEvent.Previous)
+        .addGlobalEvents(SceneEvent.LoopPrevious)
+
+    case KeyboardEvent.KeyDown(Key.HOME) =>
+      Outcome(viewModel)
+        .addGlobalEvents(SceneEvent.First)
+
+    case KeyboardEvent.KeyDown(Key.END) =>
+      Outcome(viewModel)
+        .addGlobalEvents(SceneEvent.Last)
 
     case _ =>
       Outcome(viewModel)
@@ -262,9 +268,10 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   ): Outcome[SceneUpdateFragment] =
     Outcome(
       SceneUpdateFragment(
-        Layer("fps counter".bindingKey)
-          .withDepth(200.depth)
-          .withCamera(Camera.default)
+        "fps counter".bindingKey ->
+          Layer.empty
+            .withDepth(200.depth)
+            .withCamera(Camera.default)
       )
     )
 
@@ -274,19 +281,14 @@ final case class Dude(
     clips: Map[CycleLabel, Clip[Material.Bitmap]]
 )
 final case class SandboxBootData(message: String, gameViewport: GameViewport)
-final case class SandboxStartupData(dude: Dude, viewportCenter: Point)
+final case class SandboxStartupData(dude: Dude, viewportCenter: Point, gameViewport: GameViewport)
 final case class SandboxViewModel(
     offset: Point,
     single: InputField,
     multi: InputField,
     useLightingLayer: Boolean,
-    hitArea: HitArea,
-    button: Button
-):
-  def update(mouse: Mouse): Outcome[SandboxViewModel] =
-    for {
-      bn <- button.update(mouse)
-      ha <- hitArea.update(mouse)
-    } yield this.copy(hitArea = ha, button = bn)
+    uiScene: UiSceneViewModel,
+    captureScreenScene: CaptureScreenSceneViewModel
+)
 
 final case class Log(message: String) extends GlobalEvent

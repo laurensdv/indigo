@@ -12,6 +12,7 @@ import indigo.shared.datatypes.Rectangle
 import indigo.shared.datatypes.Size
 import indigo.shared.datatypes.Stroke
 import indigo.shared.datatypes.Vector2
+import indigo.shared.datatypes.Circle as C
 import indigo.shared.events.GlobalEvent
 import indigo.shared.materials.LightingModel
 import indigo.shared.materials.LightingModel.Lit
@@ -22,12 +23,13 @@ import indigo.shared.shader.ShaderPrimitive._
 import indigo.shared.shader.StandardShaders
 import indigo.shared.shader.Uniform
 import indigo.shared.shader.UniformBlock
+import indigo.shared.shader.UniformBlockName
 
 /** Parent type for all Shapes, which are visible elements draw mathematically that require no textures. Shapes are
   * quite versitile and support different fills and stroke effects, even lighting. Due to the way strokes around shapes
   * are drawn, the corners are always rounded.
   */
-sealed trait Shape[T <: Shape[_]] extends RenderNode[T] with Cloneable with SpatialModifiers[T] derives CanEqual:
+sealed trait Shape[T <: Shape[?]] extends RenderNode[T] with Cloneable with SpatialModifiers[T] derives CanEqual:
   def moveTo(pt: Point): T
   def moveTo(x: Int, y: Int): T
   def withPosition(newPosition: Point): T
@@ -87,9 +89,13 @@ object Shape:
 
     def withFill(newFill: Fill): Box =
       this.copy(fill = newFill)
+    def modifyFill(modifier: Fill => Fill): Box =
+      this.copy(fill = modifier(fill))
 
     def withStroke(newStroke: Stroke): Box =
       this.copy(stroke = newStroke)
+    def modifyStroke(modifier: Stroke => Stroke): Box =
+      this.copy(stroke = modifier(stroke))
 
     def withStrokeColor(newStrokeColor: RGBA): Box =
       this.copy(stroke = stroke.withColor(newStrokeColor))
@@ -200,8 +206,7 @@ object Shape:
   /** Draws a coloured circle from it's center outwards.
     */
   final case class Circle(
-      center: Point,
-      radius: Int,
+      circle: C,
       fill: Fill,
       stroke: Stroke,
       lighting: LightingModel,
@@ -216,15 +221,22 @@ object Shape:
   ) extends Shape[Circle] {
 
     lazy val position: Point =
-      center - radius - (stroke.width / 2)
+      circle.center - circle.radius - (stroke.width / 2)
     lazy val size: Size =
-      Size(radius * 2) + stroke.width
+      Size(circle.radius * 2) + stroke.width
 
+    @deprecated("Use `withFill` instead")
     def withFillColor(newFill: Fill): Circle =
       this.copy(fill = newFill)
+    def withFill(newFill: Fill): Circle =
+      this.copy(fill = newFill)
+    def modifyFill(modifier: Fill => Fill): Circle =
+      this.copy(fill = modifier(fill))
 
     def withStroke(newStroke: Stroke): Circle =
       this.copy(stroke = newStroke)
+    def modifyStroke(modifier: Stroke => Stroke): Circle =
+      this.copy(stroke = modifier(stroke))
 
     def withStrokeColor(newStrokeColor: RGBA): Circle =
       this.copy(stroke = stroke.withColor(newStrokeColor))
@@ -233,11 +245,11 @@ object Shape:
       this.copy(stroke = stroke.withWidth(newWidth))
 
     def withRadius(newRadius: Int): Circle =
-      this.copy(radius = newRadius)
+      this.copy(circle = circle.withRadius(newRadius))
     def resizeTo(newRadius: Int): Circle =
       withRadius(newRadius)
     def resizeBy(amount: Int): Circle =
-      withRadius(radius + amount)
+      withRadius(circle.radius + amount)
 
     def withLighting(newLighting: LightingModel): Circle =
       this.copy(lighting = newLighting)
@@ -245,14 +257,14 @@ object Shape:
       this.copy(lighting = modifier(lighting))
 
     def moveTo(pt: Point): Circle =
-      this.copy(center = pt)
+      this.copy(circle = circle.moveTo(pt))
     def moveTo(x: Int, y: Int): Circle =
       moveTo(Point(x, y))
     def withPosition(newPosition: Point): Circle =
       moveTo(newPosition)
 
     def moveBy(pt: Point): Circle =
-      this.copy(center = center + pt)
+      this.copy(circle = circle.moveBy(pt))
     def moveBy(x: Int, y: Int): Circle =
       moveBy(Point(x, y))
 
@@ -271,7 +283,7 @@ object Shape:
       this.copy(scale = newScale)
 
     def transformTo(newPosition: Point, newRotation: Radians, newScale: Vector2): Circle =
-      this.copy(center = newPosition, rotation = newRotation, scale = newScale)
+      this.copy(circle = circle.moveTo(newPosition), rotation = newRotation, scale = newScale)
 
     def transformBy(positionDiff: Point, rotationDiff: Radians, scaleDiff: Vector2): Circle =
       transformTo(position + positionDiff, rotation + rotationDiff, scale * scaleDiff)
@@ -308,8 +320,23 @@ object Shape:
 
     def apply(center: Point, radius: Int, fill: Fill): Circle =
       Circle(
-        center,
-        radius,
+        C(center, radius),
+        fill,
+        Stroke.None,
+        LightingModel.Unlit,
+        false,
+        Function.const(None),
+        Radians.zero,
+        Vector2.one,
+        Depth.zero,
+        Point.zero,
+        Flip.default,
+        None
+      )
+
+    def apply(circle: C, fill: Fill): Circle =
+      Circle(
+        circle,
         fill,
         Stroke.None,
         LightingModel.Unlit,
@@ -325,8 +352,23 @@ object Shape:
 
     def apply(center: Point, radius: Int, fill: Fill, stroke: Stroke): Circle =
       Circle(
-        center,
-        radius,
+        C(center, radius),
+        fill,
+        stroke,
+        LightingModel.Unlit,
+        false,
+        Function.const(None),
+        Radians.zero,
+        Vector2.one,
+        Depth.zero,
+        Point.zero,
+        Flip.default,
+        None
+      )
+
+    def apply(circle: C, fill: Fill, stroke: Stroke): Circle =
+      Circle(
+        circle,
         fill,
         stroke,
         LightingModel.Unlit,
@@ -372,6 +414,8 @@ object Shape:
 
     def withStroke(newStroke: Stroke): Line =
       this.copy(stroke = newStroke)
+    def modifyStroke(modifier: Stroke => Stroke): Line =
+      this.copy(stroke = modifier(stroke))
 
     def withStrokeColor(newStrokeColor: RGBA): Line =
       this.copy(stroke = stroke.withColor(newStrokeColor))
@@ -508,11 +552,18 @@ object Shape:
     lazy val size: Size =
       verticesBounds.size
 
+    @deprecated("Use `withFill` instead")
     def withFillColor(newFill: Fill): Polygon =
       this.copy(fill = newFill)
+    def withFill(newFill: Fill): Polygon =
+      this.copy(fill = newFill)
+    def modifyFill(modifier: Fill => Fill): Polygon =
+      this.copy(fill = modifier(fill))
 
     def withStroke(newStroke: Stroke): Polygon =
       this.copy(stroke = newStroke)
+    def modifyStroke(modifier: Stroke => Stroke): Polygon =
+      this.copy(stroke = modifier(stroke))
 
     def withStrokeColor(newStrokeColor: RGBA): Polygon =
       this.copy(stroke = stroke.withColor(newStrokeColor))
@@ -647,7 +698,7 @@ object Shape:
       case _: Fill.RadialGradient => 2.0f
     }
 
-  def toShaderData(shape: Shape[_], bounds: Rectangle): ShaderData =
+  def toShaderData(shape: Shape[?], bounds: Rectangle): ShaderData =
     shape match
       case s: Shape.Box =>
         // A terrible fix, but it works. In cases where we have a perfect aspect
@@ -664,7 +715,7 @@ object Shape:
 
         val shapeUniformBlock =
           UniformBlock(
-            "IndigoShapeData",
+            UniformBlockName("IndigoShapeData"),
             // ASPECT_RATIO (vec2), STROKE_WIDTH (float), FILL_TYPE (float), STROKE_COLOR (vec4)
             Batch(
               Uniform("Shape_DATA") -> rawJSArray(
@@ -696,7 +747,7 @@ object Shape:
       case s: Shape.Circle =>
         val shapeUniformBlock =
           UniformBlock(
-            "IndigoShapeData",
+            UniformBlockName("IndigoShapeData"),
             // STROKE_WIDTH (float), FILL_TYPE (float), STROKE_COLOR (vec4)
             Batch(
               Uniform("Shape_DATA") -> rawJSArray(
@@ -738,7 +789,7 @@ object Shape:
 
         val shapeUniformBlock =
           UniformBlock(
-            "IndigoShapeData",
+            UniformBlockName("IndigoShapeData"),
             // STROKE_WIDTH (float), STROKE_COLOR (vec4), START (vec2), END (vec2)
             Batch(
               Uniform("Shape_DATA") -> rawJSArray(
@@ -772,17 +823,23 @@ object Shape:
         }
 
       case s: Shape.Polygon =>
+        // A terrible fix, but it works. In cases where we have a perfect aspect
+        // division, like 1.0 to 0.5, the resulting SDF is a jagged line. So by
+        // crudly adding a very small number, we avoid perfect divisions and get
+        // nice straight edges...
+        val avoidPerfection = 0.00001
+
         val verts: Batch[vec2] =
           s.vertices.map { v =>
             vec2(
-              (v.x - bounds.x).toFloat,
-              (v.y - bounds.y).toFloat
+              (v.x - bounds.x).toFloat + avoidPerfection,
+              (v.y - bounds.y).toFloat + avoidPerfection
             )
           }
 
         val shapeUniformBlock =
           UniformBlock(
-            "IndigoShapeData",
+            UniformBlockName("IndigoShapeData"),
             // STROKE_WIDTH (float), FILL_TYPE (float), COUNT (float), STROKE_COLOR (vec4)
             Batch(
               Uniform("Shape_DATA") -> rawJSArray(

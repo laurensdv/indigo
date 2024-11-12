@@ -5,8 +5,9 @@ import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
+import indigo.*
+import indigo.scenes.*
+import indigo.syntax.*
 
 object BoundsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
@@ -25,24 +26,24 @@ object BoundsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
   def name: SceneName =
     SceneName("bounds")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel
   ): GlobalEvent => Outcome[SandboxGameModel] =
     _ => Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): GlobalEvent => Outcome[SandboxViewModel] =
     _ => Outcome(viewModel)
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): Outcome[SceneUpdateFragment] =
@@ -94,6 +95,7 @@ object BoundsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
         .scaleBy(2, 2)
         .moveTo(50, 120)
         .rotateTo(Radians.fromSeconds(context.running * speed))
+        .withBindingKey("Sprite bounds anim".bindingKey)
 
     val group: Group =
       Group(

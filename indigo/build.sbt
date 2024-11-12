@@ -1,22 +1,16 @@
+import indigoplugin._
 import scala.language.postfixOps
 import Misc._
 
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val scala3Version = "3.2.0"
+val scala3Version = "3.4.1"
 
 ThisBuild / versionScheme                                  := Some("early-semver")
 ThisBuild / scalafixDependencies += "com.github.liancheng" %% "organize-imports" % "0.6.0"
 ThisBuild / scalaVersion                                   := scala3Version
 
 lazy val indigoVersion = IndigoVersion.getVersion
-// For the docs site
-lazy val indigoDocsVersion  = "0.13.0"
-lazy val tyrianDocsVersion  = "0.5.1"
-lazy val scalaJsDocsVersion = "1.10.0"
-lazy val scalaDocsVersion   = "3.1.2"
-lazy val sbtDocsVersion     = "1.6.2"
-lazy val millDocsVersion    = "0.10.4"
 
 lazy val commonSettings: Seq[sbt.Def.Setting[_]] = Seq(
   version            := indigoVersion,
@@ -60,19 +54,46 @@ lazy val publishSettings = {
 // Root
 lazy val indigoProject =
   (project in file("."))
-    .enablePlugins(ScalaJSPlugin, ScalaUnidocPlugin)
+    .enablePlugins(ScalaJSPlugin)
     .settings(
       neverPublish,
       commonSettings,
       name        := "IndigoProject",
-      code        := codeTaskDefinition,
       usefulTasks := customTasksAliases,
-      presentationSettings(version),
-      ScalaUnidoc / unidoc / unidocProjectFilter := inAnyProject -- inProjects(sandbox, perf, docs)
+      presentationSettings(version)
     )
-    .aggregate(indigo, indigoExtras, indigoJsonCirce, sandbox, perf, docs, benchmarks)
+    .aggregate(
+      indigo,
+      indigoExtras,
+      indigoJsonCirce,
+      tyrianIndigoBridge,
+      sandbox,
+      perf,
+      shader,
+      physics,
+      benchmarks,
+      tyrianSandbox
+    )
 
 // Testing
+
+lazy val tyrianSandbox =
+  (project in file("tyrian-sandbox"))
+    .enablePlugins(ScalaJSPlugin)
+    .dependsOn(indigo)
+    .dependsOn(indigoExtras)
+    .dependsOn(indigoJsonCirce)
+    .dependsOn(tyrianIndigoBridge)
+    .settings(
+      neverPublish,
+      commonSettings,
+      name := "tyrian-sandbox",
+      scalaJSLinkerConfig ~= { _.withModuleKind(ModuleKind.CommonJSModule) },
+      libraryDependencies ++= Seq(
+        "io.indigoengine" %%% "tyrian-io" % Dependencies.Versions.tyrianVersion
+      ),
+      scalacOptions -= "-language:strictEquality"
+    )
 
 lazy val sandbox =
   project
@@ -82,21 +103,29 @@ lazy val sandbox =
     .settings(
       neverPublish,
       commonSettings,
-      name                := "sandbox",
-      showCursor          := true,
-      title               := "Sandbox",
-      gameAssetsDirectory := "assets",
-      disableFrameRateLimit := (sys.props("os.name").toLowerCase match {
-        case x if x contains "windows" => false
-        case _                         => true
-      }),
-      electronInstall := (sys.props("os.name").toLowerCase match {
-        case x if x.contains("windows") || x.contains("linux") =>
-          indigoplugin.ElectronInstall.Version("^18.0.0")
-
-        case _ =>
-          indigoplugin.ElectronInstall.Global
-      })
+      name := "sandbox",
+      indigoOptions :=
+        IndigoOptions.defaults
+          .withTitle("Sandbox")
+          .withBackgroundColor("black")
+          .withAssetDirectory("sandbox/assets/"),
+      Compile / sourceGenerators += Def.task {
+        IndigoGenerators("example")
+          .embedFont(
+            "TestFont",
+            os.pwd / "sandbox" / "assets" / "fonts" / "pixelated.ttf",
+            FontOptions(
+              "test font",
+              32,
+              CharSet.fromUniqueString("The quick brown fox\njumps over the\nlazy dog.")
+            )
+              .withColor(RGB.White)
+              .withMaxCharactersPerLine(16)
+              .noAntiAliasing,
+            os.pwd / "sandbox" / "assets" / "generated"
+          )
+          .toSourceFiles((Compile / sourceManaged).value)
+      }
     )
 
 lazy val perf =
@@ -107,23 +136,56 @@ lazy val perf =
     .settings(
       neverPublish,
       commonSettings,
-      name                := "indigo-perf",
-      showCursor          := true,
-      title               := "Perf",
-      gameAssetsDirectory := "assets",
-      windowStartWidth    := 800,
-      windowStartHeight   := 600,
-      disableFrameRateLimit := (sys.props("os.name").toLowerCase match {
-        case x if x contains "windows" => false
-        case _                         => true
-      }),
-      electronInstall := (sys.props("os.name").toLowerCase match {
-        case x if x.contains("windows") || x.contains("linux") =>
-          indigoplugin.ElectronInstall.Version("^18.0.0")
+      name := "indigo-perf",
+      indigoOptions :=
+        IndigoOptions.defaults
+          .withTitle("Perf")
+          .withBackgroundColor("black")
+          .withWindowWidth(800)
+          .withWindowHeight(600)
+          .withAssetDirectory("perf/assets/")
+    )
 
-        case _ =>
-          indigoplugin.ElectronInstall.Global
-      })
+lazy val shader =
+  project
+    .enablePlugins(ScalaJSPlugin, SbtIndigo)
+    .dependsOn(indigoExtras)
+    .dependsOn(indigoJsonCirce)
+    .settings(
+      neverPublish,
+      commonSettings,
+      name := "indigo-shader",
+      indigoOptions :=
+        IndigoOptions.defaults
+          .withTitle("Shader")
+          .withBackgroundColor("black")
+          .withWindowWidth(450)
+          .withWindowHeight(450)
+          .withAssetDirectory("shader/assets/")
+    )
+
+lazy val physicsOptions =
+  IndigoOptions.defaults
+    .withTitle("Physics")
+    .withBackgroundColor("black")
+    .withAssetDirectory("physics/assets/")
+    .withWindowSize(800, 600)
+
+lazy val physics =
+  project
+    .enablePlugins(ScalaJSPlugin, SbtIndigo)
+    .dependsOn(indigoExtras)
+    .dependsOn(indigoJsonCirce)
+    .settings(
+      neverPublish,
+      commonSettings,
+      name          := "physics",
+      indigoOptions := physicsOptions,
+      Compile / sourceGenerators += Def.task {
+        IndigoGenerators("example")
+          .generateConfig("Config", physicsOptions)
+          .toSourceFiles((Compile / sourceManaged).value)
+      }
     )
 
 // Indigo Extensions
@@ -135,8 +197,20 @@ lazy val indigoExtras =
     .settings(
       name := "indigo-extras",
       libraryDependencies ++= Dependencies.indigoExtras.value,
+      commonSettings ++ publishSettings
+    )
+
+lazy val tyrianIndigoBridge =
+  project
+    .in(file("tyrian-indigo-bridge"))
+    .enablePlugins(ScalaJSPlugin)
+    .dependsOn(indigo)
+    .settings(
+      name := "tyrian-indigo-bridge",
       commonSettings ++ publishSettings,
-      Compile / sourceGenerators += shaderLibGen("ExtrasShaderLibrary", "indigoextras.shaders").taskValue
+      libraryDependencies ++= Seq(
+        "io.indigoengine" %%% "tyrian-io" % Dependencies.Versions.tyrianVersion
+      )
     )
 
 // Indigo
@@ -147,8 +221,6 @@ lazy val indigo =
     .settings(
       name := "indigo",
       commonSettings ++ publishSettings,
-      Compile / sourceGenerators += shadersGen.taskValue,
-      Compile / sourceGenerators += shaderLibGen("ShaderLibrary", "indigo.shaders").taskValue,
       libraryDependencies ++= Dependencies.indigo.value
     )
 
@@ -180,59 +252,9 @@ lazy val benchmarks =
       jsDependencies ++= Dependencies.benchmarkJs.value
     )
 
-lazy val jsdocs = project
-  .settings(
-    neverPublish,
-    organization := "io.indigoengine",
-    libraryDependencies ++= Dependencies.jsDocs.value,
-    libraryDependencies ++= Seq(
-      "io.indigoengine" %%% "indigo-json-circe"    % indigoDocsVersion,
-      "io.indigoengine" %%% "indigo"               % indigoDocsVersion,
-      "io.indigoengine" %%% "indigo-extras"        % indigoDocsVersion,
-      "io.indigoengine" %%% "tyrian-io"            % tyrianDocsVersion,
-      "io.indigoengine" %%% "tyrian-indigo-bridge" % tyrianDocsVersion
-    )
-  )
-  .enablePlugins(ScalaJSPlugin)
-
-lazy val docs = project
-  .in(file("indigo-docs"))
-  .enablePlugins(MdocPlugin)
-  .settings(
-    neverPublish,
-    organization       := "io.indigoengine",
-    mdocJS             := Some(jsdocs),
-    mdocExtraArguments := List("--no-link-hygiene"),
-    mdocVariables := Map(
-      "VERSION"         -> indigoDocsVersion,
-      "SCALAJS_VERSION" -> scalaJsDocsVersion,
-      "SCALA_VERSION"   -> scalaDocsVersion,
-      "SBT_VERSION"     -> sbtDocsVersion,
-      "MILL_VERSION"    -> millDocsVersion
-    )
-  )
-  .settings(
-    run / fork := true
-  )
-
 addCommandAlias(
-  "gendocs",
+  "tyrianSandboxBuild",
   List(
-    "cleanAll",
-    "unidoc",   // Docs in ./target/scala-3.2.0/unidoc/
-    "docs/mdoc" // Docs in ./indigo/indigo-docs/target/mdoc
-  ).mkString(";", ";", "")
+    "tyrianSandbox/fastLinkJS"
+  ).mkString("", ";", ";")
 )
-
-def shadersGen =
-  shadersCodeGen("shaders", files => ShaderGen.makeShader(files, _))
-
-def shaderLibGen(module: String, path: String) =
-  shadersCodeGen("shader-library", files => ShaderLibraryGen.makeShaderLibrary(module, path, files, _))
-
-def shadersCodeGen(dir: String, makeFiles: Set[File] => File => Seq[File]) = Def.task {
-  val cachedFun = FileFunction.cached(streams.value.cacheDirectory / dir) { (files: Set[File]) =>
-    makeFiles(files)((Compile / sourceManaged).value).toSet
-  }
-  cachedFun(IO.listFiles(baseDirectory.value / dir).toSet).toSeq
-}

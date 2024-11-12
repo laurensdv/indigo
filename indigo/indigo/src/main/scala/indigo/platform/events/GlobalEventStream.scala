@@ -22,7 +22,6 @@ import indigo.shared.networking.WebSocketEvent
 import scala.collection.mutable
 
 final class GlobalEventStream(
-    rebuildGameLoop: AssetCollection => Unit,
     audioPlayer: AudioPlayer,
     storage: Storage,
     platform: => PlatformFullScreen
@@ -40,37 +39,68 @@ final class GlobalEventStream(
     case httpRequest: HttpRequest =>
       Http.processRequest(httpRequest, this)
 
-    case webSocketEvent: WebSocketEvent with NetworkSendEvent =>
+    case webSocketEvent: (WebSocketEvent & NetworkSendEvent) =>
       WebSockets.processSendEvent(webSocketEvent, this)
 
-    //Audio
+    // Audio
     case PlaySound(assetName, volume) =>
       audioPlayer.playSound(assetName, volume)
 
     // Storage
+    case StorageEvent.FetchKeyAt(index) =>
+      storage.key(index) match {
+        case Left(err)  => eventQueue.enqueue(err)
+        case Right(str) => eventQueue.enqueue(StorageEvent.KeyFoundAt(index, str))
+      }
+
+    case StorageEvent.FetchKeys(f, t) =>
+      val keys = (f to t).toList.map(i => i -> storage.key(i))
+      val errors = keys.flatMap {
+        _ match {
+          case (_, Left(err)) => Some(err)
+          case _              => None
+        }
+      }
+
+      if errors.nonEmpty then errors foreach (e => eventQueue.enqueue(e))
+      else
+        eventQueue.enqueue(StorageEvent.KeysFound(keys.flatMap {
+          _ match {
+            case (i, Right(str)) => Some((i, str))
+            case _               => None
+          }
+        }))
+
     case StorageEvent.Save(key, data) =>
-      storage.save(key, data)
+      storage.save(key, data) match {
+        case Left(err) => eventQueue.enqueue(err)
+        case _         => ()
+      }
 
     case StorageEvent.Load(key) =>
-      storage.load(key).foreach { data =>
-        eventQueue.enqueue(StorageEvent.Loaded(key, data))
+      storage.load(key) match {
+        case Left(err)  => eventQueue.enqueue(err)
+        case Right(str) => eventQueue.enqueue(StorageEvent.Loaded(key, str))
       }
 
     case StorageEvent.Delete(key) =>
-      storage.delete(key)
+      storage.delete(key) match {
+        case Left(err) => eventQueue.enqueue(err)
+        case _         => ()
+      }
 
     case StorageEvent.DeleteAll =>
-      storage.deleteAll()
-
-    case e @ StorageEvent.Loaded(_, _) =>
-      eventQueue.enqueue(e)
+      storage.deleteAll() match {
+        case Left(err) => eventQueue.enqueue(err)
+        case _         => ()
+      }
 
     // Assets
     case AssetEvent.LoadAssetBatch(batch, key, makeAvailable) =>
-      AssetLoader.backgroundLoadAssets(rebuildGameLoop, this, batch, key, makeAvailable)
+      AssetLoader.backgroundLoadAssets(this, batch, key, makeAvailable)
 
     case AssetEvent.LoadAsset(asset, key, makeAvailable) =>
-      AssetLoader.backgroundLoadAssets(rebuildGameLoop, this, Set(asset), key, makeAvailable)
+      AssetLoader.backgroundLoadAssets(this, Set(asset), key, makeAvailable)
 
     // Fullscreen
     case ToggleFullScreen =>

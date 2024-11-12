@@ -36,7 +36,6 @@ import scala.util.Success
 class Platform(
     parentElement: Element,
     gameConfig: GameConfig,
-    assetCollection: AssetCollection,
     globalEventStream: GlobalEventStream,
     dynamicText: DynamicText
 ) extends PlatformFullScreen {
@@ -50,31 +49,38 @@ class Platform(
   private var _running: Boolean         = true
   private val _worldEvents: WorldEvents = new WorldEvents
 
-  def initialise(shaders: Set[RawShaderCode]): Outcome[(Renderer, AssetMapping)] =
+  def initialise(
+      firstRun: Boolean,
+      shaders: Set[RawShaderCode],
+      assetCollection: AssetCollection
+  ): Outcome[(Renderer, AssetMapping)] =
     for {
       textureAtlas        <- createTextureAtlas(assetCollection)
       loadedTextureAssets <- extractLoadedTextures(textureAtlas)
       assetMapping        <- setupAssetMapping(textureAtlas)
-      canvas              <- createCanvas(parentElement, gameConfig)
-      _                   <- listenToWorldEvents(canvas, gameConfig, globalEventStream)
+      canvas              <- createCanvas(firstRun, parentElement, gameConfig)
+      _                   <- listenToWorldEvents(firstRun, canvas, gameConfig, globalEventStream)
       renderer            <- startRenderer(gameConfig, loadedTextureAssets, canvas, shaders)
       _ = _canvas = canvas
     } yield (renderer, assetMapping)
 
-  def tick(loop: Long => Unit): Unit = {
-    if _running then dom.window.requestAnimationFrame(t => loop(t.toLong))
+  def tick(loop: Double => Unit): Unit =
+    if _running then dom.window.requestAnimationFrame(loop)
     ()
-  }
+
+  def delay(amount: Double, thunk: () => Unit): Unit =
+    dom.window.setTimeout(thunk, amount)
 
   def kill(): Unit =
     _running = false
     _worldEvents.kill()
+    GamepadInputCaptureImpl.kill()
     ()
 
   def createTextureAtlas(assetCollection: AssetCollection): Outcome[TextureAtlas] =
     Outcome(
       TextureAtlas.create(
-        assetCollection.images.map(i => ImageRef(i.name, i.data.width, i.data.height, i.tag)),
+        assetCollection.images.map(i => ImageRef(i.name, i.data.width, i.data.height, i.tag)).toList,
         (name: AssetName) => assetCollection.images.find(_.name == name),
         TextureAtlasFunctions.createAtlasData
       )
@@ -108,7 +114,8 @@ class Platform(
 
   private given CanEqual[Option[Element], Option[Element]] = CanEqual.derived
 
-  def createCanvas(parentElement: Element, gameConfig: GameConfig): Outcome[Canvas] =
+  def createCanvas(firstRun: Boolean, parentElement: Element, gameConfig: GameConfig): Outcome[Canvas] =
+    if firstRun then
       Outcome(
         rendererInit.createCanvas(
           gameConfig.viewport.width,
@@ -116,12 +123,27 @@ class Platform(
           parentElement
         )
       )
+    else Outcome(_canvas)
 
-  def listenToWorldEvents(canvas: Canvas, gameConfig: GameConfig, globalEventStream: GlobalEventStream): Outcome[Unit] =
+  def listenToWorldEvents(
+      firstRun: Boolean,
+      canvas: Canvas,
+      gameConfig: GameConfig,
+      globalEventStream: GlobalEventStream
+  ): Outcome[Unit] =
     Outcome {
-      IndigoLogger.info("Starting world events")
-      _worldEvents.init(canvas, gameConfig.magnification, gameConfig.advanced.disableContextMenu, globalEventStream)
-      GamepadInputCaptureImpl.init()
+      if firstRun then
+        IndigoLogger.info("Starting world events")
+        _worldEvents.init(
+          canvas,
+          gameConfig.resizePolicy,
+          gameConfig.magnification,
+          gameConfig.advanced.disableContextMenu,
+          globalEventStream,
+          gameConfig.advanced.clickTime.toLong
+        )
+        GamepadInputCaptureImpl.init()
+      else IndigoLogger.info("Re-using existing world events")
     }
 
   def startRenderer(

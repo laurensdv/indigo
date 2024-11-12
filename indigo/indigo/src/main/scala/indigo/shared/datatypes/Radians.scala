@@ -1,6 +1,9 @@
 package indigo.shared.datatypes
 
+import indigo.shared.dice.Dice
 import indigo.shared.time.Seconds
+
+import scala.math
 
 import annotation.targetName
 
@@ -27,6 +30,12 @@ object Radians:
   inline def fromSeconds(seconds: Seconds): Radians =
     pi2 * (seconds.toDouble % 1.0d)
 
+  def mod(dividend: Radians, divisor: Radians): Radians =
+    Radians((dividend % divisor + divisor) % divisor)
+
+  def random(dice: Dice): Radians =
+    TAU * dice.rollDouble
+
   extension (r: Radians)
     def +(other: Radians): Radians =
       Radians(r + other)
@@ -52,8 +61,14 @@ object Radians:
     def /(other: Double): Radians =
       Radians(r / other)
 
+    def %(other: Radians): Radians =
+      Radians.mod(r, other)
+    @targetName("%_Double")
+    def %(other: Double): Radians =
+      Radians.mod(r, other)
+
     def wrap: Radians =
-      ((r % pi2) + pi2) % pi2
+      Radians.mod(r, pi2)
 
     def negative: Radians =
       -r
@@ -61,11 +76,20 @@ object Radians:
     def invert: Radians =
       negative
 
+    def `unary_-` : Radians = negative
+
     def ~==(other: Radians): Boolean =
       Math.abs(r.toDouble - other.toDouble) < 0.001
 
     def toDouble: Double =
       r
 
+    def max(other: Radians): Radians = math.max(r, other)
+
+    def min(other: Radians): Radians = math.min(r, other)
+
     def toFloat: Float =
       r.toFloat
+
+    def toDegrees: Double =
+      (360 / pi2) * r.toDouble

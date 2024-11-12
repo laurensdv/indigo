@@ -42,7 +42,7 @@ class AutomataTests extends munit.FunSuite {
   val layerKey =
     BindingKey("test layer")
 
-  val automata: Automata =
+  val automata: Automata[Unit] =
     Automata(poolKey, automaton, layerKey)
 
   val startingState: AutomataState =
@@ -83,7 +83,7 @@ class AutomataTests extends munit.FunSuite {
     assertEquals(makePosition(seed).at(Seconds(1)), Point(0, -30))
 
     // Test the automaton
-    def drawAt(time: Seconds): Graphic[_] = {
+    def drawAt(time: Seconds): Graphic[?] = {
       val ctx = context(1, time, time)
 
       val nextState =
@@ -95,8 +95,10 @@ class AutomataTests extends munit.FunSuite {
         .present(ctx, nextState)
         .unsafeGet
         .layers
-        .find(l => l.key.contains(layerKey))
+        .find(l => l.hasTag(layerKey))
         .get
+        .toBatch
+        .head
         .nodes
         .collect { case g: Graphic[_] => g }
         .head
@@ -139,7 +141,7 @@ class AutomataTests extends munit.FunSuite {
   }
 
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
-  def toRenderNode(node: SceneNode): RenderNode[_] =
+  def toRenderNode(node: SceneNode): RenderNode[?] =
     node match {
       case r: RenderNode[_] => r
       case _                => throw new Exception("Wasn't a render node")

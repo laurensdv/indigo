@@ -1,6 +1,5 @@
 package indigoextras.effectmaterials
 
-import indigo.shaders.ShaderLibrary
 import indigo.shared.assets.AssetName
 import indigo.shared.collections.Batch
 import indigo.shared.datatypes.RGBA
@@ -16,27 +15,33 @@ import indigo.shared.shader.EntityShader
 import indigo.shared.shader.Shader
 import indigo.shared.shader.ShaderId
 import indigo.shared.shader.ShaderPrimitive.float
+import indigo.shared.shader.UltravioletShader
 import indigo.shared.shader.Uniform
 import indigo.shared.shader.UniformBlock
-import indigoextras.shaders.ExtrasShaderLibrary
+import indigo.shared.shader.UniformBlockName
+import indigo.shared.shader.library.NoOp
+import indigoextras.effectmaterials.shaders.RefractionShaders
 
-object Refraction {
+object Refraction:
 
-  val entityShader: EntityShader.Source =
-    EntityShader.Source(
-      id = ShaderId("[indigoextras_engine_normal_minus_blue]"),
-      vertex = ShaderLibrary.NoOpVertex,
-      fragment = ExtrasShaderLibrary.NormalMinusBlueFragment,
-      prepare = ShaderLibrary.NoOpPrepare,
-      light = ShaderLibrary.NoOpLight,
-      composite = ShaderLibrary.NoOpComposite
+  val entityShader: UltravioletShader =
+    UltravioletShader(
+      ShaderId("[indigoextras_engine_normal_minus_blue]"),
+      EntityShader.vertex(NoOp.vertex, ()),
+      EntityShader.fragment(
+        RefractionShaders.normalMinusBlue,
+        RefractionShaders.FragEnv.reference
+      )
     )
 
-  val blendShader: BlendShader.Source =
-    BlendShader.Source(
-      id = ShaderId("[indigoextras_engine_blend_refraction]"),
-      vertex = ShaderLibrary.NoOpVertex,
-      fragment = ExtrasShaderLibrary.RefractionBlendFragment
+  val blendShader: UltravioletShader =
+    UltravioletShader(
+      ShaderId("[indigoextras_engine_blend_refraction]"),
+      BlendShader.vertex(NoOp.vertex, ()),
+      BlendShader.fragment(
+        RefractionShaders.refractionFragment,
+        RefractionShaders.BlendEnv.reference
+      )
     )
 
   val shaders: Set[Shader] =
@@ -54,9 +59,7 @@ object Refraction {
   def blending(distance: Double): Blending =
     Blending(Blend.Normal, Blend.Normal, RefractionBlend(distance), Option(RGBA.Zero))
 
-}
-
-final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extends Material derives CanEqual {
+final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extends Material derives CanEqual:
 
   def withDiffuse(newDiffuse: AssetName): RefractionEntity =
     this.copy(diffuse = newDiffuse)
@@ -80,7 +83,7 @@ final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extend
 
     val uniformBlock: UniformBlock =
       UniformBlock(
-        "IndigoBitmapData",
+        UniformBlockName("IndigoBitmapData"),
         Batch(
           Uniform("FILLTYPE") -> float(imageFillType)
         )
@@ -95,22 +98,21 @@ final case class RefractionEntity(diffuse: AssetName, fillType: FillType) extend
       None
     )
   }
-}
+
 object RefractionEntity:
   def apply(diffuse: AssetName): RefractionEntity =
     RefractionEntity(diffuse, FillType.Normal)
 
-final case class RefractionBlend(multiplier: Double) extends BlendMaterial derives CanEqual {
+final case class RefractionBlend(multiplier: Double) extends BlendMaterial derives CanEqual:
   lazy val toShaderData: BlendShaderData =
     BlendShaderData(
       Refraction.blendShader.id,
       Batch(
         UniformBlock(
-          "IndigoRefractionBlendData",
+          UniformBlockName("IndigoRefractionBlendData"),
           Batch(
             Uniform("REFRACTION_AMOUNT") -> float(multiplier)
           )
         )
       )
     )
-}

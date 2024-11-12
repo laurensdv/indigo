@@ -1,6 +1,9 @@
 package indigo.shared.datatypes
 
 import indigo.shared.collections.Batch
+import indigo.shared.dice.Dice
+import indigo.shared.geometry.BoundingBox
+import indigo.shared.geometry.BoundingCircle
 
 import scala.annotation.tailrec
 
@@ -42,14 +45,27 @@ final case class Rectangle(position: Point, size: Size) derives CanEqual:
 
   def +(rect: Rectangle): Rectangle = Rectangle(x + rect.x, y + rect.y, width + rect.width, height + rect.height)
   def +(i: Int): Rectangle          = Rectangle(x + i, y + i, width + i, height + i)
+  def +(d: Double): Rectangle =
+    Rectangle((x.toDouble + d).toInt, (y.toDouble + d).toInt, (width.toDouble + d).toInt, (height.toDouble + d).toInt)
+
   def -(rect: Rectangle): Rectangle = Rectangle(x - rect.x, y - rect.y, width - rect.width, height - rect.height)
   def -(i: Int): Rectangle          = Rectangle(x - i, y - i, width - i, height - i)
+  def -(d: Double): Rectangle =
+    Rectangle((x.toDouble - d).toInt, (y.toDouble - d).toInt, (width.toDouble - d).toInt, (height.toDouble - d).toInt)
+
   def *(rect: Rectangle): Rectangle = Rectangle(x * rect.x, y * rect.y, width * rect.width, height * rect.height)
   def *(i: Int): Rectangle          = Rectangle(x * i, y * i, width * i, height * i)
+  def *(d: Double): Rectangle =
+    Rectangle((x.toDouble * d).toInt, (y.toDouble * d).toInt, (width.toDouble * d).toInt, (height.toDouble * d).toInt)
+
   def /(rect: Rectangle): Rectangle = Rectangle(x / rect.x, y / rect.y, width / rect.width, height / rect.height)
   def /(i: Int): Rectangle          = Rectangle(x / i, y / i, width / i, height / i)
+  def /(d: Double): Rectangle =
+    Rectangle((x.toDouble / d).toInt, (y.toDouble / d).toInt, (width.toDouble / d).toInt, (height.toDouble / d).toInt)
 
   def expand(amount: Int): Rectangle =
+    Rectangle.expand(this, amount)
+  def expand(amount: Size): Rectangle =
     Rectangle.expand(this, amount)
 
   def expandToInclude(other: Rectangle): Rectangle =
@@ -57,11 +73,17 @@ final case class Rectangle(position: Point, size: Size) derives CanEqual:
 
   def contract(amount: Int): Rectangle =
     Rectangle.contract(this, amount)
+  def contract(amount: Size): Rectangle =
+    Rectangle.contract(this, amount)
 
   def encompasses(other: Rectangle): Boolean =
     Rectangle.encompassing(this, other)
+  def encompasses(other: Circle): Boolean =
+    Rectangle.encompassing(this, other)
 
   def overlaps(other: Rectangle): Boolean =
+    Rectangle.overlapping(this, other)
+  def overlaps(other: Circle): Boolean =
     Rectangle.overlapping(this, other)
 
   def moveBy(point: Point): Rectangle =
@@ -78,9 +100,47 @@ final case class Rectangle(position: Point, size: Size) derives CanEqual:
     this.copy(size = newSize)
   def resize(x: Int, y: Int): Rectangle =
     resize(Size(x, y))
+  def resize(value: Int): Rectangle =
+    resize(Size(value))
+
+  def resizeBy(amount: Size): Rectangle =
+    this.copy(size = size + amount)
+  def resizeBy(x: Int, y: Int): Rectangle =
+    resizeBy(Size(x, y))
+  def resizeBy(amount: Int): Rectangle =
+    resizeBy(Size(amount))
+
+  def withPosition(point: Point): Rectangle =
+    moveTo(point)
+  def withPosition(x: Int, y: Int): Rectangle =
+    moveTo(Point(x, y))
+
+  def withSize(newSize: Size): Rectangle =
+    resize(newSize)
+  def withSize(x: Int, y: Int): Rectangle =
+    resize(Size(x, y))
 
   def toSquare: Rectangle =
     this.copy(size = Size(Math.max(size.width, size.height)))
+
+  @deprecated("Please use `toIncircle`, or alternatively `toCircumcircle`.")
+  def toCircle: Circle =
+    Circle.incircle(this)
+  def toIncircle: Circle =
+    Circle.incircle(this)
+  def toCircumcircle: Circle =
+    Circle.circumcircle(this)
+
+  def toBoundingBox: BoundingBox =
+    BoundingBox.fromRectangle(this)
+
+  @deprecated("Please use `toBoundingIncircle`, or alternatively `toBoundingCircumcircle`.")
+  def toBoundingCircle: BoundingCircle =
+    BoundingCircle.incircle(this.toBoundingBox)
+  def toBoundingIncircle: BoundingCircle =
+    BoundingCircle.incircle(this.toBoundingBox)
+  def toBoundingCircumcircle: BoundingCircle =
+    BoundingCircle.circumcircle(this.toBoundingBox)
 
 object Rectangle:
 
@@ -142,12 +202,28 @@ object Rectangle:
 
     rec(points, Int.MaxValue, Int.MaxValue, Int.MinValue, Int.MinValue)
 
+  def fromIncircle(circle: Circle): Rectangle =
+    Rectangle(Point(circle.left, circle.top), Size(circle.diameter))
+
+  def fromCircumcircle(circle: Circle): Rectangle =
+    val sideLength = (circle.diameter * Math.sqrt(2)) / 2
+    Rectangle(circle.center - (sideLength / 2).toInt, Size(sideLength.toInt))
+
   def expand(rectangle: Rectangle, amount: Int): Rectangle =
     Rectangle(
       x = if rectangle.width >= 0 then rectangle.x - amount else rectangle.x + amount,
       y = if rectangle.height >= 0 then rectangle.y - amount else rectangle.y + amount,
       width = if rectangle.width >= 0 then rectangle.width + (amount * 2) else rectangle.width - (amount * 2),
       height = if rectangle.height >= 0 then rectangle.height + (amount * 2) else rectangle.height - (amount * 2)
+    )
+  def expand(rectangle: Rectangle, amount: Size): Rectangle =
+    Rectangle(
+      x = if rectangle.width >= 0 then rectangle.x - amount.width else rectangle.x + amount.width,
+      y = if rectangle.height >= 0 then rectangle.y - amount.height else rectangle.y + amount.height,
+      width =
+        if rectangle.width >= 0 then rectangle.width + (amount.width * 2) else rectangle.width - (amount.width * 2),
+      height =
+        if rectangle.height >= 0 then rectangle.height + (amount.height * 2) else rectangle.height - (amount.height * 2)
     )
 
   def expandToInclude(a: Rectangle, b: Rectangle): Rectangle =
@@ -168,10 +244,34 @@ object Rectangle:
       width = if rectangle.width >= 0 then rectangle.width - (amount * 2) else rectangle.width + (amount * 2),
       height = if rectangle.height >= 0 then rectangle.height - (amount * 2) else rectangle.height + (amount * 2)
     )
+  def contract(rectangle: Rectangle, amount: Size): Rectangle =
+    Rectangle(
+      x = if rectangle.width >= 0 then rectangle.x + amount.width else rectangle.x - amount.width,
+      y = if rectangle.height >= 0 then rectangle.y + amount.height else rectangle.y - amount.height,
+      width =
+        if rectangle.width >= 0 then rectangle.width - (amount.width * 2) else rectangle.width + (amount.width * 2),
+      height =
+        if rectangle.height >= 0 then rectangle.height - (amount.height * 2) else rectangle.height + (amount.height * 2)
+    )
 
   def encompassing(a: Rectangle, b: Rectangle): Boolean =
     b.x >= a.x && b.y >= a.y && (b.width + (b.x - a.x)) <= a.width && (b.height + (b.y - a.y)) <= a.height
+  def encompassing(a: Rectangle, b: Circle): Boolean =
+    encompassing(a, b.toIncircleRectangle)
 
   def overlapping(a: Rectangle, b: Rectangle): Boolean =
-    Math.abs(a.center.x - b.center.x) < a.halfWidth + b.halfWidth &&
-      Math.abs(a.center.y - b.center.y) < a.halfHeight + b.halfHeight
+    a.toBoundingBox.overlaps(b.toBoundingBox)
+  def overlapping(a: Rectangle, b: Circle): Boolean =
+    a.toBoundingBox.overlaps(b.toBoundingCircle)
+
+  def random(dice: Dice, max: Int): Rectangle =
+    Rectangle(Point.random(dice, max), Size.random(dice, max))
+
+  def random(dice: Dice, max: Rectangle): Rectangle =
+    Rectangle(Point.random(dice, max.position), Size.random(dice, max.size))
+
+  def random(dice: Dice, min: Int, max: Int): Rectangle =
+    Rectangle(Point.random(dice, min, max), Size.random(dice, min, max))
+
+  def random(dice: Dice, min: Rectangle, max: Rectangle): Rectangle =
+    Rectangle(Point.random(dice, min.position, max.position), Size.random(dice, min.size, max.size))

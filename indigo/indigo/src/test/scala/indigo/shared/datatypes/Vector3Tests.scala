@@ -23,19 +23,19 @@ class Vector3Tests extends munit.FunSuite {
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector3s.parallel") {
-    assertEquals((Vector3(0, 0, 0) dot Vector3(0, 0, 0)), 0.0)
+    assertEquals((Vector3(0, 0, 0) `dot` Vector3(0, 0, 0)), 0.0)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector3s.facing") {
-    assertEquals((Vector3(2, 2, 2) dot Vector3(-1, -1, -1)) < 0, true)
+    assertEquals((Vector3(2, 2, 2) `dot` Vector3(-1, -1, -1)) < 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector3s.not facing") {
-    assertEquals((Vector3(2, 2, 2) dot Vector3(1, 1, 1)) > 0, true)
+    assertEquals((Vector3(2, 2, 2) `dot` Vector3(1, 1, 1)) > 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector3s.value") {
-    assertEquals(Math.round((Vector3(-6.0, 8.0, 1) dot Vector3(5.0, 12.0, 2))).toDouble, 68d)
+    assertEquals(Math.round((Vector3(-6.0, 8.0, 1) `dot` Vector3(5.0, 12.0, 2))).toDouble, 68d)
   }
 
   test("dot product") {
@@ -63,10 +63,18 @@ class Vector3Tests extends munit.FunSuite {
     assertEquals(Vector3(10, 10, 10).max(Vector3(50, 5, 2)), Vector3(50, 10, 10))
   }
 
-  test("clamp") {
+  test("clamp - Double") {
     assertEquals(Vector3(0.1, 0.1, 0.1).clamp(0, 1), Vector3(0.1, 0.1, 0.1))
     assertEquals(Vector3(-0.1, 1.1, 0.1).clamp(0, 1), Vector3(0.0, 1.0, 0.1))
     assertEquals(Vector3(1, 4, 5).clamp(2, 3), Vector3(2, 3, 3))
+  }
+
+  test("clamp - Vector3") {
+    assertEquals(Vector3(0.1, 0.1, 0.1).clamp(Vector3(0), Vector3(1)), Vector3(0.1, 0.1, 0.1))
+    assertEquals(Vector3(-0.1, 1.1, 0.1).clamp(Vector3(0), Vector3(1)), Vector3(0.0, 1.0, 0.1))
+    assertEquals(Vector3(1, 4, 5).clamp(Vector3(2), Vector3(3)), Vector3(2, 3, 3))
+    assertEquals(Vector3(-2, 2, -2).clamp(Vector3(-1), Vector3(1)), Vector3(-1, 1, -1))
+    assertEquals(Vector3(-2, 2, 2).clamp(Vector3(-1, 0, 0), Vector3(0, 1, 5)), Vector3(-1, 1, 2))
   }
 
   test("length") {
@@ -91,6 +99,14 @@ class Vector3Tests extends munit.FunSuite {
     assertEquals(Vector3(2, 2, 10).scaleBy(Vector3(10, 2, 3)), Vector3(20, 4, 30))
   }
 
+  test("ceil") {
+    assertEquals(Vector3(2.2, 2.6, 5.1).ceil, Vector3(3, 3, 6))
+  }
+
+  test("floor") {
+    assertEquals(Vector3(2.2, 2.6, 5.1).floor, Vector3(2, 2, 5))
+  }
+
   test("round") {
     assertEquals(Vector3(2.2, 2.6, 5.1).round, Vector3(2, 3, 5))
   }
@@ -106,6 +122,23 @@ class Vector3Tests extends munit.FunSuite {
   test("approx equal") {
     assert(Vector3(5.0, 5.0, 5.0) ~== Vector3(4.999999, 5.00001, 5.0))
     assert(!(Vector3(5.0, 5.0, 5.0) ~== Vector3(-4.999999, 5.00001, 5.0)))
+  }
+
+  test("mod") {
+    assert(Vector3.mod(Vector3(11, 12, 13), Vector3(10)) ~== Vector3(1, 2, 3))
+    assert(Vector3(11, 12, 13) % Vector3(10) ~== Vector3(1, 2, 3))
+    assert(Vector3.mod(Vector3(9, 10, 11), Vector3(10)) ~== Vector3(9, 0, 1))
+    assert(Vector3.mod(Vector3(1), Vector3(10)) ~== Vector3(1))
+    assert(Vector3.mod(Vector3(-11, -12, -13), Vector3(10)) ~== Vector3(9, 8, 7))
+    assert(Vector3.mod(Vector3(-1), Vector3(10)) ~== Vector3(9))
+    assert(Vector3.mod(Vector3(0), Vector3(10)) ~== Vector3(0))
+    assert(clue(Vector3.mod(Vector3(-11), Vector3(-10))) ~== clue(Vector3(-1)))
+  }
+
+  test("cross product") {
+    assertEquals(Vector3.unitX.cross(Vector3.unitY), Vector3.unitZ)
+    assertEquals(Vector3.unitY.cross(Vector3.unitZ), Vector3.unitX)
+    assertEquals(Vector3.unitX.cross(Vector3.unitZ), -Vector3.unitY)
   }
 
   def to2dp(d: Double): Double =

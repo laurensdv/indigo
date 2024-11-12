@@ -18,6 +18,8 @@ sealed trait Batch[+A]:
 
   def head: A
   def headOption: Option[A]
+  def last: A
+  def lastOption: Option[A]
   def isEmpty: Boolean
   def size: Int
   def toJSArray[B >: A]: js.Array[B]
@@ -57,6 +59,21 @@ sealed trait Batch[+A]:
   def contains[B >: A](p: B): Boolean =
     given CanEqual[B, B] = CanEqual.derived
     _jsArray.exists(_ == p)
+
+  def distinct: Batch[A] =
+    Batch(_jsArray.distinct)
+
+  def distinctBy[B](f: A => B): Batch[A] =
+    Batch(_jsArray.distinctBy(f))
+
+  def take(n: Int): Batch[A] =
+    Batch.Wrapped(_jsArray.take(n))
+
+  def takeRight(n: Int): Batch[A] =
+    Batch.Wrapped(_jsArray.takeRight(n))
+
+  def takeWhile(p: A => Boolean): Batch[A] =
+    Batch.Wrapped(_jsArray.takeWhile(p))
 
   def drop(count: Int): Batch[A] =
     Batch.Wrapped(_jsArray.drop(count))
@@ -115,12 +132,27 @@ sealed trait Batch[+A]:
   def lift(index: Int): Option[A] =
     _jsArray.lift(index)
 
+  def padTo[B >: A](len: Int, elem: B): Batch[B] =
+    Batch(_jsArray.padTo(len, elem))
+
   def partition(p: A => Boolean): (Batch[A], Batch[A]) =
     val (a, b) = _jsArray.partition(p)
     (Batch.Wrapped(a), Batch.Wrapped(b))
 
   def map[B](f: A => B): Batch[B] =
     Batch.Wrapped(_jsArray.map(f))
+
+  def maxBy[B](f: A => B)(using ord: Ordering[B]): A =
+    _jsArray.maxBy(f)(ord)
+
+  def maxByOption[B](f: A => B)(using ord: Ordering[B]): Option[A] =
+    Option.when(_jsArray.nonEmpty)(_jsArray.maxBy(f)(ord))
+
+  def minBy[B](f: A => B)(using ord: Ordering[B]): A =
+    _jsArray.minBy(f)(ord)
+
+  def minByOption[B](f: A => B)(using ord: Ordering[B]): Option[A] =
+    Option.when(_jsArray.nonEmpty)(_jsArray.minBy(f)(ord))
 
   /** Converts the batch into a String`
     * @return
@@ -162,6 +194,9 @@ sealed trait Batch[+A]:
 
   def sortBy[B](f: A => B)(implicit ord: Ordering[B]): Batch[A] =
     Batch.Wrapped(_jsArray.sortBy(f))
+
+  def sorted[B >: A](implicit ord: Ordering[B]): Batch[A] =
+    Batch.Wrapped(_jsArray.sorted)
 
   def sortWith(f: (A, A) => Boolean): Batch[A] =
     Batch.Wrapped(_jsArray.sortWith(f))
@@ -216,17 +251,17 @@ object Batch:
 
   extension [A](s: Seq[A]) def toBatch: Batch[A] = Batch.fromSeq(s)
 
-  given CanEqual[Batch[_], Batch[_]]         = CanEqual.derived
-  given CanEqual[Batch[_], Batch.Combine[_]] = CanEqual.derived
-  given CanEqual[Batch[_], Batch.Wrapped[_]] = CanEqual.derived
+  given CanEqual[Batch[?], Batch[?]]         = CanEqual.derived
+  given CanEqual[Batch[?], Batch.Combine[?]] = CanEqual.derived
+  given CanEqual[Batch[?], Batch.Wrapped[?]] = CanEqual.derived
 
-  given CanEqual[Batch.Combine[_], Batch[_]]         = CanEqual.derived
-  given CanEqual[Batch.Combine[_], Batch.Combine[_]] = CanEqual.derived
-  given CanEqual[Batch.Combine[_], Batch.Wrapped[_]] = CanEqual.derived
+  given CanEqual[Batch.Combine[?], Batch[?]]         = CanEqual.derived
+  given CanEqual[Batch.Combine[?], Batch.Combine[?]] = CanEqual.derived
+  given CanEqual[Batch.Combine[?], Batch.Wrapped[?]] = CanEqual.derived
 
-  given CanEqual[Batch.Wrapped[_], Batch[_]]         = CanEqual.derived
-  given CanEqual[Batch.Wrapped[_], Batch.Combine[_]] = CanEqual.derived
-  given CanEqual[Batch.Wrapped[_], Batch.Wrapped[_]] = CanEqual.derived
+  given CanEqual[Batch.Wrapped[?], Batch[?]]         = CanEqual.derived
+  given CanEqual[Batch.Wrapped[?], Batch.Combine[?]] = CanEqual.derived
+  given CanEqual[Batch.Wrapped[?], Batch.Wrapped[?]] = CanEqual.derived
 
   def apply[A](value: A): Batch[A] =
     Wrapped(js.Array(value))
@@ -297,9 +332,16 @@ object Batch:
     batches.foldLeft(Batch.empty[A])(_ ++ _)
 
   private[collections] final case class Combine[A](batch1: Batch[A], batch2: Batch[A]) extends Batch[A]:
-    val isEmpty: Boolean      = batch1.isEmpty && batch2.isEmpty
-    def head: A               = batch1.head
-    def headOption: Option[A] = batch1.headOption
+    val isEmpty: Boolean = batch1.isEmpty && batch2.isEmpty
+
+    export batch1.head
+    export batch1.headOption
+
+    def last: A =
+      if batch2.isEmpty then batch1.last else batch2.last
+
+    def lastOption: Option[A] =
+      if batch2.isEmpty then batch1.lastOption else batch2.lastOption
 
     @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.while"))
     def toJSArray[B >: A]: js.Array[B] =
@@ -331,8 +373,8 @@ object Batch:
     lazy val size: Int = batch1.size + batch2.size
 
     override def equals(that: Any): Boolean =
-      given CanEqual[Combine[_], Any] = CanEqual.derived
-      given CanEqual[Wrapped[_], Any] = CanEqual.derived
+      given CanEqual[Combine[?], Any] = CanEqual.derived
+      given CanEqual[Wrapped[?], Any] = CanEqual.derived
       given CanEqual[A, A]            = CanEqual.derived
 
       try
@@ -350,13 +392,15 @@ object Batch:
     val isEmpty: Boolean               = values.isEmpty
     def head: A                        = values.head
     def headOption: Option[A]          = values.headOption
+    def last: A                        = values.last
+    def lastOption: Option[A]          = values.lastOption
     def toJSArray[B >: A]: js.Array[B] = values.asInstanceOf[js.Array[B]]
 
     lazy val size: Int = values.length
 
     override def equals(that: Any): Boolean =
-      given CanEqual[Combine[_], Any] = CanEqual.derived
-      given CanEqual[Wrapped[_], Any] = CanEqual.derived
+      given CanEqual[Combine[?], Any] = CanEqual.derived
+      given CanEqual[Wrapped[?], Any] = CanEqual.derived
       given CanEqual[A, A]            = CanEqual.derived
 
       try

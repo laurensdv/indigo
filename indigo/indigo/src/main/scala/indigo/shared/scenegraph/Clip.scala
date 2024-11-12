@@ -16,6 +16,7 @@ import indigo.shared.shader.ShaderPrimitive.float
 import indigo.shared.shader.StandardShaders
 import indigo.shared.shader.Uniform
 import indigo.shared.shader.UniformBlock
+import indigo.shared.shader.UniformBlockName
 import indigo.shared.time.FPS
 import indigo.shared.time.Seconds
 
@@ -25,7 +26,7 @@ final case class Clip[M <: Material](
     playMode: ClipPlayMode,
     material: M,
     eventHandlerEnabled: Boolean,
-    eventHandler: ((Clip[_], GlobalEvent)) => Option[GlobalEvent],
+    eventHandler: ((Clip[?], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
@@ -36,6 +37,12 @@ final case class Clip[M <: Material](
     with Cloneable
     with SpatialModifiers[Clip[M]]
     derives CanEqual:
+
+  export sheet.frameCount
+  export sheet.frameDuration
+
+  lazy val length: Seconds =
+    sheet.frameDuration * sheet.frameCount
 
   def loop: Clip[M] =
     this.copy(playMode = ClipPlayMode.Loop(playMode.direction))
@@ -152,7 +159,7 @@ final case class Clip[M <: Material](
       .withShaderId(StandardShaders.shaderIdToClipShaderId(data.shaderId))
       .addUniformBlock(
         UniformBlock(
-          "IndigoClipData",
+          UniformBlockName("IndigoClipData"),
           Batch(
             Uniform("CLIP_SHEET_FRAME_COUNT")    -> float(sheet.frameCount),
             Uniform("CLIP_SHEET_FRAME_DURATION") -> float.fromSeconds(sheet.frameDuration),
@@ -166,14 +173,58 @@ final case class Clip[M <: Material](
         )
       )
 
-  def withEventHandler(f: ((Clip[_], GlobalEvent)) => Option[GlobalEvent]): Clip[M] =
+  def withEventHandler(f: ((Clip[?], GlobalEvent)) => Option[GlobalEvent]): Clip[M] =
     this.copy(eventHandler = f, eventHandlerEnabled = true)
-  def onEvent(f: PartialFunction[(Clip[_], GlobalEvent), GlobalEvent]): Clip[M] =
+  def onEvent(f: PartialFunction[(Clip[?], GlobalEvent), GlobalEvent]): Clip[M] =
     withEventHandler(f.lift)
   def enableEvents: Clip[M] =
     this.copy(eventHandlerEnabled = true)
   def disableEvents: Clip[M] =
     this.copy(eventHandlerEnabled = false)
+
+  def toGraphic: Graphic[M] =
+    toGraphic(0)
+
+  def toGraphic(frameNumber: Int): Graphic[M] =
+    val num   = Math.min(sheet.frameCount - 1, Math.max(0, frameNumber))
+    val frame = num + sheet.startOffset
+    def framePositon: Point =
+      sheet.arrangement match
+        case ClipSheetArrangement.Horizontal =>
+          Point(
+            x = frame % sheet.wrapAt,
+            y = frame / sheet.wrapAt
+          )
+
+        case ClipSheetArrangement.Vertical =>
+          Point(
+            x = frame / sheet.wrapAt,
+            y = frame % sheet.wrapAt
+          )
+
+    Graphic(
+      eventHandlerEnabled = false,
+      eventHandler = Function.const(None),
+      position = position,
+      rotation = rotation,
+      scale = scale,
+      depth = depth,
+      ref = ref,
+      flip = flip,
+      crop = Rectangle(framePositon * size.toPoint, size),
+      material = material
+    )
+
+  def scrubTo(position: Double): Clip[M] =
+    val p = Math.min(1.0d, Math.max(0.0d, position))
+    toFrame((sheet.frameCount * p).toInt)
+
+  def toFrame(frameNumber: Int): Clip[M] =
+    this.copy(
+      sheet = sheet
+        .withStartOffset(frameNumber)
+        .withFrameCount(1)
+    )
 
 object Clip:
 

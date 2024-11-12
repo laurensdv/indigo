@@ -11,13 +11,15 @@ import scala.annotation.targetName
   *
   * @param viewport
   *   How big is the window initially? Defaults to 550 x 400 pixels.
-  * @param frameRate
+  * @param frameRateLimit
   *   Optionally throttles frame rate. By default (`None`), the browser sets the limits, recommended unless you
   *   specifically need a lower framerate.
   * @param clearColor
   *   Default background colour. Defaults to Black.
   * @param magnification
   *   Pixel magnification level. Defaults to 1.
+  * @param resizePolicy
+  *   Sets the policy for how Indigo games should resize themselves.
   * @param transparentBackground
   *   Make the canvas background transparent.
   * @param advanced
@@ -28,10 +30,11 @@ final case class GameConfig(
     frameRateLimit: Option[FPS],
     clearColor: RGBA,
     magnification: Int,
+    resizePolicy: ResizePolicy,
     transparentBackground: Boolean,
     advanced: AdvancedGameConfig
 ) derives CanEqual:
-  lazy val frameRateDeltaMillis: Int = 1000 / frameRateLimit.map(_.toInt).getOrElse(FPS.Default.toInt)
+  lazy val frameRateDeltaMillis: Double = 1000.0d / frameRateLimit.map(_.toDouble).getOrElse(FPS.Default.toDouble)
 
   def screenDimensions: Rectangle =
     viewport.giveDimensions(magnification)
@@ -45,13 +48,12 @@ final case class GameConfig(
        |- Clear color:     {red: ${clearColor.r.toString()}, green: ${clearColor.g.toString()}, blue: ${clearColor.b
       .toString()}, alpha: ${clearColor.a.toString()}}
        |- Magnification:   ${magnification.toString()}
+       |- Resize Policy:   ${resizePolicy.toString()}
        |${advanced.asString}
        |""".stripMargin
 
   def withViewport(width: Int, height: Int): GameConfig =
     this.copy(viewport = GameViewport(width, height))
-  def withViewport(size: Size): GameConfig =
-    this.copy(viewport = GameViewport(size.width, size.height))
   def withViewport(newViewport: GameViewport): GameConfig =
     this.copy(viewport = newViewport)
 
@@ -87,44 +89,62 @@ final case class GameConfig(
   def noTransparentBackground: GameConfig =
     withTransparentBackground(false)
 
+  def withResizePolicy(resizePolicy: ResizePolicy): GameConfig =
+    this.copy(resizePolicy = resizePolicy)
+  def noResize: GameConfig =
+    withResizePolicy(ResizePolicy.NoResize)
+  def autoResize: GameConfig =
+    withResizePolicy(ResizePolicy.Resize)
+  def autoResizePreserveAspect: GameConfig =
+    withResizePolicy(ResizePolicy.ResizePreserveAspect)
+
 object GameConfig:
 
   val default: GameConfig =
     GameConfig(
       viewport = GameViewport(550, 400),
-      frameRateLimit = None,
+      frameRateLimit = Option(FPS.`60`),
       clearColor = RGBA.Black,
       magnification = 1,
       transparentBackground = false,
+      resizePolicy = ResizePolicy.Resize,
       advanced = AdvancedGameConfig.default
     )
 
   def apply(width: Int, height: Int): GameConfig =
     GameConfig(
       viewport = GameViewport(width, height),
-      frameRateLimit = None,
+      frameRateLimit = Option(FPS.`60`),
       clearColor = RGBA.Black,
       magnification = 1,
       transparentBackground = false,
+      resizePolicy = ResizePolicy.Resize,
       advanced = AdvancedGameConfig.default
     )
 
   def apply(viewport: GameViewport, clearColor: RGBA, magnification: Int): GameConfig =
     GameConfig(
       viewport = viewport,
-      frameRateLimit = None,
+      frameRateLimit = Option(FPS.`60`),
       clearColor = clearColor,
       magnification = magnification,
       transparentBackground = false,
+      resizePolicy = ResizePolicy.Resize,
       advanced = AdvancedGameConfig.default
     )
 
   def apply(width: Int, height: Int, clearColor: RGBA, magnification: Int): GameConfig =
     GameConfig(
       viewport = GameViewport(width, height),
-      frameRateLimit = None,
+      frameRateLimit = Option(FPS.`60`),
       clearColor = clearColor,
       magnification = magnification,
       transparentBackground = false,
+      resizePolicy = ResizePolicy.Resize,
       advanced = AdvancedGameConfig.default
     )
+
+/** ResizePolicy instructs Indigo on how you would like the game to handle a change in viewport size.
+  */
+enum ResizePolicy derives CanEqual:
+  case NoResize, Resize, ResizePreserveAspect

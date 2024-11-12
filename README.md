@@ -11,11 +11,19 @@ Indigo is built entirely on Scala.js + WebGL, but it's sbt and Mill plugins will
 
 Documentation can be found on [indigoengine.io](https://indigoengine.io).
 
+## Thank you, to our sponsors! 💜
+
+Thank you to all our wonderful sponsors, and particularly to [dedipresta](https://www.dedipresta.com/) for their generous support.
+
+![dedipresta](sponsors/dedipresta.png)
+
+If you'd like to help advance our work, we are ever grateful for all forms of contribution, either by volunteering time or [financial backing](https://github.com/sponsors/PurpleKingdomGames?o=esb). 
+
 ## Full local build and test instructions
 
 ### Using Nix
 
-The root of the project contains a very very simple `shell.nix` file that, if you have nix installed, will give you all the tools you need to build Indigo by running `nix-shell`.
+The root of the project contains a very very simple `flake.nix` file that, if you have nix installed and flakes enabled, will give you all the tools you need to build Indigo by running `nix develop` in the root directory.
 
 ### Build requirements
 
@@ -23,8 +31,7 @@ You will need:
 
 - Mill
 - SBT
-- JDK (Update: 1.8 works, 11 is used in Indigo's development)
-- [glslang validator](https://github.com/KhronosGroup/glslang) - can be installed with your favorite package manager.
+- JDK (Update: 8 works, 17 is used in Indigo's development)
 
 ### Running the build
 
@@ -39,8 +46,6 @@ On Windows, open up powershell and run:
 ```powershell
 & build.ps1
 ```
-
-> **NOTE:** You may have trouble installing or running the glslangValidator. As long as you have installed it (e.g. `scoop install glslang`) the build will continue, it's just that the shaders may not be validated.
 
 There is also another script which is a bit faster since it doesn't build the examples or demos.
 

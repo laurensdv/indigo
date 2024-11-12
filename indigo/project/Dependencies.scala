@@ -7,11 +7,13 @@ object Dependencies {
   object Versions {
     val circe            = "0.14.1"
     val scalaCheck       = "1.16.0"
-    val scalajsDom       = "2.3.0"
+    val scalajsDom       = "2.8.0"
     val scalajsMacroTask = "1.0.0"
     val scalajsBenchmark = "0.10.0"
     val chartjs          = "1.0.2"
     val munit            = "0.7.29"
+    val ultraviolet      = "0.3.0"
+    val tyrianVersion    = "0.11.0"
   }
 
   object Shared {
@@ -40,7 +42,8 @@ object Dependencies {
 
   val indigo = Def.setting(
     Seq(
-      "org.scala-js" %%% "scala-js-macrotask-executor" % Versions.scalajsMacroTask
+      "org.scala-js"    %%% "scala-js-macrotask-executor" % Versions.scalajsMacroTask,
+      "io.indigoengine" %%% "ultraviolet"                 % Versions.ultraviolet
     ) ++
       Shared.scalaCheck.value ++
       Shared.scalajsDom.value

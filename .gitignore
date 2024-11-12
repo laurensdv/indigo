@@ -1,10 +1,12 @@
-
 *.class
 *.log
 .DS_Store
 
 # Windows specific
 null/
+
+# Scala-cli specific
+.scala-build
 
 # mill specific
 out
@@ -31,8 +33,7 @@ credentials.sbt
 .dotty-ide-disabled
 *.swp
 
-node_modules
-elm-stuff
+# Scala
 .metals/
 .bloop
 metals.sbt
@@ -40,5 +41,15 @@ metals.sbt
 .ammonite
 .coursier
 
+# Website
 indigo/site/public/
 website/build/
+
+# Node
+node_modules
+elm-stuff
+.parcel-cache
+
+# Direnv
+.direnv
+.envrc

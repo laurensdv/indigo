@@ -7,6 +7,7 @@ import indigo.shared.collections.Batch
 import indigo.shared.constants.Key
 import indigo.shared.datatypes._
 import indigo.shared.events.GlobalEvent
+import indigo.shared.events.MouseButton
 import indigo.shared.scenegraph.Graphic
 import indigo.shared.scenegraph.SceneNode
 import indigo.shared.scenegraph.Text
@@ -165,7 +166,7 @@ final case class InputField(
   def withLoseFocusActions(actions: => Batch[GlobalEvent]): InputField =
     this.copy(onLoseFocus = () => actions)
 
-  def update(frameContext: FrameContext[_]): Outcome[InputField] = {
+  def update(frameContext: FrameContext[?]): Outcome[InputField] = {
     @tailrec
     def rec(
         keysReleased: List[Key],
@@ -188,10 +189,10 @@ final case class InputField(
           val next = acc.delete
           rec(ks, next, true, acc.key.map(key => InputFieldChange(key, next.text)))
 
-        case Key.LEFT_ARROW :: ks =>
+        case Key.ARROW_LEFT :: ks =>
           rec(ks, acc.cursorLeft, true, changeEvent)
 
-        case Key.RIGHT_ARROW :: ks =>
+        case Key.ARROW_RIGHT :: ks =>
           rec(ks, acc.cursorRight, true, changeEvent)
 
         case Key.HOME :: ks =>
@@ -217,10 +218,11 @@ final case class InputField(
         rec(frameContext.inputState.keyboard.keysReleased.toList, this, false, None)
       else Outcome(this)
 
-    if (frameContext.inputState.mouse.mouseReleased)
+    if (frameContext.inputState.pointers.isReleased)
       bounds(frameContext.boundaryLocator) match
         case Some(bounds) =>
-          if frameContext.inputState.mouse.wasMouseUpWithin(bounds) then updated.flatMap(_.giveFocus)
+          if frameContext.inputState.pointers.wasUpWithin(bounds, MouseButton.LeftMouseButton) then
+            updated.flatMap(_.giveFocus)
           else updated.flatMap(_.loseFocus)
         case _ =>
           updated
@@ -250,7 +252,7 @@ final case class InputField(
 
       val cursorPositionPoint =
         boundaryLocator
-          .textAsLinesWithBounds(textToCursor, field.fontKey)
+          .textAsLinesWithBounds(textToCursor, field.fontKey, field.letterSpacing, field.lineHeight)
           .reverse
           .headOption
           .map(_.lineBounds.topRight + position)
@@ -323,10 +325,10 @@ object InputField:
       () => Batch.empty
     )
 
-final case class InputFieldAssets(text: Text[_], cursor: Graphic[_]) derives CanEqual:
-  def withText(newText: Text[_]): InputFieldAssets =
+final case class InputFieldAssets(text: Text[?], cursor: Graphic[?]) derives CanEqual:
+  def withText(newText: Text[?]): InputFieldAssets =
     this.copy(text = newText)
-  def withCursor(newCursor: Graphic[_]): InputFieldAssets =
+  def withCursor(newCursor: Graphic[?]): InputFieldAssets =
     this.copy(cursor = newCursor)
 
 final case class InputFieldChange(key: BindingKey, updatedText: String) extends GlobalEvent derives CanEqual

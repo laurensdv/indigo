@@ -1,6 +1,7 @@
 package indigo.shared.input
 
-final case class Gamepad(connected: Boolean, analog: GamepadAnalogControls, dpad: GamepadDPad, buttons: GamepadButtons) derives CanEqual
+final case class Gamepad(connected: Boolean, analog: GamepadAnalogControls, dpad: GamepadDPad, buttons: GamepadButtons)
+    derives CanEqual
 
 object Gamepad {
 
@@ -55,7 +56,9 @@ object GamepadButtons {
       TouchPad = false
     )
 
-  def unapply(value: GamepadButtons): Option[(Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean)] =
+  def unapply(value: GamepadButtons): Option[
+    (Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean, Boolean)
+  ] =
     Some(
       (
         value.Cross,
@@ -80,10 +83,10 @@ object GamepadDPad {
     GamepadDPad(false, false, false, false)
 }
 
-final case class GamepadAnalogControls(left: AnalogAxis, right: AnalogAxis)
+final case class GamepadAnalogControls(left: AnalogAxis, right: AnalogAxis, numberOfAxes: Int)
 object GamepadAnalogControls {
   val default: GamepadAnalogControls =
-    GamepadAnalogControls(AnalogAxis.default, AnalogAxis.default)
+    GamepadAnalogControls(AnalogAxis.default, AnalogAxis.default, 0)
 }
 
 final case class AnalogAxis(x: Double, y: Double, pressed: Boolean)

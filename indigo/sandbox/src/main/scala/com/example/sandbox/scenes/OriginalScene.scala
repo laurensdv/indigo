@@ -26,24 +26,24 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   def name: SceneName =
     SceneName("original")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel
   ): GlobalEvent => Outcome[SandboxGameModel] =
     _ => Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): GlobalEvent => Outcome[SandboxViewModel] =
     _ => Outcome(viewModel)
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): Outcome[SceneUpdateFragment] = {
@@ -58,31 +58,25 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
         )
 
     Outcome(
-      SceneUpdateFragment.empty
+      scene
         .addLayer(
-          Layer.empty
-            .withKey(BindingKey("bg"))
-            .withMagnification(1)
-        ) |+| scene
-        .addLayer(
-          Layer(
-            CustomShape(0, 0, 228 * 3, 140 * 3, Depth(10), ShaderData(Shaders.seaId))
-          ).withKey(BindingKey("bg"))
+          BindingKey("bg") -> Layer(
+            BlankEntity(0, 0, 228 * 3, 140 * 3, Depth(10), ShaderData(Shaders.seaId))
+          ).withMagnification(1)
         )
         .addLayer(
           Layer(
             Graphic(120, 10, 32, 32, 1, SandboxAssets.dotsMaterial),
-            CustomShape(140, 50, 32, 32, Depth.zero, ShaderData(Shaders.circleId)),
-            CustomShape(
+            BlankEntity(140, 50, 32, 32, ShaderData(Shaders.circleId)),
+            BlankEntity(
               140,
               50,
               32,
               32,
-              Depth.zero,
               ShaderData(
                 Shaders.externalId,
                 UniformBlock(
-                  "CustomData",
+                  UniformBlockName("CustomData"),
                   Batch(
                     Uniform("ALPHA")        -> float(0.75),
                     Uniform("BORDER_COLOR") -> vec3(1.0, 1.0, 0.0)
@@ -90,16 +84,15 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
                 )
               )
             ),
-            CustomShape(
+            BlankEntity(
               150,
               60,
               32,
               32,
-              Depth.zero,
               ShaderData(
                 Shaders.externalId,
                 UniformBlock(
-                  "CustomData",
+                  UniformBlockName("CustomData"),
                   Batch(
                     Uniform("ALPHA")        -> float(0.5),
                     Uniform("BORDER_COLOR") -> vec3(1.0, 0.0, 1.0)
@@ -114,22 +107,6 @@ object OriginalScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
 
 }
 
-final case class CustomShape(x: Int, y: Int, width: Int, height: Int, depth: Depth, shader: ShaderData)
-    extends EntityNode[CustomShape]:
-  val flip: Flip                    = Flip.default
-  val position: Point               = Point(x, y)
-  val size: Size                    = Size(width, height)
-  val ref: Point                    = Point.zero
-  val rotation: Radians             = Radians.zero
-  val scale: Vector2                = Vector2.one
-  lazy val toShaderData: ShaderData = shader
-
-  def withDepth(newDepth: Depth): CustomShape =
-    this.copy(depth = newDepth)
-
-  val eventHandlerEnabled: Boolean                                      = false
-  def eventHandler: ((CustomShape, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
-
 object Shaders:
 
   val circleId: ShaderId =
@@ -141,11 +118,11 @@ object Shaders:
     |  return TAU * mod(t, 1.0);
     |}
     |
-    |void vertex() {
+    |vec4 vertex(vec4 v) {
     |  float x = sin(timeToRadians(TIME / 2.0)) * ${orbitDist.toString()} + VERTEX.x;
     |  float y = cos(timeToRadians(TIME / 2.0)) * ${orbitDist.toString()} + VERTEX.y;
     |  vec2 orbit = vec2(x, y);
-    |  VERTEX = vec4(orbit, VERTEX.zw);
+    |  return vec4(orbit, VERTEX.zw);
     |}
     |""".stripMargin
 
@@ -155,11 +132,11 @@ object Shaders:
     |  return TAU * mod(t, 1.0);
     |}
     |
-    |void fragment() {
+    |vec4 fragment(vec4 color) {
     |  float red = UV.x * (1.0 - ((cos(timeToRadians(TIME)) + 1.0) / 2.0));
     |  float alpha = 1.0 - step(0.0, length(UV - 0.5) - 0.5);
     |  vec4 circle = vec4(vec3(red, UV.y, 0.0) * alpha, alpha);
-    |  COLOR = circle;
+    |  return circle;
     |}
     |""".stripMargin
 

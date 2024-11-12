@@ -23,17 +23,17 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
   def name: SceneName =
     SceneName("boxes")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel
   ): GlobalEvent => Outcome[SandboxGameModel] =
     _ => Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): GlobalEvent => Outcome[SandboxViewModel] =
@@ -60,7 +60,7 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
       boxStroke
     )
 
-  val shapes: Batch[Shape[_]] =
+  val shapes: Batch[Shape[?]] =
     val d = Dice.fromSeed(0)
     Batch.fromList(
       (1 to 30).toList.flatMap { _ =>
@@ -69,7 +69,7 @@ object BoxesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVie
     )
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): Outcome[SceneUpdateFragment] =

@@ -11,23 +11,23 @@ object PerfModel {
     case FrameTick =>
       Outcome(state)
 
-    case KeyboardEvent.KeyDown(Key.LEFT_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_LEFT) =>
       Outcome(state.walkLeft)
 
-    case KeyboardEvent.KeyDown(Key.RIGHT_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_RIGHT) =>
       Outcome(state.walkRight)
 
-    case KeyboardEvent.KeyDown(Key.UP_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_UP) =>
       Outcome(state.walkUp)
 
-    case KeyboardEvent.KeyDown(Key.DOWN_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_DOWN) =>
       Outcome(state.walkDown)
 
     case KeyboardEvent.KeyUp(_) =>
       Outcome(state.idle)
 
     case _ =>
-      //Logger.info(e)
+      // Logger.info(e)
       Outcome(state)
   }
 

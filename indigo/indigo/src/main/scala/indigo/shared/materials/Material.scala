@@ -13,6 +13,7 @@ import indigo.shared.shader.ShaderPrimitive.rawJSArray
 import indigo.shared.shader.StandardShaders
 import indigo.shared.shader.Uniform
 import indigo.shared.shader.UniformBlock
+import indigo.shared.shader.UniformBlockName
 
 trait Material {
   def toShaderData: ShaderData
@@ -29,6 +30,11 @@ object Material {
       this.copy(lighting = newLighting)
     def modifyLighting(modifier: LightingModel => LightingModel): Bitmap =
       this.copy(lighting = modifier(lighting))
+
+    def enableLighting: Bitmap =
+      withLighting(lighting.enableLighting)
+    def disableLighting: Bitmap =
+      withLighting(lighting.disableLighting)
 
     def withShaderId(newShaderId: ShaderId): Bitmap =
       this.copy(shaderId = Option(newShaderId))
@@ -65,7 +71,7 @@ object Material {
 
       val uniformBlock: UniformBlock =
         UniformBlock(
-          "IndigoBitmapData",
+          UniformBlockName("IndigoBitmapData"),
           Batch(
             Uniform("Bitmap_FILLTYPE") -> rawJSArray(scalajs.js.Array(imageFillType))
           )
@@ -129,6 +135,11 @@ object Material {
     def modifyLighting(modifier: LightingModel => LightingModel): ImageEffects =
       this.copy(lighting = modifier(lighting))
 
+    def enableLighting: ImageEffects =
+      withLighting(lighting.enableLighting)
+    def disableLighting: ImageEffects =
+      withLighting(lighting.disableLighting)
+
     def withShaderId(newShaderId: ShaderId): ImageEffects =
       this.copy(shaderId = Option(newShaderId))
 
@@ -162,7 +173,7 @@ object Material {
       // ALPHA_SATURATION_OVERLAYTYPE_FILLTYPE (vec4), TINT (vec4)
       val effectsUniformBlock: UniformBlock =
         UniformBlock(
-          "IndigoImageEffectsData",
+          UniformBlockName("IndigoImageEffectsData"),
           Batch(
             Uniform("ImageEffects_DATA") -> rawJSArray(
               scalajs.js.Array(

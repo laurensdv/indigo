@@ -5,9 +5,9 @@ import indigo.shared.collections.Batch
 import indigo.shared.datatypes.Point
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.events.GlobalEvent
-import indigo.shared.input.Mouse
-import indigoextras.geometry.Polygon
-import indigoextras.geometry.Vertex
+import indigo.shared.geometry.Polygon
+import indigo.shared.geometry.Vertex
+import indigo.shared.input.PointerState
 
 final case class HitArea(
     area: Polygon.Closed,
@@ -17,45 +17,45 @@ final case class HitArea(
     onHoverOver: () => Batch[GlobalEvent],
     onHoverOut: () => Batch[GlobalEvent],
     onClick: () => Batch[GlobalEvent],
-    onHoldDown: () => Batch[GlobalEvent],
+    onHoldDown: () => Batch[GlobalEvent]
 ) derives CanEqual:
 
-  def update(mouse: Mouse): Outcome[HitArea] = {
-    val mouseInBounds = area.contains(Vertex.fromPoint(mouse.position))
+  def update(pointer: PointerState): Outcome[HitArea] = {
+    val pointerInBounds = pointer.positions.exists(p => area.contains(Vertex.fromPoint(p)))
 
     val upEvents: Batch[GlobalEvent] =
-      if mouseInBounds && mouse.mouseReleased then onUp()
+      if pointerInBounds && pointer.released then onUp()
       else Batch.empty
 
     val clickEvents: Batch[GlobalEvent] =
-      if mouseInBounds && mouse.mouseClicked then onClick()
+      if pointerInBounds && pointer.isClicked then onClick()
       else Batch.empty
 
     val downEvents: Batch[GlobalEvent] =
-      if mouseInBounds && mouse.mousePressed then onDown()
+      if pointerInBounds && pointer.pressed then onDown()
       else Batch.empty
 
-    val mouseButtonEvents: Batch[GlobalEvent] =
+    val pointerButtonEvents: Batch[GlobalEvent] =
       downEvents ++ upEvents ++ clickEvents
 
     state match
-      case ButtonState.Down if mouseInBounds && mouse.isLeftDown =>
-        Outcome(this).addGlobalEvents(onHoldDown() ++ mouseButtonEvents)
+      case ButtonState.Down if pointerInBounds && pointer.isLeftDown =>
+        Outcome(this).addGlobalEvents(onHoldDown() ++ pointerButtonEvents)
 
-      case ButtonState.Up if mouseInBounds =>
-        Outcome(toOverState).addGlobalEvents(onHoverOver() ++ mouseButtonEvents)
+      case ButtonState.Up if pointerInBounds =>
+        Outcome(toOverState).addGlobalEvents(onHoverOver() ++ pointerButtonEvents)
 
-      case ButtonState.Over if mouseInBounds && mouse.mousePressed =>
-        Outcome(toDownState).addGlobalEvents(mouseButtonEvents)
+      case ButtonState.Over if pointerInBounds && pointer.pressed =>
+        Outcome(toDownState).addGlobalEvents(pointerButtonEvents)
 
-      case ButtonState.Down if mouseInBounds && !mouse.isLeftDown =>
-        Outcome(toOverState).addGlobalEvents(onHoverOver() ++ mouseButtonEvents)
+      case ButtonState.Down if pointerInBounds && !pointer.isLeftDown =>
+        Outcome(toOverState).addGlobalEvents(onHoverOver() ++ pointerButtonEvents)
 
-      case ButtonState.Over if !mouseInBounds =>
-        Outcome(toUpState).addGlobalEvents(onHoverOut() ++ mouseButtonEvents)
+      case ButtonState.Over if !pointerInBounds =>
+        Outcome(toUpState).addGlobalEvents(onHoverOut() ++ pointerButtonEvents)
 
       case _ =>
-        Outcome(this).addGlobalEvents(mouseButtonEvents)
+        Outcome(this).addGlobalEvents(pointerButtonEvents)
   }
 
   def withUpActions(actions: GlobalEvent*): HitArea =
@@ -84,7 +84,7 @@ final case class HitArea(
     this.copy(onClick = () => actions)
 
   def withHoldDownActions(actions: GlobalEvent*): HitArea =
-      withHoldDownActions(Batch.fromSeq(actions))
+    withHoldDownActions(Batch.fromSeq(actions))
   def withHoldDownActions(actions: => Batch[GlobalEvent]): HitArea =
     this.copy(onHoldDown = () => actions)
 
@@ -118,7 +118,7 @@ object HitArea:
       onHoverOver = () => Batch.empty,
       onHoverOut = () => Batch.empty,
       onClick = () => Batch.empty,
-      onHoldDown = () => Batch.empty,
+      onHoldDown = () => Batch.empty
     )
 
   def apply(area: Polygon.Closed): HitArea =
@@ -130,5 +130,5 @@ object HitArea:
       onHoverOver = () => Batch.empty,
       onHoverOut = () => Batch.empty,
       onClick = () => Batch.empty,
-      onHoldDown = () => Batch.empty,
+      onHoldDown = () => Batch.empty
     )

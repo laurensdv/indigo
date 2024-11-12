@@ -5,43 +5,47 @@ import mill._
 import mill.scalalib._
 import mill.scalajslib._
 import mill.scalajslib.api._
+import mill.scalalib.scalafmt._
 import coursier.maven.MavenRepository
 import publish._
 
-object `indigo-plugin` extends Cross[IndigoPluginModule]("2.12", "2.13")
-class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule with PublishModule {
+import $ivy.`io.github.davidgregory084::mill-tpolecat::0.3.5`
+import io.github.davidgregory084.TpolecatModule
 
-  def indigoVersion = T.input { IndigoVersion.getVersion }
+object `indigo-plugin` extends Cross[IndigoPluginModule]("2.12", "2.13")
+
+trait IndigoPluginModule extends CrossScalaModule with PublishModule with ScalafmtModule with TpolecatModule {
+  def indigoVersion = T.input(IndigoVersion.getVersion)
 
   def scalaVersion =
     crossScalaVersion match {
-      case "2.12" => "2.12.15"
-      case "2.13" => "2.13.6"
-      case _  => "2.13.6"
+      case "2.12" => "2.12.17"
+      case "2.13" => "2.13.10"
+      case _      => "2.13.10"
     }
 
   def artifactName = "indigo-plugin"
 
   def ivyDeps =
-    Agg(ivy"com.lihaoyi::os-lib:0.8.0")
-
-  def repositories =
-    super.repositories ++ Seq(
-      MavenRepository("https://oss.sonatype.org/content/repositories/releases")
+    Agg(
+      ivy"com.lihaoyi::os-lib:0.8.0",
+      ivy"io.circe::circe-core:0.14.1",
+      ivy"io.circe::circe-parser:0.14.1"
     )
 
-  def scalacOptions =
-    ScalacOptions.scala213Compile 
+  def repositoriesTask = T.task {
+    super.repositoriesTask() ++ Seq(
+      MavenRepository("https://oss.sonatype.org/content/repositories/releases")
+    )
+  }
 
-  object test extends Tests {
+  object test extends ScalaTests {
     def ivyDeps =
       Agg(
         ivy"org.scalameta::munit:0.7.29"
       )
 
     def testFramework = "munit.Framework"
-
-    def scalacOptions = ScalacOptions.scala213Test
   }
 
   def publishVersion = indigoVersion()
@@ -71,7 +75,7 @@ object IndigoVersion {
 
         case None if levels < 3 =>
           try {
-            val v = scala.io.Source.fromFile(path).getLines.toList.head
+            val v = scala.io.Source.fromFile(path).getLines().toList.head
             rec(path, levels, Some(v))
           } catch {
             case _: Throwable =>
@@ -86,35 +90,4 @@ object IndigoVersion {
 
     rec(".indigo-version", 0, None)
   }
-}
-
-object ScalacOptions {
-
-  lazy val scala213Compile: Seq[String] =
-    Seq(
-      "-deprecation", // Emit warning and location for usages of deprecated APIs.
-      "-encoding",
-      "utf-8",                         // Specify character encoding used by source files.
-      "-feature",                      // Emit warning and location for usages of features that should be imported explicitly.
-      "-language:existentials",        // Existential types (besides wildcard types) can be written and inferred
-      "-language:experimental.macros", // Allow macro definition (besides implementation and application)
-      "-language:higherKinds",         // Allow higher-kinded types
-      "-language:implicitConversions", // Allow definition of implicit functions called views
-      "-unchecked",                    // Enable additional warnings where generated code depends on assumptions.
-      "-Xfatal-warnings"               // Fail the compilation if there are any warnings.
-    )
-
-  lazy val scala213Test: Seq[String] =
-    Seq(
-      "-deprecation", // Emit warning and location for usages of deprecated APIs.
-      "-encoding",
-      "utf-8",                         // Specify character encoding used by source files.
-      "-feature",                      // Emit warning and location for usages of features that should be imported explicitly.
-      "-language:existentials",        // Existential types (besides wildcard types) can be written and inferred
-      "-language:experimental.macros", // Allow macro definition (besides implementation and application)
-      "-language:higherKinds",         // Allow higher-kinded types
-      "-language:implicitConversions", // Allow definition of implicit functions called views
-      "-unchecked",                    // Enable additional warnings where generated code depends on assumptions.
-    )
-
 }

@@ -9,8 +9,6 @@ import indigo.scenes.*
 
 object CratesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
-  val spawnCount: Int = 600
-
   type SceneModel     = Unit
   type SceneViewModel = Unit
 
@@ -26,17 +24,17 @@ object CratesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
   def name: SceneName =
     SceneName("crates")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: Unit
   ): GlobalEvent => Outcome[Unit] =
     _ => Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: Unit,
       viewModel: Unit
   ): GlobalEvent => Outcome[Unit] =
@@ -60,7 +58,7 @@ object CratesScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
     )
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: Unit,
       viewModel: Unit
   ): Outcome[SceneUpdateFragment] =

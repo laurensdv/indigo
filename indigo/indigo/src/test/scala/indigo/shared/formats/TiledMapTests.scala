@@ -81,7 +81,7 @@ class TiledMapTests extends munit.FunSuite {
     actual.children.head match {
       case g: Group =>
         // Only 3 tiles have contents.
-        val graphics: Batch[Graphic[_]] =
+        val graphics: Batch[Graphic[?]] =
           g.children.collect { case graphic: Graphic[_] => graphic }
 
         assertEquals(graphics.length, 3)
@@ -189,7 +189,24 @@ object TiledSamples {
       "1.3.2",
       32,
       32,
-      List(TileSet(Some(17), 1, Some("terrain.png"), Some(160), Some(544), Some(0), Some("Palm Island"), Some(0), None, Some(85), Some(32), None, Some(32), None)),
+      List(
+        TileSet(
+          Some(17),
+          1,
+          Some("terrain.png"),
+          Some(160),
+          Some(544),
+          Some(0),
+          Some("Palm Island"),
+          Some(0),
+          None,
+          Some(85),
+          Some(32),
+          None,
+          Some(32),
+          None
+        )
+      ),
       "map",
       None,
       None,

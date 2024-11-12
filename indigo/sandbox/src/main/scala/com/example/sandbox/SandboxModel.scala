@@ -1,7 +1,9 @@
 package com.example.sandbox
 
 import com.example.sandbox.scenes.ConfettiModel
-import indigo._
+import com.example.sandbox.scenes.PathFindingModel
+import com.example.sandbox.scenes.PointersModel
+import indigo.*
 import indigoextras.ui.InputFieldChange
 
 object SandboxModel {
@@ -13,7 +15,10 @@ object SandboxModel {
       DudeModel(startupData.dude, DudeIdle),
       SaveLoadPhases.NotStarted,
       None,
-      ConfettiModel.empty
+      ConfettiModel.empty,
+      PointersModel.empty,
+      PathFindingModel.empty,
+      Radians.zero
     )
 
   def updateModel(state: SandboxGameModel): GlobalEvent => Outcome[SandboxGameModel] = {
@@ -36,12 +41,18 @@ object SandboxModel {
           // Then we save some data
           println("Saving data")
           Outcome(state.copy(saveLoadPhase = SaveLoadPhases.SaveIt))
-            .addGlobalEvents(Save("my-save-game", "Important save data."))
+            .addGlobalEvents(
+              Save("my-save-game", "Important save data."),
+              FetchKeys(0, 3)
+            )
 
         case SaveLoadPhases.SaveIt =>
           // Then we load it back (see the loaded event capture below!)
           Outcome(state.copy(saveLoadPhase = SaveLoadPhases.LoadIt))
-            .addGlobalEvents(Load("my-save-game"))
+            .addGlobalEvents(
+              Load("my-save-game"),
+              Load("missing")
+            )
 
         case SaveLoadPhases.LoadIt =>
           state.data match {
@@ -58,7 +69,7 @@ object SandboxModel {
           Outcome(state)
       }
 
-    case KeyboardEvent.KeyDown(Key.LEFT_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_LEFT) =>
       println("left")
       Outcome(
         state.copy(
@@ -66,21 +77,21 @@ object SandboxModel {
         )
       )
 
-    case KeyboardEvent.KeyDown(Key.RIGHT_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_RIGHT) =>
       Outcome(
         state.copy(
           dude = state.dude.walkRight
         )
       )
 
-    case KeyboardEvent.KeyDown(Key.UP_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_UP) =>
       Outcome(
         state.copy(
           dude = state.dude.walkUp
         )
       )
 
-    case KeyboardEvent.KeyDown(Key.DOWN_ARROW) =>
+    case KeyboardEvent.KeyDown(Key.ARROW_DOWN) =>
       Outcome(
         state.copy(
           dude = state.dude.walkDown
@@ -106,8 +117,16 @@ object SandboxModel {
         )
       )
 
-    case Loaded(_, loadedData) =>
-      Outcome(state.copy(data = Some(loadedData)))
+    case Loaded("my-save-game", loadedData) =>
+      Outcome(state.copy(data = loadedData))
+
+    case Loaded(key, loadedData) =>
+      println(s"Other data load attempted: $key, $loadedData")
+      Outcome(state)
+
+    case KeysFound(found) =>
+      println("Keys found: " + found)
+      Outcome(state)
 
     case _ =>
       Outcome(state)
@@ -119,7 +138,10 @@ final case class SandboxGameModel(
     dude: DudeModel,
     saveLoadPhase: SaveLoadPhases,
     data: Option[String],
-    confetti: ConfettiModel
+    confetti: ConfettiModel,
+    pointers: PointersModel,
+    pathfinding: PathFindingModel,
+    rotation: Radians
 )
 
 final case class DudeModel(dude: Dude, walkDirection: DudeDirection) {

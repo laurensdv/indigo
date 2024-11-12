@@ -41,19 +41,19 @@ class Vector2Tests extends munit.FunSuite {
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector2s.parallel") {
-    assertEquals((Vector2(0, 0) dot Vector2(0, 0)), 0.0)
+    assertEquals((Vector2(0, 0) `dot` Vector2(0, 0)), 0.0)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector2s.facing") {
-    assertEquals((Vector2(2, 2) dot Vector2(-1, -1)) < 0, true)
+    assertEquals((Vector2(2, 2) `dot` Vector2(-1, -1)) < 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector2s.not facing") {
-    assertEquals((Vector2(2, 2) dot Vector2(1, 1)) > 0, true)
+    assertEquals((Vector2(2, 2) `dot` Vector2(1, 1)) > 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector2s.value") {
-    assertEquals(Math.round((Vector2(-6.0, 8.0) dot Vector2(5.0, 12.0))).toDouble, 66.0d)
+    assertEquals(Math.round((Vector2(-6.0, 8.0) `dot` Vector2(5.0, 12.0))).toDouble, 66.0d)
   }
 
   test("Construction.build a vector from two points") {
@@ -87,10 +87,19 @@ class Vector2Tests extends munit.FunSuite {
     assertEquals(Vector2(10, 10).max(Vector2(50, 5)), Vector2(50, 10))
   }
 
-  test("clamp") {
+  test("clamp - Double") {
     assertEquals(Vector2(0.1, 0.1).clamp(0, 1), Vector2(0.1, 0.1))
     assertEquals(Vector2(-0.1, 1.1).clamp(0, 1), Vector2(0.0, 1.0))
     assertEquals(Vector2(1, 4).clamp(2, 3), Vector2(2, 3))
+    assertEquals(Vector2(-2, 2).clamp(-1, 1), Vector2(-1, 1))
+  }
+
+  test("clamp - Vector2") {
+    assertEquals(Vector2(0.1, 0.1).clamp(Vector2(0), Vector2(1)), Vector2(0.1, 0.1))
+    assertEquals(Vector2(-0.1, 1.1).clamp(Vector2(0), Vector2(1)), Vector2(0.0, 1.0))
+    assertEquals(Vector2(1, 4).clamp(Vector2(2), Vector2(3)), Vector2(2, 3))
+    assertEquals(Vector2(-2, 2).clamp(Vector2(-1), Vector2(1)), Vector2(-1, 1))
+    assertEquals(Vector2(-2, 2).clamp(Vector2(-1, 0), Vector2(0, 1)), Vector2(-1, 1))
   }
 
   test("length") {
@@ -114,6 +123,14 @@ class Vector2Tests extends munit.FunSuite {
 
   test("scaleBy") {
     assertEquals(Vector2(2, 2).scaleBy(Vector2(10, 2)), Vector2(20, 4))
+  }
+
+  test("ceil") {
+    assertEquals(Vector2(2.2, 2.6).ceil, Vector2(3, 3))
+  }
+
+  test("floor") {
+    assertEquals(Vector2(2.2, 2.6).floor, Vector2(2, 2))
   }
 
   test("round") {
@@ -146,8 +163,8 @@ class Vector2Tests extends munit.FunSuite {
     assert(Vector2(1, 0).rotateBy(Radians.TAU) ~== Vector2(1, 0))
 
     // 45
-    val v = Vector2(1, 2)
-    val expected = Vector2(-0.70710,2.12132)
+    val v        = Vector2(1, 2)
+    val expected = Vector2(-0.70710, 2.12132)
     assert(v.rotateBy(Radians.PIby2 / 2f) ~== expected)
     // magnitude should remain the same
     assert(Math.abs(v.length - expected.length) <= 0.0001)
@@ -158,11 +175,11 @@ class Vector2Tests extends munit.FunSuite {
 
   test("rotate around given point") {
     // Same quadrant
-    assert(Vector2(3, 3).rotateBy(Radians.PIby2, Vector2(2,2)) ~== Vector2(1, 3))
+    assert(Vector2(3, 3).rotateBy(Radians.PIby2, Vector2(2, 2)) ~== Vector2(1, 3))
     // Adjacent quadrant
-    assert(Vector2(3, 1).rotateBy(Radians.PIby2, Vector2(-2,-2)) ~== Vector2(-5, 3))
+    assert(Vector2(3, 1).rotateBy(Radians.PIby2, Vector2(-2, -2)) ~== Vector2(-5, 3))
     // Negative
-    assert(Vector2(-3, 4).rotateBy(Radians.PIby2 * -1f, Vector2(-1,2)) ~== Vector2(1, 4))
+    assert(Vector2(-3, 4).rotateBy(Radians.PIby2 * -1f, Vector2(-1, 2)) ~== Vector2(1, 4))
   }
 
   test("rotate to") {
@@ -177,6 +194,17 @@ class Vector2Tests extends munit.FunSuite {
     assertEquals(Vector2(0, -1).angle, Radians.PIby2 * -1.0)
     // -90 at different magnitude
     assertEquals(Vector2(0, -8.5).angle, Radians.PIby2 * -1.0)
+  }
+
+  test("mod") {
+    assert(Vector2.mod(Vector2(11, 12), Vector2(10, 10)) ~== Vector2(1, 2))
+    assert(Vector2(11, 12) % Vector2(10, 10) ~== Vector2(1, 2))
+    assert(Vector2.mod(Vector2(9, 10), Vector2(10, 10)) ~== Vector2(9, 0))
+    assert(Vector2.mod(Vector2(1, 1), Vector2(10, 10)) ~== Vector2(1, 1))
+    assert(Vector2.mod(Vector2(-11, -12), Vector2(10, 10)) ~== Vector2(9, 8))
+    assert(Vector2.mod(Vector2(-1, -1), Vector2(10, 10)) ~== Vector2(9, 9))
+    assert(Vector2.mod(Vector2(0, 0), Vector2(10, 10)) ~== Vector2(0, 0))
+    assert(clue(Vector2.mod(Vector2(-11), Vector2(-10))) ~== clue(Vector2(-1)))
   }
 
   def to2dp(d: Double): Double =

@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-sbt clean sbtIndigo/publishLocal
+set -e
+
+sbt clean scalafmtCheckAll sbtIndigo/publishLocal

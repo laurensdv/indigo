@@ -1,9 +1,12 @@
 package indigo
 
+import scala.annotation.targetName
+
 object syntax:
 
   extension (d: Double)
     def radians: Radians = Radians(d)
+    def second: Seconds  = Seconds(d)
     def seconds: Seconds = Seconds(d)
     def volume: Volume   = Volume(d)
     def zoom: Zoom       = Zoom(d)
@@ -16,18 +19,19 @@ object syntax:
   extension (l: Long) def millis: Millis = Millis(l)
 
   extension (s: String)
-    def animationKey: AnimationKey = AnimationKey(s)
-    def assetName: AssetName       = AssetName(s)
-    def assetPath: AssetPath       = AssetPath(s)
-    def assetTag: AssetTag         = AssetTag(s)
-    def cloneId: CloneId           = CloneId(s)
-    def cycleLabel: CycleLabel     = CycleLabel(s)
-    def fontKey: FontKey           = FontKey(s)
-    def fontFamily: FontFamily     = FontFamily(s)
-    def bindingKey: BindingKey     = BindingKey(s)
-    def scene: scenes.SceneName    = scenes.SceneName(s)
-    def shaderId: ShaderId         = ShaderId(s)
-    def uniform: Uniform           = Uniform(s)
+    def animationKey: AnimationKey         = AnimationKey(s)
+    def assetName: AssetName               = AssetName(s)
+    def assetPath: AssetPath               = AssetPath(s)
+    def assetTag: AssetTag                 = AssetTag(s)
+    def cloneId: CloneId                   = CloneId(s)
+    def cycleLabel: CycleLabel             = CycleLabel(s)
+    def fontKey: FontKey                   = FontKey(s)
+    def fontFamily: FontFamily             = FontFamily(s)
+    def bindingKey: BindingKey             = BindingKey(s)
+    def scene: scenes.SceneName            = scenes.SceneName(s)
+    def shaderId: ShaderId                 = ShaderId(s)
+    def uniform: Uniform                   = Uniform(s)
+    def uniformBlockName: UniformBlockName = UniformBlockName(s)
 
   extension (t: (Double, Double)) def vector2: Vector2 = Vector2(t._1, t._2)
 
@@ -51,8 +55,11 @@ object syntax:
   extension [A](values: IndexedSeq[A]) def toBatch: Batch[A]       = Batch.fromIndexedSeq(values)
   extension [A](values: Iterator[A]) def toBatch: Batch[A]         = Batch.fromIterator(values)
   extension [K, V](values: Map[K, V]) def toBatch: Batch[(K, V)]   = Batch.fromMap(values)
-  extension [A](values: Option[A]) def toBatch: Batch[A]           = Batch.fromOption(values)
   extension (values: Range) def toBatch: Batch[Int]                = Batch.fromRange(values)
+
+  extension [A](values: Option[A])
+    def toBatch: Batch[A]                          = Batch.fromOption(values)
+    def toOutcome(error: => Throwable): Outcome[A] = Outcome.fromOption(values, error)
 
   val ==: = shared.collections.Batch.==:
   val :== = shared.collections.Batch.:==
@@ -67,7 +74,105 @@ object syntax:
   extension [A](l: List[Option[A]]) def sequence: Option[List[A]]                   = NonEmptyList.sequenceListOption(l)
   extension [A](l: NonEmptyList[Option[A]]) def sequence: Option[NonEmptyList[A]]   = NonEmptyList.sequenceOption(l)
 
+  extension (s: Size) def toGameViewport: GameViewport = GameViewport(s)
+
+  // Timeline animations
+  object animations:
+    import indigo.shared.animation.timeline.*
+    import shared.temporal.SignalFunction
+    import scala.annotation.targetName
+
+    def timeline[A](animations: TimelineAnimation[A]*): Timeline[A] =
+      Timeline(Batch.fromSeq(animations).flatMap(_.compile.toWindows))
+
+    def layer[A](timeslots: TimeSlot[A]*): TimelineAnimation[A] =
+      TimelineAnimation(Batch.fromSeq(timeslots))
+
+    @targetName("SF_ctxfn_lerp")
+    def lerp: Seconds ?=> SignalFunction[Seconds, Double] = over ?=> SignalFunction.lerp(over)
+
+    @targetName("SF_ctxfn_easeIn")
+    def easeIn: Seconds ?=> SignalFunction[Seconds, Double] = over ?=> SignalFunction.easeIn(over)
+
+    @targetName("SF_ctxfn_easeOut")
+    def easeOut: Seconds ?=> SignalFunction[Seconds, Double] = over ?=> SignalFunction.easeOut(over)
+
+    @targetName("SF_ctxfn_easeInOut")
+    def easeInOut: Seconds ?=> SignalFunction[Seconds, Double] = over ?=> SignalFunction.easeInOut(over)
+
+    export TimeSlot.start
+    export TimeSlot.startAfter
+    export TimeSlot.pause
+    export TimeSlot.show
+    export TimeSlot.animate
+
+    export SignalFunction.lerp
+    export SignalFunction.easeIn
+    export SignalFunction.easeOut
+    export SignalFunction.easeInOut
+    export SignalFunction.wrap
+    export SignalFunction.clamp
+    export SignalFunction.step
+    export SignalFunction.sin
+    export SignalFunction.cos
+    export SignalFunction.orbit
+    export SignalFunction.pulse
+    export SignalFunction.smoothPulse
+    export SignalFunction.multiply
+  end animations
+
+  // Shaders
+  object shaders:
+
+    extension (c: RGBA) def asVec4: vec4 = vec4.fromRGBA(c)
+    extension (c: RGB)
+      def asVec4: vec4 = vec4.fromRGB(c)
+      def asVec3: vec3 = vec3.fromRGB(c)
+    extension (p: Point) def asVec2: vec2     = vec2.fromPoint(p)
+    extension (s: Size) def asVec2: vec2      = vec2.fromSize(s)
+    extension (v: Vector2) def asVec2: vec2   = vec2.fromVector2(v)
+    extension (v: Vector3) def asVec3: vec3   = vec3.fromVector3(v)
+    extension (v: Vector4) def asVec4: vec4   = vec4.fromVector4(v)
+    extension (r: Rectangle) def asVec4: vec4 = vec4.fromRectangle(r)
+    extension (m: Matrix4) def asMat4: mat4   = mat4.fromMatrix4(m)
+    extension (d: Depth) def asFloat: float   = float.fromDepth(d)
+    extension (m: Millis) def asFloat: float  = float.fromMillis(m)
+    extension (r: Radians) def asFloat: float = float.fromRadians(r)
+    extension (s: Seconds)
+      @targetName("ext_Seconds_asFloat")
+      def asFloat: float = float.fromSeconds(s)
+    extension (d: Double)
+      @targetName("ext_Double_asFloat")
+      def asFloat: float = float(d)
+    extension (i: Int)
+      @targetName("ext_Int_asFloat")
+      def asFloat: float = float(i)
+    extension (l: Long)
+      @targetName("ext_Long_asFloat")
+      def asFloat: float = float(l)
+    extension (a: Array[Float])
+      def asMat4: mat4         = mat4(a)
+      def asRawArray: rawArray = rawArray(a)
+    extension (a: scalajs.js.Array[Float])
+      def asMat4: mat4           = mat4(a.toArray)
+      def asRawArray: rawJSArray = rawJSArray(a)
+
+  end shaders
+
 end syntax
+
+object mutable:
+
+  type CacheKey = shared.CacheKey
+  val CacheKey: shared.CacheKey.type = shared.CacheKey
+
+  type ToCacheKey[A] = shared.ToCacheKey[A]
+  val ToCacheKey: shared.ToCacheKey.type = shared.ToCacheKey
+
+  type QuickCache[A] = shared.QuickCache[A]
+  val QuickCache: shared.QuickCache.type = shared.QuickCache
+
+end mutable
 
 val logger: indigo.shared.IndigoLogger.type = indigo.shared.IndigoLogger
 
@@ -126,16 +231,38 @@ type Shader = shared.shader.Shader
 type BlendShader = shared.shader.BlendShader
 val BlendShader: shared.shader.BlendShader.type = shared.shader.BlendShader
 
-val ShaderLibrary: indigo.shaders.ShaderLibrary.type = indigo.shaders.ShaderLibrary
-
 type EntityShader = shared.shader.EntityShader
 val EntityShader: shared.shader.EntityShader.type = shared.shader.EntityShader
+
+type UltravioletShader = shared.shader.UltravioletShader
+val UltravioletShader: shared.shader.UltravioletShader.type = shared.shader.UltravioletShader
+
+type VertexEnv = shared.shader.library.IndigoUV.VertexEnv
+val VertexEnv: shared.shader.library.IndigoUV.VertexEnv.type =
+  shared.shader.library.IndigoUV.VertexEnv
+
+type VertexEnvReference = shared.shader.library.IndigoUV.VertexEnvReference
+
+type FragmentEnv = shared.shader.library.IndigoUV.FragmentEnv
+val FragmentEnv: shared.shader.library.IndigoUV.FragmentEnv.type =
+  shared.shader.library.IndigoUV.FragmentEnv
+
+type FragmentEnvReference = shared.shader.library.IndigoUV.FragmentEnvReference
+
+type BlendFragmentEnv = shared.shader.library.IndigoUV.BlendFragmentEnv
+val BlendFragmentEnv: shared.shader.library.IndigoUV.BlendFragmentEnv.type =
+  shared.shader.library.IndigoUV.BlendFragmentEnv
+
+type BlendFragmentEnvReference = shared.shader.library.IndigoUV.BlendFragmentEnvReference
 
 type ShaderId = shared.shader.ShaderId
 val ShaderId: shared.shader.ShaderId.type = shared.shader.ShaderId
 
 type Uniform = shared.shader.Uniform
 val Uniform: shared.shader.Uniform.type = shared.shader.Uniform
+
+type UniformBlockName = shared.shader.UniformBlockName
+val UniformBlockName: shared.shader.UniformBlockName.type = shared.shader.UniformBlockName
 
 type UniformBlock = shared.shader.UniformBlock
 val UniformBlock: shared.shader.UniformBlock.type = shared.shader.UniformBlock
@@ -164,6 +291,9 @@ val array: shared.shader.ShaderPrimitive.array.type = shared.shader.ShaderPrimit
 type rawArray = shared.shader.ShaderPrimitive.rawArray
 val rawArray: shared.shader.ShaderPrimitive.rawArray.type = shared.shader.ShaderPrimitive.rawArray
 
+type rawJSArray = shared.shader.ShaderPrimitive.rawJSArray
+val rawJSArray: shared.shader.ShaderPrimitive.rawJSArray.type = shared.shader.ShaderPrimitive.rawJSArray
+
 val StandardShaders: shared.shader.StandardShaders.type = shared.shader.StandardShaders
 
 type Outcome[T] = shared.Outcome[T]
@@ -171,6 +301,12 @@ val Outcome: shared.Outcome.type = shared.Outcome
 
 type Key = shared.constants.Key
 val Key: shared.constants.Key.type = shared.constants.Key
+
+type KeyCode = shared.constants.KeyCode
+val KeyCode: shared.constants.KeyCode.type = shared.constants.KeyCode
+
+type KeyLocation = shared.constants.KeyLocation
+val KeyLocation: shared.constants.KeyLocation.type = shared.constants.KeyLocation
 
 type Batch[A] = shared.collections.Batch[A]
 val Batch: shared.collections.Batch.type = shared.collections.Batch
@@ -193,8 +329,7 @@ val SignalState: shared.temporal.SignalState.type = shared.temporal.SignalState
 type SignalFunction[A, B] = shared.temporal.SignalFunction[A, B]
 val SignalFunction: shared.temporal.SignalFunction.type = shared.temporal.SignalFunction
 
-type SubSystem = shared.subsystems.SubSystem
-val SubSystem: shared.subsystems.SubSystem.type = shared.subsystems.SubSystem
+type SubSystem[Model] = shared.subsystems.SubSystem[Model]
 
 type SubSystemId = shared.subsystems.SubSystemId
 val SubSystemId: shared.subsystems.SubSystemId.type = shared.subsystems.SubSystemId
@@ -237,13 +372,17 @@ val RendererDetails: shared.events.RendererDetails.type = shared.events.Renderer
 type ViewportResize = shared.events.ViewportResize
 val ViewportResize: shared.events.ViewportResize.type = shared.events.ViewportResize
 
-val ToggleFullScreen: shared.events.ToggleFullScreen.type         = shared.events.ToggleFullScreen
-val EnterFullScreen: shared.events.EnterFullScreen.type           = shared.events.EnterFullScreen
-val ExitFullScreen: shared.events.ExitFullScreen.type             = shared.events.ExitFullScreen
-val FullScreenEntered: shared.events.FullScreenEntered.type       = shared.events.FullScreenEntered
-val FullScreenEnterError: shared.events.FullScreenEnterError.type = shared.events.FullScreenEnterError
-val FullScreenExited: shared.events.FullScreenExited.type         = shared.events.FullScreenExited
-val FullScreenExitError: shared.events.FullScreenExitError.type   = shared.events.FullScreenExitError
+val ToggleFullScreen: shared.events.ToggleFullScreen.type             = shared.events.ToggleFullScreen
+val EnterFullScreen: shared.events.EnterFullScreen.type               = shared.events.EnterFullScreen
+val ExitFullScreen: shared.events.ExitFullScreen.type                 = shared.events.ExitFullScreen
+val FullScreenEntered: shared.events.FullScreenEntered.type           = shared.events.FullScreenEntered
+val FullScreenEnterError: shared.events.FullScreenEnterError.type     = shared.events.FullScreenEnterError
+val FullScreenExited: shared.events.FullScreenExited.type             = shared.events.FullScreenExited
+val FullScreenExitError: shared.events.FullScreenExitError.type       = shared.events.FullScreenExitError
+val ApplicationGainedFocus: shared.events.ApplicationGainedFocus.type = shared.events.ApplicationGainedFocus
+val CanvasGainedFocus: shared.events.CanvasGainedFocus.type           = shared.events.CanvasGainedFocus
+val ApplicationLostFocus: shared.events.ApplicationLostFocus.type     = shared.events.ApplicationLostFocus
+val CanvasLostFocus: shared.events.CanvasLostFocus.type               = shared.events.CanvasLostFocus
 
 type InputState = shared.events.InputState
 val InputState: shared.events.InputState.type = shared.events.InputState
@@ -272,6 +411,12 @@ val MouseButton: shared.events.MouseButton.type = shared.events.MouseButton
 type MouseWheel = shared.events.MouseWheel
 val MouseWheel: shared.events.MouseWheel.type = shared.events.MouseWheel
 
+type Pointers = shared.input.Pointers
+val Pointers: shared.input.Pointers.type = shared.input.Pointers
+
+type PointerEvent = shared.events.PointerEvent
+val PointerEvent: shared.events.PointerEvent.type = shared.events.PointerEvent
+
 type Keyboard = shared.input.Keyboard
 val Keyboard: shared.input.Keyboard.type = shared.input.Keyboard
 
@@ -284,11 +429,35 @@ val FrameTick: shared.events.FrameTick.type = shared.events.FrameTick
 type PlaySound = shared.events.PlaySound
 val PlaySound: shared.events.PlaySound.type = shared.events.PlaySound
 
+type NetworkEvent = shared.events.NetworkEvent
+val NetworkEvent: shared.events.NetworkEvent.type = shared.events.NetworkEvent
+
 type NetworkSendEvent    = shared.events.NetworkSendEvent
 type NetworkReceiveEvent = shared.events.NetworkReceiveEvent
 
+type StorageActionType = shared.events.StorageActionType
+val StorageActionType: shared.events.StorageActionType.type = shared.events.StorageActionType
+
+type StorageKey = shared.events.StorageKey
+val StorageKey: shared.events.StorageKey.type = shared.events.StorageKey
+
 type StorageEvent = shared.events.StorageEvent
 val StorageEvent: shared.events.StorageEvent.type = shared.events.StorageEvent
+
+type StorageEventError = shared.events.StorageEventError
+val StorageEventError: shared.events.StorageEventError.type = shared.events.StorageEventError
+
+type FetchKeyAt = shared.events.StorageEvent.FetchKeyAt
+val FetchKeyAt: shared.events.StorageEvent.FetchKeyAt.type = shared.events.StorageEvent.FetchKeyAt
+
+type KeyFoundAt = shared.events.StorageEvent.KeyFoundAt
+val KeyFoundAt: shared.events.StorageEvent.KeyFoundAt.type = shared.events.StorageEvent.KeyFoundAt
+
+type FetchKeys = shared.events.StorageEvent.FetchKeys
+val FetchKeys: shared.events.StorageEvent.FetchKeys.type = shared.events.StorageEvent.FetchKeys
+
+type KeysFound = shared.events.StorageEvent.KeysFound
+val KeysFound: shared.events.StorageEvent.KeysFound.type = shared.events.StorageEvent.KeysFound
 
 type Save = shared.events.StorageEvent.Save
 val Save: shared.events.StorageEvent.Save.type = shared.events.StorageEvent.Save
@@ -336,6 +505,9 @@ val TextAlignment: shared.datatypes.TextAlignment.type = shared.datatypes.TextAl
 
 type Rectangle = shared.datatypes.Rectangle
 val Rectangle: shared.datatypes.Rectangle.type = shared.datatypes.Rectangle
+
+type Circle = shared.datatypes.Circle
+val Circle: shared.datatypes.Circle.type = shared.datatypes.Circle
 
 type Point = shared.datatypes.Point
 val Point: shared.datatypes.Point.type = shared.datatypes.Point
@@ -387,6 +559,9 @@ val Flip: shared.datatypes.Flip.type = shared.datatypes.Flip
 type AssetType = shared.assets.AssetType
 val AssetType: shared.assets.AssetType.type = shared.assets.AssetType
 
+type ResizePolicy = shared.config.ResizePolicy
+val ResizePolicy: shared.config.ResizePolicy.type = shared.config.ResizePolicy
+
 type GameConfig = shared.config.GameConfig
 val GameConfig: shared.config.GameConfig.type = shared.config.GameConfig
 
@@ -437,10 +612,13 @@ val AnalogAxis: shared.input.AnalogAxis.type = shared.input.AnalogAxis
 type GamepadButtons = shared.input.GamepadButtons
 val GamepadButtons: shared.input.GamepadButtons.type = shared.input.GamepadButtons
 
+type ImageType = shared.ImageType
+val ImageType: shared.ImageType.type = shared.ImageType
+
 type BoundaryLocator = shared.BoundaryLocator
 
-type FrameContext[StartUpData] = shared.FrameContext[StartUpData]
-type SubSystemFrameContext     = shared.subsystems.SubSystemFrameContext
+type FrameContext[StartUpData]            = shared.FrameContext[StartUpData]
+type SubSystemFrameContext[ReferenceData] = shared.subsystems.SubSystemFrameContext[ReferenceData]
 
 //WebSockets
 
@@ -484,6 +662,9 @@ val Zoom: shared.scenegraph.Zoom.type = shared.scenegraph.Zoom
 
 type Layer = shared.scenegraph.Layer
 val Layer: shared.scenegraph.Layer.type = shared.scenegraph.Layer
+
+type LayerEntry = shared.scenegraph.LayerEntry
+val LayerEntry: shared.scenegraph.LayerEntry.type = shared.scenegraph.LayerEntry
 
 type Blending = shared.scenegraph.Blending
 val Blending: shared.scenegraph.Blending.type = shared.scenegraph.Blending
@@ -536,8 +717,25 @@ val AnimationKey: indigo.shared.animation.AnimationKey.type = indigo.shared.anim
 type AnimationAction = indigo.shared.animation.AnimationAction
 val AnimationAction: indigo.shared.animation.AnimationAction.type = indigo.shared.animation.AnimationAction
 
+// Timeline Animations
+type Timeline[A] = indigo.shared.animation.timeline.Timeline[A]
+val Timeline: indigo.shared.animation.timeline.Timeline.type = indigo.shared.animation.timeline.Timeline
+
+type TimelineWindow[A] = indigo.shared.animation.timeline.TimeWindow[A]
+val TimelineWindow: indigo.shared.animation.timeline.TimeWindow.type = indigo.shared.animation.timeline.TimeWindow
+
+type TimeSlot[A] = indigo.shared.animation.timeline.TimeSlot[A]
+val TimeSlot: indigo.shared.animation.timeline.TimeSlot.type = indigo.shared.animation.timeline.TimeSlot
+
+type TimelineAnimation[A] = indigo.shared.animation.timeline.TimelineAnimation[A]
+val TimelineAnimation: indigo.shared.animation.timeline.TimelineAnimation.type =
+  indigo.shared.animation.timeline.TimelineAnimation
+
 // Primitives
-type Shape[T <: shared.scenegraph.Shape[_]] = shared.scenegraph.Shape[T]
+type BlankEntity = shared.scenegraph.BlankEntity
+val BlankEntity: shared.scenegraph.BlankEntity.type = shared.scenegraph.BlankEntity
+
+type Shape[T <: shared.scenegraph.Shape[?]] = shared.scenegraph.Shape[T]
 val Shape: shared.scenegraph.Shape.type = shared.scenegraph.Shape
 
 type Sprite[M <: Material] = shared.scenegraph.Sprite[M]
@@ -649,3 +847,37 @@ val Falloff: shared.scenegraph.Falloff.type = shared.scenegraph.Falloff
 
 type Lens[A, B] = shared.utils.Lens[A, B]
 val Lens: shared.utils.Lens.type = shared.utils.Lens
+
+// Geometry
+
+type Bezier = shared.geometry.Bezier
+val Bezier: shared.geometry.Bezier.type = shared.geometry.Bezier
+
+type BoundingBox = shared.geometry.BoundingBox
+val BoundingBox: shared.geometry.BoundingBox.type = shared.geometry.BoundingBox
+
+type BoundingCircle = shared.geometry.BoundingCircle
+val BoundingCircle: shared.geometry.BoundingCircle.type = shared.geometry.BoundingCircle
+
+type Line = shared.geometry.Line
+val Line: shared.geometry.Line.type = shared.geometry.Line
+
+type LineSegment = shared.geometry.LineSegment
+val LineSegment: shared.geometry.LineSegment.type = shared.geometry.LineSegment
+
+type Polygon = shared.geometry.Polygon
+val Polygon: shared.geometry.Polygon.type = shared.geometry.Polygon
+
+type Vertex = shared.geometry.Vertex
+val Vertex: shared.geometry.Vertex.type = shared.geometry.Vertex
+
+// Trees
+
+type SpatialOps[S] = shared.trees.SpatialOps[S]
+val SpatialOps: shared.trees.SpatialOps.type = shared.trees.SpatialOps
+
+type QuadTree[S, T] = shared.trees.QuadTree[S, T]
+val QuadTree: shared.trees.QuadTree.type = shared.trees.QuadTree
+
+type QuadTreeValue[S, T] = shared.trees.QuadTreeValue[S, T]
+val QuadTreeValue: shared.trees.QuadTreeValue.type = shared.trees.QuadTreeValue

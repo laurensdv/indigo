@@ -19,7 +19,7 @@ final case class Sprite[M <: Material](
     animationKey: AnimationKey,
     animationActions: Batch[AnimationAction],
     eventHandlerEnabled: Boolean,
-    eventHandler: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent],
+    eventHandler: ((Sprite[?], GlobalEvent)) => Option[GlobalEvent],
     position: Point,
     rotation: Radians,
     scale: Vector2,
@@ -108,9 +108,20 @@ final case class Sprite[M <: Material](
   def jumpToFrame(number: Int): Sprite[M] =
     this.copy(animationActions = animationActions ++ Batch(JumpToFrame(number)))
 
-  def withEventHandler(f: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent]): Sprite[M] =
+  /** Moves the sprite's playhead to a position down the timeline based on a value ranged 0.0 to 1.0, where 0.0 is the
+    * start and 1.0 is the end of the timeline.
+    *
+    * @param position
+    *   A value between `0.0d` and `1.0d`
+    * @return
+    *   Sprite[Material]
+    */
+  def scrubTo(position: Double): Sprite[M] =
+    this.copy(animationActions = animationActions ++ Batch(ScrubTo(Math.min(1.0d, Math.max(0.0d, position)))))
+
+  def withEventHandler(f: ((Sprite[?], GlobalEvent)) => Option[GlobalEvent]): Sprite[M] =
     this.copy(eventHandler = f, eventHandlerEnabled = true)
-  def onEvent(f: PartialFunction[((Sprite[_], GlobalEvent)), GlobalEvent]): Sprite[M] =
+  def onEvent(f: PartialFunction[((Sprite[?], GlobalEvent)), GlobalEvent]): Sprite[M] =
     withEventHandler(f.lift)
   def enableEvents: Sprite[M] =
     this.copy(eventHandlerEnabled = true)
@@ -149,7 +160,7 @@ object Sprite:
       scale: Vector2,
       animationKey: AnimationKey,
       ref: Point,
-      eventHandler: ((Sprite[_], GlobalEvent)) => Option[GlobalEvent],
+      eventHandler: ((Sprite[?], GlobalEvent)) => Option[GlobalEvent],
       material: M
   ): Sprite[M] =
     Sprite(

@@ -2,18 +2,19 @@ import $ivy.`com.lihaoyi::mill-contrib-bloop:$MILL_VERSION`
 import mill._
 import mill.scalalib._
 import mill.scalajslib._
+import mill.scalalib.scalafmt._
 import publish._
 import coursier.maven.MavenRepository
 
 object `mill-indigo` extends Cross[IndigoPluginModule]("2.13")
-class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule with PublishModule {
+trait IndigoPluginModule extends CrossScalaModule with PublishModule with ScalafmtModule {
 
   def scalaVersion =
     crossScalaVersion match {
-      case _ => "2.13.8"
+      case _ => "2.13.10"
     }
 
-  def millLibVersion = "0.10.7"
+  def millLibVersion = "0.11.1"
 
   def indigoVersion = T.input { IndigoVersion.getVersion }
 
@@ -21,16 +22,19 @@ class IndigoPluginModule(val crossScalaVersion: String) extends CrossScalaModule
     ivy"com.lihaoyi::mill-main:${millLibVersion}",
     ivy"com.lihaoyi::mill-main-api:${millLibVersion}",
     ivy"com.lihaoyi::mill-scalalib:${millLibVersion}",
+    ivy"com.lihaoyi::mill-scalajslib:${millLibVersion}",
     ivy"com.lihaoyi::mill-scalalib-api:${millLibVersion}",
     ivy"com.lihaoyi::os-lib:0.8.0",
     ivy"io.indigoengine::indigo-plugin:${indigoVersion()}"
   )
 
-  def repositories = super.repositories ++ Seq(
-    MavenRepository("https://oss.sonatype.org/content/repositories/releases")
-  )
+  def repositoriesTask = T.task {
+    super.repositoriesTask() ++ Seq(
+      MavenRepository("https://oss.sonatype.org/content/repositories/releases")
+    )
+  }
 
-  object test extends Tests {
+  object test extends ScalaTests {
     def ivyDeps = Agg(ivy"org.scalameta::munit:0.7.29")
 
     def testFramework = "munit.Framework"
@@ -62,7 +66,7 @@ object IndigoVersion {
 
         case None if levels < 3 =>
           try {
-            val v = scala.io.Source.fromFile(path).getLines.toList.head
+            val v = scala.io.Source.fromFile(path).getLines().toList.head
             rec(path, levels, Some(v))
           } catch {
             case _: Throwable =>

@@ -1,6 +1,7 @@
 package indigo.entry
 
 import indigo.gameengine.FrameProcessor
+import indigo.platform.renderer.Renderer
 import indigo.shared.BoundaryLocator
 import indigo.shared.FrameContext
 import indigo.shared.Outcome
@@ -15,7 +16,7 @@ import indigo.shared.subsystems.SubSystemsRegister
 import indigo.shared.time.GameTime
 
 final class StandardFrameProcessor[StartUpData, Model, ViewModel](
-    val subSystemsRegister: SubSystemsRegister,
+    val subSystemsRegister: SubSystemsRegister[Model],
     val eventFilters: EventFilters,
     val modelUpdate: (FrameContext[StartUpData], Model) => GlobalEvent => Outcome[Model],
     val viewModelUpdate: (FrameContext[StartUpData], Model, ViewModel) => GlobalEvent => Outcome[ViewModel],
@@ -31,20 +32,22 @@ final class StandardFrameProcessor[StartUpData, Model, ViewModel](
       globalEvents: Batch[GlobalEvent],
       inputState: InputState,
       dice: Dice,
-      boundaryLocator: BoundaryLocator
+      boundaryLocator: BoundaryLocator,
+      renderer: => Renderer
   ): Outcome[(Model, ViewModel, SceneUpdateFragment)] =
-    val frameContext = new FrameContext[StartUpData](gameTime, dice, inputState, boundaryLocator, startUpData)
+    val frameContext =
+      new FrameContext[StartUpData](gameTime, dice, inputState, boundaryLocator, startUpData, renderer.captureScreen)
     Outcome.join(
       for {
         m  <- processModel(frameContext, model, globalEvents)
         vm <- processViewModel(frameContext, m, viewModel, globalEvents)
-        e  <- subSystemsRegister.update(frameContext.forSubSystems, globalEvents.toJSArray).eventsAsOutcome
+        e  <- subSystemsRegister.update(frameContext.forSubSystems, m, globalEvents.toJSArray).eventsAsOutcome
         v  <- processView(frameContext, m, vm)
       } yield Outcome((m, vm, v), e)
     )
 
 trait StandardFrameProcessorFunctions[StartUpData, Model, ViewModel]:
-  def subSystemsRegister: SubSystemsRegister
+  def subSystemsRegister: SubSystemsRegister[Model]
   def eventFilters: EventFilters
   def modelUpdate: (FrameContext[StartUpData], Model) => GlobalEvent => Outcome[Model]
   def viewModelUpdate: (FrameContext[StartUpData], Model, ViewModel) => GlobalEvent => Outcome[ViewModel]
@@ -86,5 +89,5 @@ trait StandardFrameProcessorFunctions[StartUpData, Model, ViewModel]:
   ): Outcome[SceneUpdateFragment] =
     Outcome.merge(
       viewUpdate(frameContext, model, viewModel),
-      subSystemsRegister.present(frameContext.forSubSystems)
+      subSystemsRegister.present(frameContext.forSubSystems, model)
     )(_ |+| _)

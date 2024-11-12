@@ -1,6 +1,7 @@
 package indigo.shared.datatypes
 
 import indigo.shared.collections.Batch
+import indigo.shared.dice.Dice
 
 final case class Vector3(x: Double, y: Double, z: Double) derives CanEqual:
 
@@ -28,12 +29,18 @@ final case class Vector3(x: Double, y: Double, z: Double) derives CanEqual:
 
   def clamp(min: Double, max: Double): Vector3 =
     Vector3(Math.min(max, Math.max(min, x)), Math.min(max, Math.max(min, y)), Math.min(max, Math.max(min, z)))
+  def clamp(min: Vector3, max: Vector3): Vector3 =
+    this.min(max).max(min)
 
   def length: Double =
-    distanceTo(Vector3.zero)
+    Math.sqrt(x * x + y * y + z * z)
+  def magnitude: Double =
+    length
 
   def invert: Vector3 =
     Vector3(-x, -y, -z)
+
+  def `unary_-` : Vector3 = invert
 
   def translate(vec: Vector3): Vector3 =
     Vector3.add(this, vec)
@@ -53,6 +60,12 @@ final case class Vector3(x: Double, y: Double, z: Double) derives CanEqual:
   def scaleBy(amount: Double): Vector3 =
     scaleBy(Vector3(amount))
 
+  def ceil: Vector3 =
+    Vector3(Math.ceil(x), Math.ceil(y), Math.ceil(z))
+
+  def floor: Vector3 =
+    Vector3(Math.floor(x), Math.floor(y), Math.floor(z))
+
   def round: Vector3 =
     Vector3(Math.round(x).toDouble, Math.round(y).toDouble, Math.round(z).toDouble)
 
@@ -63,14 +76,19 @@ final case class Vector3(x: Double, y: Double, z: Double) derives CanEqual:
   def -(other: Vector3): Vector3 = Vector3.subtract(this, other)
   def *(other: Vector3): Vector3 = Vector3.multiply(this, other)
   def /(other: Vector3): Vector3 = Vector3.divide(this, other)
+  def %(other: Vector3): Vector3 = Vector3.mod(this, other)
 
   def +(value: Double): Vector3 = Vector3.add(this, Vector3(value, value, value))
   def -(value: Double): Vector3 = Vector3.subtract(this, Vector3(value, value, value))
   def *(value: Double): Vector3 = Vector3.multiply(this, Vector3(value, value, value))
   def /(value: Double): Vector3 = Vector3.divide(this, Vector3(value, value, value))
+  def %(value: Double): Vector3 = Vector3.mod(this, Vector3(value))
 
   def dot(other: Vector3): Double =
     Vector3.dotProduct(this, other)
+
+  def cross(other: Vector3): Vector3 =
+    Vector3.crossProduct(this, other)
 
   def normalise: Vector3 =
     val magnitude = length
@@ -113,6 +131,10 @@ object Vector3:
   val zero: Vector3 = Vector3(0d, 0d, 0d)
   val one: Vector3  = Vector3(1d, 1d, 1d)
 
+  val unitX: Vector3 = Vector3(1d, 0d, 0d)
+  val unitY: Vector3 = Vector3(0d, 1d, 0d)
+  val unitZ: Vector3 = Vector3(0d, 0d, 1d)
+
   def fromPoint(point: Point): Vector3 =
     Vector3(point.x.toDouble, point.y.toDouble, 0)
 
@@ -137,5 +159,22 @@ object Vector3:
   def dotProduct(vec1: Vector3, vec2: Vector3): Double =
     (vec1.x * vec2.x) + (vec1.y * vec2.y) + (vec1.z * vec2.z)
 
+  def crossProduct(vec1: Vector3, vec2: Vector3): Vector3 =
+    Vector3(
+      vec1.y * vec2.z - vec1.z * vec2.y,
+      vec1.z * vec2.x - vec1.x * vec2.z,
+      vec1.x * vec2.y - vec1.y * vec2.x
+    )
+
   def distance(v1: Vector3, v2: Vector3): Double =
     Math.sqrt(Math.abs(Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2) + Math.pow(v2.z - v1.z, 2)))
+
+  def mod(dividend: Vector3, divisor: Vector3): Vector3 =
+    Vector3(
+      x = (dividend.x % divisor.x + divisor.x) % divisor.x,
+      y = (dividend.y % divisor.y + divisor.y) % divisor.y,
+      z = (dividend.z % divisor.z + divisor.z) % divisor.z
+    )
+
+  def random(dice: Dice): Vector3 =
+    Vector3(dice.rollDouble, dice.rollDouble, dice.rollDouble)

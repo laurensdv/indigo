@@ -8,6 +8,7 @@ import indigo.shared.assets.AssetName
 import indigo.shared.assets.AssetType
 import indigo.shared.datatypes.BindingKey
 import indigo.shared.events.AssetEvent
+import indigo.shared.events.IndigoSystemEvent
 import org.scalajs.dom
 import org.scalajs.dom.HTMLImageElement
 import org.scalajs.dom._
@@ -25,7 +26,6 @@ import scala.util.Success
 object AssetLoader {
 
   def backgroundLoadAssets(
-      rebuildGameLoop: AssetCollection => Unit,
       globalEventStream: GlobalEventStream,
       assets: Set[AssetType],
       key: BindingKey,
@@ -39,11 +39,12 @@ object AssetLoader {
     loadAssets(assets)
       .onComplete {
         case Success(ac) if makeAvailable =>
-          rebuildGameLoop(ac)
-          globalEventStream.pushGlobalEvent(AssetEvent.AssetBatchLoaded(key, true))
+          globalEventStream.pushGlobalEvent(
+            IndigoSystemEvent.Rebuild(ac, AssetEvent.AssetBatchLoaded(key, assets, true))
+          )
 
         case Success(_) =>
-          globalEventStream.pushGlobalEvent(AssetEvent.AssetBatchLoaded(key, false))
+          globalEventStream.pushGlobalEvent(AssetEvent.AssetBatchLoaded(key, assets, false))
 
         case Failure(e) =>
           globalEventStream.pushGlobalEvent(AssetEvent.AssetBatchLoadError(key, e.getMessage()))
@@ -63,7 +64,7 @@ object AssetLoader {
       i <- loadImageAssets(filterOutImageAssets(assetList))
       a <- loadAudioAssets(filterOutAudioAssets(assetList))
       f <- loadFontAssets(filterOutFontAssets(assetList))
-    } yield new AssetCollection(i, t, a, f)
+    } yield new AssetCollection(i.toSet, t.toSet, a.toSet, f.toSet)
   }
 
   def filterOutTextAssets(l: List[AssetType]): List[AssetType.Text] =

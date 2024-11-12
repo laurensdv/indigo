@@ -175,11 +175,11 @@ object CirceJsonEncodersAndDecoders {
           y       <- c.downField("y").as[Double]
           polygon <- c.downField("polygon").as[Option[List[TiledMapObjectPolygonPoint]]]
         } yield TiledMapObject(
-          height,
           id,
           rotation,
           typ,
           visible,
+          height,
           width,
           x,
           y,

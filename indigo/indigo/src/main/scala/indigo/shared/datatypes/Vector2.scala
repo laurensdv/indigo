@@ -1,6 +1,8 @@
 package indigo.shared.datatypes
 
 import indigo.shared.collections.Batch
+import indigo.shared.dice.Dice
+import indigo.shared.geometry.Vertex
 
 final case class Vector2(x: Double, y: Double) derives CanEqual:
 
@@ -25,12 +27,18 @@ final case class Vector2(x: Double, y: Double) derives CanEqual:
 
   def clamp(min: Double, max: Double): Vector2 =
     Vector2(Math.min(max, Math.max(min, x)), Math.min(max, Math.max(min, y)))
+  def clamp(min: Vector2, max: Vector2): Vector2 =
+    this.min(max).max(min)
 
   def length: Double =
-    distanceTo(Vector2.zero)
+    Math.sqrt(x * x + y * y)
+  def magnitude: Double =
+    length
 
   def invert: Vector2 =
     Vector2(-x, -y)
+
+  def `unary_-` : Vector2 = invert
 
   def translate(vec: Vector2): Vector2 =
     Vector2.add(this, vec)
@@ -73,6 +81,12 @@ final case class Vector2(x: Double, y: Double) derives CanEqual:
 
   def angle: Radians = Radians(Math.atan2(this.y, this.x))
 
+  def ceil: Vector2 =
+    Vector2(Math.ceil(x), Math.ceil(y))
+
+  def floor: Vector2 =
+    Vector2(Math.floor(x), Math.floor(y))
+
   def round: Vector2 =
     Vector2(Math.round(x).toDouble, Math.round(y).toDouble)
 
@@ -83,17 +97,24 @@ final case class Vector2(x: Double, y: Double) derives CanEqual:
   def -(other: Vector2): Vector2 = Vector2.subtract(this, other)
   def *(other: Vector2): Vector2 = Vector2.multiply(this, other)
   def /(other: Vector2): Vector2 = Vector2.divide(this, other)
+  def %(other: Vector2): Vector2 = Vector2.mod(this, other)
+
+  def +(other: Vertex): Vector2 = Vector2.add(this, other.toVector2)
+  def -(other: Vertex): Vector2 = Vector2.subtract(this, other.toVector2)
+  def *(other: Vertex): Vector2 = Vector2.multiply(this, other.toVector2)
+  def /(other: Vertex): Vector2 = Vector2.divide(this, other.toVector2)
+  def %(other: Vertex): Vector2 = Vector2.mod(this, other.toVector2)
 
   def +(value: Double): Vector2 = Vector2.add(this, Vector2(value, value))
   def -(value: Double): Vector2 = Vector2.subtract(this, Vector2(value, value))
   def *(value: Double): Vector2 = Vector2.multiply(this, Vector2(value, value))
   def /(value: Double): Vector2 = Vector2.divide(this, Vector2(value, value))
+  def %(value: Double): Vector2 = Vector2.mod(this, Vector2(value))
 
   def dot(other: Vector2): Double =
     Vector2.dotProduct(this, other)
 
   def normalise: Vector2 =
-    val magnitude = length
     if magnitude == 0 then Vector2.zero
     else
       Vector2(
@@ -109,6 +130,9 @@ final case class Vector2(x: Double, y: Double) derives CanEqual:
 
   def toSize: Size =
     Size(x.toInt, y.toInt)
+
+  def toVertex: Vertex =
+    Vertex(x, y)
 
   def transform(matrix3: Matrix3): Vector2 =
     matrix3.transform(this)
@@ -134,6 +158,7 @@ object Vector2:
   val zero: Vector2     = Vector2(0d, 0d)
   val one: Vector2      = Vector2(1d, 1d)
   val minusOne: Vector2 = Vector2(-1d, -1d)
+  val max: Vector2      = Vector2(Double.MaxValue, Double.MaxValue)
 
   def fromPoints(start: Point, end: Point): Vector2 =
     Vector2((end.x - start.x).toDouble, (end.y - start.y).toDouble)
@@ -143,6 +168,9 @@ object Vector2:
 
   def fromSize(size: Size): Vector2 =
     Vector2(size.width.toDouble, size.height.toDouble)
+
+  def fromVertex(vertex: Vertex): Vector2 =
+    Vector2(vertex.x, vertex.y)
 
   inline def add(vec1: Vector2, vec2: Vector2): Vector2 =
     Vector2(vec1.x + vec2.x, vec1.y + vec2.y)
@@ -161,3 +189,12 @@ object Vector2:
 
   def distance(v1: Vector2, v2: Vector2): Double =
     Math.sqrt(Math.abs(Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2)))
+
+  def mod(dividend: Vector2, divisor: Vector2): Vector2 =
+    Vector2(
+      x = (dividend.x % divisor.x + divisor.x) % divisor.x,
+      y = (dividend.y % divisor.y + divisor.y) % divisor.y
+    )
+
+  def random(dice: Dice): Vector2 =
+    Vector2(dice.rollDouble, dice.rollDouble)

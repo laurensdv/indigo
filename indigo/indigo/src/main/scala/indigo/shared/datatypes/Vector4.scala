@@ -1,6 +1,7 @@
 package indigo.shared.datatypes
 
 import indigo.shared.collections.Batch
+import indigo.shared.dice.Dice
 
 final case class Vector4(x: Double, y: Double, z: Double, w: Double) derives CanEqual:
 
@@ -36,12 +37,18 @@ final case class Vector4(x: Double, y: Double, z: Double, w: Double) derives Can
       Math.min(max, Math.max(min, z)),
       Math.min(max, Math.max(min, w))
     )
+  def clamp(min: Vector4, max: Vector4): Vector4 =
+    this.min(max).max(min)
 
   def length: Double =
-    distanceTo(Vector4.zero)
+    Math.sqrt(x * x + y * y + z * z + w * w)
+  def magnitude: Double =
+    length
 
   def invert: Vector4 =
     Vector4(-x, -y, -z, -w)
+
+  def `unary_-` : Vector4 = invert
 
   def translate(vec: Vector4): Vector4 =
     Vector4.add(this, vec)
@@ -61,6 +68,12 @@ final case class Vector4(x: Double, y: Double, z: Double, w: Double) derives Can
   def scaleBy(amount: Double): Vector4 =
     scaleBy(Vector4(amount))
 
+  def ceil: Vector4 =
+    Vector4(Math.ceil(x), Math.ceil(y), Math.ceil(z), Math.ceil(w))
+
+  def floor: Vector4 =
+    Vector4(Math.floor(x), Math.floor(y), Math.floor(z), Math.floor(w))
+
   def round: Vector4 =
     Vector4(Math.round(x).toDouble, Math.round(y).toDouble, Math.round(z).toDouble, Math.round(w).toDouble)
 
@@ -71,11 +84,13 @@ final case class Vector4(x: Double, y: Double, z: Double, w: Double) derives Can
   def -(other: Vector4): Vector4 = Vector4.subtract(this, other)
   def *(other: Vector4): Vector4 = Vector4.multiply(this, other)
   def /(other: Vector4): Vector4 = Vector4.divide(this, other)
+  def %(other: Vector4): Vector4 = Vector4.mod(this, other)
 
   def +(value: Double): Vector4 = Vector4.add(this, Vector4(value, value, value, value))
   def -(value: Double): Vector4 = Vector4.subtract(this, Vector4(value, value, value, value))
   def *(value: Double): Vector4 = Vector4.multiply(this, Vector4(value, value, value, value))
   def /(value: Double): Vector4 = Vector4.divide(this, Vector4(value, value, value, value))
+  def %(value: Double): Vector4 = Vector4.mod(this, Vector4(value))
 
   def dot(other: Vector4): Double =
     Vector4.dotProduct(this, other)
@@ -165,3 +180,14 @@ object Vector4:
         Math.pow(v2.x - v1.x, 2) + Math.pow(v2.y - v1.y, 2) + Math.pow(v2.z - v1.z, 2) + Math.pow(v2.w - v1.w, 2)
       )
     )
+
+  def mod(dividend: Vector4, divisor: Vector4): Vector4 =
+    Vector4(
+      x = (dividend.x % divisor.x + divisor.x) % divisor.x,
+      y = (dividend.y % divisor.y + divisor.y) % divisor.y,
+      z = (dividend.z % divisor.z + divisor.z) % divisor.z,
+      w = (dividend.w % divisor.w + divisor.w) % divisor.w
+    )
+
+  def random(dice: Dice): Vector4 =
+    Vector4(dice.rollDouble, dice.rollDouble, dice.rollDouble, dice.rollDouble)

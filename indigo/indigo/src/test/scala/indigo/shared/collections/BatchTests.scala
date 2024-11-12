@@ -97,6 +97,9 @@ class BatchTests extends munit.FunSuite {
   }
 
   test("head") {
+    intercept[NoSuchElementException] {
+      Batch.empty[Int].head
+    }
     assert(Batch(1, 2, 3).head == 1)
     assert(Batch.Combine(Batch(1), Batch(2, 3)).head == 1)
     assert((Batch.empty |+| Batch(2, 3)).head == 2)
@@ -451,6 +454,51 @@ class BatchTests extends munit.FunSuite {
       Outcome(Batch(1, 2, 3))
 
     assertEquals(actual.sequence, expected)
+  }
+
+  test("sorted") {
+    assertEquals(Batch(3, 5, 2, 4, 1).sorted, Batch(1, 2, 3, 4, 5))
+  }
+
+  test("sortBy") {
+    assertEquals(Batch(3, 5, 2, 4, 1).sortBy(identity), Batch(1, 2, 3, 4, 5))
+    assertEquals(Batch(3, 5, 2, 4, 1).sortBy(i => List.fill(5 - i)("a").mkString), Batch(5, 4, 3, 2, 1))
+  }
+
+  test("sortWith") {
+    assertEquals(Batch(3, 5, 2, 4, 1).sortWith(_ > _), Batch(5, 4, 3, 2, 1))
+  }
+
+  test("last") {
+    intercept[NoSuchElementException] {
+      Batch.empty[Int].last
+    }
+    assert(Batch(1, 2, 3).last == 3)
+    assert(Batch.Combine(Batch(1), Batch(2, 3)).last == 3)
+    assert((Batch.empty |+| Batch(2, 3)).last == 3)
+    assert(Batch(Batch.empty, Batch(1, 2, 3)).last == Batch(1, 2, 3))
+    assert(Batch.combine(Batch.empty, Batch(1, 2, 3)).last == 3)
+  }
+
+  test("lastOption") {
+    assertEquals(Batch.empty[Int].lastOption, None)
+    assertEquals(Batch(1, 2, 3).lastOption, Option(3))
+    assertEquals(Batch.Combine(Batch(1, 2, 3), Batch.empty[Int]).lastOption, Option(3))
+    assertEquals(Batch.Combine(Batch.empty[Int], Batch(1, 2, 3)).lastOption, Option(3))
+    assertEquals(Batch.Combine(Batch.empty[Int], Batch.empty[Int]).lastOption, None)
+  }
+
+  test("distinct") {
+    assertEquals(Batch(3, 5, 2, 4, 1, 3, 2, 10).distinct, Batch(3, 5, 2, 4, 1, 10))
+  }
+
+  test("distinctBy") {
+    // Takes the first odd and event number it finds.
+    assertEquals(Batch(3, 5, 2, 4).distinctBy(_ % 2), Batch(3, 2))
+  }
+
+  test("padTo") {
+    assertEquals(Batch(1, 2, 3).padTo(5, 0), Batch(1, 2, 3, 0, 0))
   }
 
 }

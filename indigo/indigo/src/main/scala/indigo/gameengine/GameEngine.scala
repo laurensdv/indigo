@@ -30,9 +30,11 @@ import indigo.shared.shader.EntityShader
 import indigo.shared.shader.Shader
 import indigo.shared.shader.ShaderRegister
 import indigo.shared.shader.StandardShaders
+import indigo.shared.shader.UltravioletShader
 import org.scalajs.dom.Element
 import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits._
 
+import scala.compiletime.uninitialized
 import scala.concurrent.Future
 
 final class GameEngine[StartUpData, GameModel, ViewModel](
@@ -72,7 +74,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
   @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.null"))
   var gamepadInputCapture: GamepadInputCapture = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.null"))
-  var gameLoop: Long => Long => Unit = null
+  var gameLoop: Double => Double => Unit = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.null"))
   var gameLoopInstance: GameLoop[StartUpData, GameModel, ViewModel] = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
@@ -82,7 +84,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
   @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.null"))
   var renderer: Renderer = null
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
-  var startUpData: StartUpData = _
+  var startUpData: StartUpData = uninitialized
   @SuppressWarnings(Array("scalafix:DisableSyntax.var", "scalafix:DisableSyntax.null"))
   var platform: Platform = null
 
@@ -124,7 +126,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
     IndigoLogger.info("Starting Indigo")
 
     storage = Storage.default
-    globalEventStream = new GlobalEventStream(rebuildGameLoop(parentElement, false), audioPlayer, storage, platform)
+    globalEventStream = new GlobalEventStream(audioPlayer, storage, platform)
     gamepadInputCapture = GamepadInputCaptureImpl()
 
     // Intialisation / Boot events
@@ -133,6 +135,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
 
     if (config.advanced.autoLoadStandardShaders)
       StandardShaders.all.foreach(shaderRegister.register)
+    else shaderRegister.register(StandardShaders.NormalBlend)
 
     // Arrange config
     configAsync.map(_.getOrElse(config)).foreach { gc =>
@@ -154,7 +157,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
         rebuildGameLoop(parentElement, true)(assetCollection)
 
         if (gameLoop != null)
-          platform.tick(gameLoop(0))
+          platform.tick(gameLoop(0.0d))
       }
 
     }
@@ -165,6 +168,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
   @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
   def rebuildGameLoop(parentElement: Element, firstRun: Boolean): AssetCollection => Unit =
     ac => {
+      if (!firstRun) gameLoopInstance.lock()
 
       fontRegister.clearRegister()
       boundaryLocator.purgeCache()
@@ -174,11 +178,12 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
 
       audioPlayer.addAudioAssets(accumulatedAssetCollection.sounds)
 
-      val time = if (firstRun) 0 else gameLoopInstance.runningTimeReference
+      val randomSeed = (if (firstRun) 0 else gameLoopInstance.runningTimeReference) + gameLoopInstance.initialSeed
 
-      platform = new Platform(parentElement, gameConfig, accumulatedAssetCollection, globalEventStream, dynamicText)
+      if (firstRun)
+        platform = new Platform(parentElement, gameConfig, globalEventStream, dynamicText)
 
-      initialise(accumulatedAssetCollection)(Dice.fromSeed(time)) match {
+      initialise(accumulatedAssetCollection)(Dice.fromSeed(randomSeed.toLong)) match {
         case oe @ Outcome.Error(error, _) =>
           IndigoLogger.error(
             if (firstRun) "Error during first initialisation - Halting."
@@ -207,20 +212,23 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
             if (firstRun) initialViewModel(startUpSuccessData)(m).map(vm => (_: GameModel) => vm)
             else Outcome((_: GameModel) => gameLoopInstance.viewModelState)
 
-          val loop: Outcome[Long => Long => Unit] =
+          val loop: Outcome[Double => Double => Unit] =
             for {
-              rendererAndAssetMapping <- platform.initialise(shaderRegister.toSet)
+              rendererAndAssetMapping <- platform.initialise(firstRun, shaderRegister.toSet, accumulatedAssetCollection)
               startUpSuccessData      <- GameEngine.initialisedGame(startupData)
               m                       <- modelToUse(startUpSuccessData)
               vm                      <- viewModelToUse(startUpSuccessData, m)
               initialisedGameLoop <- GameEngine.initialiseGameLoop(
+                parentElement,
                 this,
                 boundaryLocator,
                 sceneProcessor,
                 gameConfig,
                 m,
                 vm,
-                frameProccessor
+                frameProccessor,
+                !firstRun, // If this isn't the first run, start with it frame locked.
+                renderer
               )
             } yield {
               renderer = rendererAndAssetMapping._1
@@ -239,6 +247,7 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
 
               gameLoop = firstTick
 
+              gameLoopInstance.unlock()
               ()
 
             case oe @ Outcome.Error(e, _) =>
@@ -277,6 +286,10 @@ object GameEngine {
       case s: BlendShader.External =>
         shaderRegister.remove(s.id)
         shaderRegister.registerBlendShader(externalBlendShaderToSource(s, assetCollection))
+
+      case s: UltravioletShader =>
+        shaderRegister.remove(s.id)
+        shaderRegister.registerUVShader(s)
     }
 
   def externalEntityShaderToSource(
@@ -337,29 +350,35 @@ object GameEngine {
         IndigoLogger.info(e.report)
         Outcome.raiseError(new Exception("Game aborted due to start up failure"))
 
-      case x: Startup.Success[_] =>
+      case x: Startup.Success[?] =>
         IndigoLogger.info("Game initialisation succeeded")
         Outcome(x.success)
     }
 
   def initialiseGameLoop[StartUpData, GameModel, ViewModel](
+      parentElement: Element,
       gameEngine: GameEngine[StartUpData, GameModel, ViewModel],
       boundaryLocator: BoundaryLocator,
       sceneProcessor: SceneProcessor,
       gameConfig: GameConfig,
       initialModel: GameModel,
       initialViewModel: GameModel => ViewModel,
-      frameProccessor: FrameProcessor[StartUpData, GameModel, ViewModel]
+      frameProccessor: FrameProcessor[StartUpData, GameModel, ViewModel],
+      startFrameLocked: Boolean,
+      renderer: => Renderer
   ): Outcome[GameLoop[StartUpData, GameModel, ViewModel]] =
     Outcome(
       new GameLoop[StartUpData, GameModel, ViewModel](
+        gameEngine.rebuildGameLoop(parentElement, false),
         boundaryLocator,
         sceneProcessor,
         gameEngine,
         gameConfig,
         initialModel,
         initialViewModel(initialModel),
-        frameProccessor
+        frameProccessor,
+        startFrameLocked,
+        renderer
       )
     )
 

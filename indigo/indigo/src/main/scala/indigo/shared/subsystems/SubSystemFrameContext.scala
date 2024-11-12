@@ -1,5 +1,6 @@
 package indigo.shared.subsystems
 
+import indigo.platform.renderer.Renderer
 import indigo.shared.BoundaryLocator
 import indigo.shared.FrameContext
 import indigo.shared.datatypes.Rectangle
@@ -25,12 +26,13 @@ import indigo.shared.time.Seconds
   * @param boundaryLocator
   *   A service that can be interogated for the calculated dimensions of screen elements.
   */
-final class SubSystemFrameContext(
-    val gameTime: GameTime,
-    val dice: Dice,
-    val inputState: InputState,
-    val boundaryLocator: BoundaryLocator
-) {
+final case class SubSystemFrameContext[ReferenceData](
+    gameTime: GameTime,
+    dice: Dice,
+    inputState: InputState,
+    boundaryLocator: BoundaryLocator,
+    reference: ReferenceData
+):
 
   val running: Seconds = gameTime.running
   val delta: Seconds   = gameTime.delta
@@ -45,17 +47,26 @@ final class SubSystemFrameContext(
   def bounds(sceneGraphNode: SceneNode): Rectangle =
     boundaryLocator.bounds(sceneGraphNode)
 
-}
+  def toFrameContext: FrameContext[Unit] =
+    new FrameContext[Unit](
+      gameTime,
+      dice,
+      inputState,
+      boundaryLocator,
+      (),
+      Renderer.blackHole.captureScreen
+    )
+
 object SubSystemFrameContext {
 
-  implicit class FrameContextForSubSystems(frameContext: FrameContext[_]) {
-    def forSubSystems: SubSystemFrameContext =
+  extension (frameContext: FrameContext[?])
+    def forSubSystems: SubSystemFrameContext[Unit] =
       new SubSystemFrameContext(
         frameContext.gameTime,
         frameContext.dice,
         frameContext.inputState,
-        frameContext.boundaryLocator
+        frameContext.boundaryLocator,
+        ()
       )
-  }
 
 }

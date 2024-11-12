@@ -6,6 +6,9 @@ import indigoextras.pathfinding.GridSquare.EndSquare
 import indigoextras.pathfinding.GridSquare.ImpassableSquare
 import indigoextras.pathfinding.GridSquare.StartSquare
 
+import scala.annotation.nowarn
+
+@nowarn("cat=deprecation")
 class PathFindingTests extends munit.FunSuite {
 
   val coords: Coords = Coords(0, 0)
@@ -28,6 +31,94 @@ class PathFindingTests extends munit.FunSuite {
 
     assertEquals(possiblePaths.contains(path), true)
 
+  }
+
+  test("Finding a path with start near impassable horizontal.should be able to find a route") {
+    /*
+    | | | |   =   |*|*|*| or | | | |
+    |?|X|!|   =   |*|X|*|    |*|X|*|
+    | | | |   =   | | | |    |*|*|*|
+     */
+    val start: Coords      = Coords(0, 1)
+    val end: Coords        = Coords(2, 1)
+    val impassable: Coords = Coords(1, 1)
+
+    val searchGrid = SearchGrid.generate(start, end, List(impassable), 3, 3)
+
+    val path: List[Coords] = searchGrid.locatePath(Dice.fromSeed(0))
+
+    val possiblePaths: List[List[Coords]] = List(
+      List(start, Coords(0, 2), Coords(1, 2), Coords(2, 2), end),
+      List(start, Coords(0, 0), Coords(1, 0), Coords(2, 0), end)
+    )
+
+    assertEquals(possiblePaths.contains(path), true)
+  }
+
+  test("Finding a path with start near impassable vertical.should be able to find a route") {
+    /*
+    | |?| |   =   | |*|*| or |*|*| |
+    | |X| |   =   | |X|*|    |*|X| |
+    | |!| |   =   | |*|*|    |*|*| |
+     */
+    val start: Coords      = Coords(1, 0)
+    val end: Coords        = Coords(1, 2)
+    val impassable: Coords = Coords(1, 1)
+
+    val searchGrid = SearchGrid.generate(start, end, List(impassable), 3, 3)
+
+    val path: List[Coords] = searchGrid.locatePath(Dice.fromSeed(0))
+
+    val possiblePaths: List[List[Coords]] = List(
+      List(start, Coords(2, 0), Coords(2, 1), Coords(2, 2), end),
+      List(start, Coords(0, 0), Coords(0, 1), Coords(0, 2), end)
+    )
+
+    assertEquals(possiblePaths.contains(path), true)
+  }
+
+  test("Finding a path with start near impassable vertical reversed.should be able to find a route") {
+    /*
+    | |!| |   =   | |*|*| or |*|*| |
+    | |X| |   =   | |X|*|    |*|X| |
+    | |?| |   =   | |*|*|    |*|*| |
+     */
+    val start: Coords      = Coords(1, 2)
+    val end: Coords        = Coords(1, 0)
+    val impassable: Coords = Coords(1, 1)
+
+    val searchGrid = SearchGrid.generate(start, end, List(impassable), 3, 3)
+
+    val path: List[Coords] = searchGrid.locatePath(Dice.fromSeed(0))
+
+    val possiblePaths: List[List[Coords]] = List(
+      List(start, Coords(2, 2), Coords(2, 1), Coords(2, 0), end),
+      List(start, Coords(0, 2), Coords(0, 1), Coords(0, 0), end)
+    )
+
+    assertEquals(possiblePaths.contains(path), true)
+  }
+
+  test("Finding a path with start near impassable horizontal reversed.should be able to find a route") {
+    /*
+    | | | |   =   |*|*|*| or | | | |
+    |!|X|?|   =   |*|X|*|    |*|X|*|
+    | | | |   =   | | | |    |*|*|*|
+     */
+    val start: Coords      = Coords(2, 1)
+    val end: Coords        = Coords(0, 1)
+    val impassable: Coords = Coords(1, 1)
+
+    val searchGrid = SearchGrid.generate(start, end, List(impassable), 3, 3)
+
+    val path: List[Coords] = searchGrid.locatePath(Dice.fromSeed(0))
+
+    val possiblePaths: List[List[Coords]] = List(
+      List(start, Coords(2, 2), Coords(1, 2), Coords(0, 2), end),
+      List(start, Coords(2, 0), Coords(1, 0), Coords(0, 0), end)
+    )
+
+    assertEquals(possiblePaths.contains(path), true)
   }
 
   test("Scoring the grid.should be able to score a grid") {
@@ -65,7 +156,7 @@ class PathFindingTests extends munit.FunSuite {
       List(
         EmptySquare(2, Coords(2, 0), None),
         StartSquare(5, Coords(1, 1)),
-        //Sample point
+        // Sample point
         EmptySquare(7, Coords(3, 1), None),
         ImpassableSquare(10, Coords(2, 2))
       )
@@ -84,7 +175,7 @@ class PathFindingTests extends munit.FunSuite {
       List(
         EmptySquare(3, Coords(3, 0), None),
         EmptySquare(6, Coords(2, 1), None),
-        //Sample point
+        // Sample point
         EndSquare(11, Coords(3, 2))
       )
 
@@ -100,7 +191,7 @@ class PathFindingTests extends munit.FunSuite {
 
     val expected: List[GridSquare] =
       List(
-        //Sample point
+        // Sample point
         EmptySquare(1, Coords(1, 0), None),
         EmptySquare(4, Coords(0, 1), None)
       )
@@ -218,7 +309,7 @@ class PathFindingTests extends munit.FunSuite {
       EmptySquare(0, coords, None),
       EmptySquare(0, coords, None),
       EmptySquare(0, coords, None),
-      //EmptySquare(0, coords, None), //missing on purpose!
+      // EmptySquare(0, coords, None), //missing on purpose!
       EndSquare(0, end)
     )
 

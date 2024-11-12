@@ -118,7 +118,7 @@ final class BoundaryLocator(
     BoundaryLocator.findBounds(group, rect.position, rect.size, group.ref)
   end groupBounds
 
-  def spriteFrameBounds(sprite: Sprite[_]): Option[Rectangle] =
+  def spriteFrameBounds(sprite: Sprite[?]): Option[Rectangle] =
     QuickCache(s"""sprite-${sprite.bindingKey.toString}-${sprite.animationKey.toString}""") {
       animationsRegister.fetchAnimationInLastState(sprite.bindingKey, sprite.animationKey) match {
         case Some(animation) =>
@@ -130,28 +130,36 @@ final class BoundaryLocator(
       }
     }
 
-  private def spriteBounds(sprite: Sprite[_]): Option[Rectangle] =
+  private def spriteBounds(sprite: Sprite[?]): Option[Rectangle] =
     spriteFrameBounds(sprite).map(rect => BoundaryLocator.findBounds(sprite, rect.position, rect.size, sprite.ref))
 
   // Text / Fonts
 
-  def textLineBounds(lineText: String, fontInfo: FontInfo): Rectangle =
-    QuickCache(s"""textline-${fontInfo.fontKey}-$lineText""") {
-      lineText
-        .toCharArray()
-        .map(c => fontInfo.findByCharacter(c).bounds)
-        .foldLeft(Rectangle.zero) { (acc, curr) =>
-          Rectangle(0, 0, acc.width + curr.width, Math.max(acc.height, curr.height))
-        }
+  def textLineBounds(lineText: String, fontInfo: FontInfo, letterSpacing: Int, lineHeight: Int): Rectangle =
+    QuickCache(s"""textline-${fontInfo.fontKey}-$lineText-${letterSpacing.toString()}-${lineHeight.toString()}""") {
+      if lineText.isEmpty then {
+        val b = fontInfo.findByCharacter(' ').bounds
+        b.withSize(Size(0, b.height + lineHeight))
+      } else {
+        val b =
+          lineText
+            .toCharArray()
+            .map(c => fontInfo.findByCharacter(c).bounds)
+            .foldLeft(Rectangle.zero) { (acc, curr) =>
+              Rectangle(0, 0, acc.width + curr.width + letterSpacing, Math.max(acc.height, curr.height + lineHeight))
+            }
+        b.withSize(b.size - Size(letterSpacing, 0))
+      }
+
     }
 
-  def textAsLinesWithBounds(text: String, fontKey: FontKey): Batch[TextLine] =
-    QuickCache(s"""text-lines-$fontKey-$text""") {
+  def textAsLinesWithBounds(text: String, fontKey: FontKey, letterSpacing: Int, lineHeight: Int): Batch[TextLine] =
+    QuickCache(s"""text-lines-$fontKey-$text-${letterSpacing.toString()}-${lineHeight.toString()}""") {
       fontRegister
         .findByFontKey(fontKey)
         .map { fontInfo =>
           text.linesIterator.toList
-            .map(lineText => new TextLine(lineText, textLineBounds(lineText, fontInfo)))
+            .map(lineText => new TextLine(lineText, textLineBounds(lineText, fontInfo, letterSpacing, lineHeight)))
             .foldLeft((0, Batch.empty[TextLine])) { case ((yPos, lines), textLine) =>
               (yPos + textLine.lineBounds.height, lines ++ Batch(textLine.moveTo(0, yPos)))
             }
@@ -163,13 +171,13 @@ final class BoundaryLocator(
         }
     }
 
-  def textAllLineBounds(text: String, fontKey: FontKey): Array[Rectangle] =
-    QuickCache(s"""text-all-line-bounds-$fontKey-$text""") {
+  def textAllLineBounds(text: String, fontKey: FontKey, letterSpacing: Int, lineHeight: Int): Array[Rectangle] =
+    QuickCache(s"""text-all-line-bounds-$fontKey-$text-${letterSpacing.toString()}-${lineHeight.toString()}""") {
       fontRegister
         .findByFontKey(fontKey)
         .map { fontInfo =>
           text.linesIterator.toArray
-            .map(lineText => textLineBounds(lineText, fontInfo))
+            .map(lineText => textLineBounds(lineText, fontInfo, letterSpacing, lineHeight))
             .foldLeft((0, Array[Rectangle]())) { case ((yPos, lines), lineBounds) =>
               (yPos + lineBounds.height, lines ++ Array(lineBounds.moveTo(0, yPos)))
             }
@@ -181,9 +189,9 @@ final class BoundaryLocator(
         }
     }
 
-  def textBounds(text: Text[_]): Rectangle =
+  def textBounds(text: Text[?]): Rectangle =
     val unaligned =
-      textAllLineBounds(text.text, text.fontKey)
+      textAllLineBounds(text.text, text.fontKey, text.letterSpacing, text.lineHeight)
         .fold(Rectangle.zero) { (acc, next) =>
           acc.resize(Size(Math.max(acc.width, next.width), acc.height + next.height))
         }
@@ -216,7 +224,7 @@ object BoundaryLocator:
       m.transform(Vector3(0, size.height, 0)).toPoint
     )
 
-  def untransformedShapeBounds(shape: Shape[_]): Rectangle =
+  def untransformedShapeBounds(shape: Shape[?]): Rectangle =
     shape match
       case s: Shape.Box =>
         Rectangle(
@@ -227,15 +235,16 @@ object BoundaryLocator:
       case s: Shape.Circle =>
         Rectangle(
           s.position,
-          Size(s.radius * 2) + s.stroke.width
+          Size(s.circle.radius * 2) + s.stroke.width
         )
 
       case s: Shape.Line =>
         Rectangle(s.position, s.size)
 
       case s: Shape.Polygon =>
-        Rectangle.fromPointCloud(s.vertices).expand(s.stroke.width / 2)
+        val ex = if s.stroke.width == 1 then 1 else s.stroke.width / 2
+        Rectangle.fromPointCloud(s.vertices).expand(ex)
 
-  def findShapeBounds(shape: Shape[_]): Rectangle =
+  def findShapeBounds(shape: Shape[?]): Rectangle =
     val rect = untransformedShapeBounds(shape)
     findBounds(shape, rect.position, rect.size, shape.ref)

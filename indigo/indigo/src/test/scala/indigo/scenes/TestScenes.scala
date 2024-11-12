@@ -9,8 +9,8 @@ import indigo.shared.subsystems.SubSystem
 
 object TestScenes {
 
-  val sceneA: TestSceneA = TestSceneA()
-  val sceneB: TestSceneB = TestSceneB()
+  val sceneA: TestSceneA = TestSceneA("test scene a")
+  val sceneB: TestSceneB = TestSceneB("test scene b")
 
   val sceneNameA: SceneName = sceneA.name
   val sceneNameB: SceneName = sceneB.name
@@ -20,11 +20,11 @@ object TestScenes {
 final case class TestGameModel(sceneA: TestSceneModelA, sceneB: TestSceneModelB)
 final case class TestViewModel(sceneA: TestSceneViewModelA, sceneB: TestSceneViewModelB)
 
-final case class TestSceneA() extends Scene[Unit, TestGameModel, TestViewModel] {
+final case class TestSceneA(id: String) extends Scene[Unit, TestGameModel, TestViewModel] {
   type SceneModel     = TestSceneModelA
   type SceneViewModel = TestSceneViewModelA
 
-  val name: SceneName = SceneName("test scene a")
+  val name: SceneName = SceneName(id)
 
   val modelLens: Lens[TestGameModel, TestSceneModelA] =
     Lens(
@@ -59,20 +59,22 @@ final case class TestSceneA() extends Scene[Unit, TestGameModel, TestViewModel] 
       viewModelEventFilter
     )
 
-  val subSystems: Set[SubSystem] = Set()
+  val subSystems: Set[SubSystem[TestGameModel]] = Set()
 
-  def updateModel(context: FrameContext[Unit], sceneModel: TestSceneModelA): GlobalEvent => Outcome[TestSceneModelA] =
-    _ => Outcome(sceneModel.copy(count = sceneModel.count + 1))
+  def updateModel(context: SceneContext[Unit], sceneModel: TestSceneModelA): GlobalEvent => Outcome[TestSceneModelA] =
+    _ =>
+      // println(s"A - before: ${sceneModel.count}, after: ${sceneModel.count + 1}")
+      Outcome(sceneModel.copy(count = sceneModel.count + 1))
 
   def updateViewModel(
-      context: FrameContext[Unit],
+      context: SceneContext[Unit],
       sceneModel: TestSceneModelA,
       sceneViewModel: TestSceneViewModelA
   ): GlobalEvent => Outcome[TestSceneViewModelA] =
     _ => Outcome(TestSceneViewModelA())
 
   def present(
-      context: FrameContext[Unit],
+      context: SceneContext[Unit],
       sceneModel: TestSceneModelA,
       sceneViewModel: TestSceneViewModelA
   ): Outcome[SceneUpdateFragment] =
@@ -82,11 +84,11 @@ final case class TestSceneA() extends Scene[Unit, TestGameModel, TestViewModel] 
 final case class TestSceneModelA(count: Int)
 final case class TestSceneViewModelA()
 
-final case class TestSceneB() extends Scene[Unit, TestGameModel, TestViewModel] {
+final case class TestSceneB(id: String) extends Scene[Unit, TestGameModel, TestViewModel] {
   type SceneModel     = TestSceneModelB
   type SceneViewModel = TestSceneViewModelB
 
-  val name: SceneName = SceneName("test scene b")
+  val name: SceneName = SceneName(id)
 
   val modelLens: Lens[TestGameModel, TestSceneModelB] =
     Lens(
@@ -122,20 +124,22 @@ final case class TestSceneB() extends Scene[Unit, TestGameModel, TestViewModel] 
       viewModelEventFilter
     )
 
-  val subSystems: Set[SubSystem] = Set()
+  val subSystems: Set[SubSystem[TestGameModel]] = Set()
 
-  def updateModel(context: FrameContext[Unit], sceneModel: TestSceneModelB): GlobalEvent => Outcome[TestSceneModelB] =
-    _ => Outcome(sceneModel.copy(count = sceneModel.count + 10))
+  def updateModel(context: SceneContext[Unit], sceneModel: TestSceneModelB): GlobalEvent => Outcome[TestSceneModelB] =
+    _ =>
+      // println(s"B - before: ${sceneModel.count}, after: ${sceneModel.count + 10}")
+      Outcome(sceneModel.copy(count = sceneModel.count + 10))
 
   def updateViewModel(
-      context: FrameContext[Unit],
+      context: SceneContext[Unit],
       sceneModel: TestSceneModelB,
       sceneViewModel: TestSceneViewModelB
   ): GlobalEvent => Outcome[TestSceneViewModelB] =
     _ => Outcome(TestSceneViewModelB())
 
   def present(
-      context: FrameContext[Unit],
+      context: SceneContext[Unit],
       sceneModel: TestSceneModelB,
       sceneViewModel: TestSceneViewModelB
   ): Outcome[SceneUpdateFragment] =

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-# Run from root.
+set -e
 
-sbt crossCleanAll crossTestAllNoClean crossLocalPublishNoClean
+sbt crossCleanAll scalafmtCheckAll crossTestAllNoClean crossLocalPublishNoClean

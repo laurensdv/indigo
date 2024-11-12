@@ -23,19 +23,19 @@ class Vector4Tests extends munit.FunSuite {
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector4s.parallel") {
-    assertEquals((Vector4(0, 0, 0, 0) dot Vector4(0, 0, 0, 0)), 0.0)
+    assertEquals((Vector4(0, 0, 0, 0) `dot` Vector4(0, 0, 0, 0)), 0.0)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector4s.facing") {
-    assertEquals((Vector4(2, 2, 2, 2) dot Vector4(-1, -1, -1, -1)) < 0, true)
+    assertEquals((Vector4(2, 2, 2, 2) `dot` Vector4(-1, -1, -1, -1)) < 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector4s.not facing") {
-    assertEquals((Vector4(2, 2, 2, 2) dot Vector4(1, 1, 1, 1)) > 0, true)
+    assertEquals((Vector4(2, 2, 2, 2) `dot` Vector4(1, 1, 1, 1)) > 0, true)
   }
 
   test("Basic vector operation.should be able to calculate the dot product between two Vector4s.value") {
-    assertEquals(Math.round((Vector4(-6.0, 8.0, 1, 1) dot Vector4(5.0, 12.0, 2, 2))).toDouble, 70d)
+    assertEquals(Math.round((Vector4(-6.0, 8.0, 1, 1) `dot` Vector4(5.0, 12.0, 2, 2))).toDouble, 70d)
   }
 
   test("dot product") {
@@ -63,10 +63,18 @@ class Vector4Tests extends munit.FunSuite {
     assertEquals(Vector4(10, 10, 10, 10).max(Vector4(50, 5, 2, 100)), Vector4(50, 10, 10, 100))
   }
 
-  test("clamp") {
+  test("clamp - Double") {
     assertEquals(Vector4(0.1, 0.1, 0.1, 0.1).clamp(0, 1), Vector4(0.1, 0.1, 0.1, 0.1))
     assertEquals(Vector4(-0.1, 1.1, 0.1, 0.1).clamp(0, 1), Vector4(0.0, 1.0, 0.1, 0.1))
     assertEquals(Vector4(1, 4, 5, 0).clamp(2, 3), Vector4(2, 3, 3, 2))
+  }
+
+  test("clamp - Vector4") {
+    assertEquals(Vector4(0.1, 0.1, 0.1, 0.1).clamp(Vector4(0), Vector4(1)), Vector4(0.1, 0.1, 0.1, 0.1))
+    assertEquals(Vector4(-0.1, 1.1, 0.1, 0.1).clamp(Vector4(0), Vector4(1)), Vector4(0.0, 1.0, 0.1, 0.1))
+    assertEquals(Vector4(1, 4, 5, 0).clamp(Vector4(2), Vector4(3)), Vector4(2, 3, 3, 2))
+    assertEquals(Vector4(-2, 2, -2, 2).clamp(Vector4(-1), Vector4(1)), Vector4(-1, 1, -1, 1))
+    assertEquals(Vector4(-2, 2, 2, -2).clamp(Vector4(-1, 0, 0, 0), Vector4(0, 1, 5, 1)), Vector4(-1, 1, 2, 0))
   }
 
   test("length") {
@@ -91,6 +99,14 @@ class Vector4Tests extends munit.FunSuite {
     assertEquals(Vector4(2, 2, 10, 20).scaleBy(Vector4(10, 2, 3, 5)), Vector4(20, 4, 30, 100))
   }
 
+  test("ceil") {
+    assertEquals(Vector4(2.2, 2.6, 5.1, 7.99999).ceil, Vector4(3, 3, 6, 8))
+  }
+
+  test("floor") {
+    assertEquals(Vector4(2.2, 2.6, 5.1, 7.99999).floor, Vector4(2, 2, 5, 7))
+  }
+
   test("round") {
     assertEquals(Vector4(2.2, 2.6, 5.1, 7.99999).round, Vector4(2, 3, 5, 8))
   }
@@ -106,6 +122,17 @@ class Vector4Tests extends munit.FunSuite {
   test("approx equal") {
     assert(Vector4(5.0, 5.0, 5.0, 5.0) ~== Vector4(4.999999, 5.00001, 5.0, 4.9999))
     assert(!(Vector4(5.0, 5.0, 5.0, 5.0) ~== Vector4(-4.999999, 5.00001, 5.0, 5.0)))
+  }
+
+  test("mod") {
+    assert(Vector4.mod(Vector4(11, 12, 13, 14), Vector4(10)) ~== Vector4(1, 2, 3, 4))
+    assert(Vector4(11, 12, 13, 14) % Vector4(10) ~== Vector4(1, 2, 3, 4))
+    assert(Vector4.mod(Vector4(9, 10, 11, 12), Vector4(10)) ~== Vector4(9, 0, 1, 2))
+    assert(Vector4.mod(Vector4(1), Vector4(10)) ~== Vector4(1))
+    assert(Vector4.mod(Vector4(-11, -12, -13, -14), Vector4(10)) ~== Vector4(9, 8, 7, 6))
+    assert(Vector4.mod(Vector4(-1), Vector4(10)) ~== Vector4(9))
+    assert(Vector4.mod(Vector4(0), Vector4(10)) ~== Vector4(0))
+    assert(clue(Vector4.mod(Vector4(-11), Vector4(-10))) ~== clue(Vector4(-1)))
   }
 
   // ----------------------
@@ -180,7 +207,7 @@ class Vector4Tests extends munit.FunSuite {
       .translate(Vector3(-2, -2, 0))
       .rotate(Radians.TAUby4.negative)
 
-    assert(v.transform(m) ~==  Vector4.position(8, 0, 0))
+    assert(v.transform(m) ~== Vector4.position(8, 0, 0))
   }
 
   def to2dp(d: Double): Double =

@@ -31,7 +31,7 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
       _ => None
     )
 
-  def boot(flags: Map[String, String]): Outcome[BootResult[Unit]] =
+  def boot(flags: Map[String, String]): Outcome[BootResult[Unit, DudeModel]] =
     Outcome {
       BootResult
         .noData(
@@ -40,15 +40,13 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
             frameRateLimit = None,
             clearColor = RGBA(0.4, 0.2, 0.5, 1),
             magnification = magnificationLevel,
+            resizePolicy = ResizePolicy.NoResize,
             transparentBackground = false,
-            advanced = AdvancedGameConfig(
-              renderingTechnology = RenderingTechnology.WebGL2,
-              antiAliasing = false,
-              premultipliedAlpha = true,
-              batchSize = 512,
-              autoLoadStandardShaders = false,
-              disableContextMenu = true
-            )
+            advanced = AdvancedGameConfig.default
+              .withRenderingTechnology(RenderingTechnology.WebGL2)
+              .withBatchSize(512)
+              .withAutoLoadStandardShaders(false)
+              .withContextMenu
           )
         )
         .withAssets(PerfAssets.assets)
@@ -105,4 +103,4 @@ object PerfGame extends IndigoDemo[Unit, Dude, DudeModel, Unit] {
 
 }
 
-final case class Dude(aseprite: Aseprite, sprite: Sprite[_])
+final case class Dude(aseprite: Aseprite, sprite: Sprite[?])

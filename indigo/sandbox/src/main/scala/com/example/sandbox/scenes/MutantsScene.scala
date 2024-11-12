@@ -6,10 +6,11 @@ import com.example.sandbox.SandboxGame
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
-import indigoextras.geometry.Polygon
-import indigoextras.geometry.Vertex
+import indigo.*
+import indigo.scenes.*
+import indigo.syntax.shaders.*
+import indigo.syntax.uniform
+import indigo.syntax.uniformBlockName
 import indigoextras.ui.HitArea
 
 object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
@@ -29,17 +30,17 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
   def name: SceneName =
     SceneName("mutants")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel
   ): GlobalEvent => Outcome[SandboxGameModel] =
     _ => Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): GlobalEvent => Outcome[SandboxViewModel] =
@@ -86,7 +87,7 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
     )
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): Outcome[SceneUpdateFragment] =
@@ -139,11 +140,9 @@ object Archetype:
   def makeUniformBlock(position: Point, scale: Vector2, alpha: Double): Batch[UniformBlock] =
     Batch(
       UniformBlock(
-        "MutantData",
-        Batch(
-          Uniform("MOVE_TO")  -> vec2.fromPoint(position),
-          Uniform("SCALE_TO") -> vec2.fromVector2(scale),
-          Uniform("ALPHA")    -> float(alpha)
-        )
+        "MutantData".uniformBlockName,
+        position.asVec2,
+        scale.asVec2,
+        alpha.asFloat
       )
     )

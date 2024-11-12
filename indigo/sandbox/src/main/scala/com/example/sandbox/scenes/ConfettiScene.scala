@@ -5,10 +5,8 @@ import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
-import indigoextras.geometry.Polygon
-import indigoextras.geometry.Vertex
+import indigo.*
+import indigo.scenes.*
 import indigoextras.ui.HitArea
 
 import scala.annotation.tailrec
@@ -35,11 +33,11 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   def name: SceneName =
     SceneName("confetti")
 
-  def subSystems: Set[SubSystem] =
+  def subSystems: Set[SubSystem[SandboxGameModel]] =
     Set()
 
   def updateModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: ConfettiModel
   ): GlobalEvent => Outcome[ConfettiModel] =
 
@@ -60,7 +58,7 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
       Outcome(model)
 
   def updateViewModel(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: ConfettiModel,
       viewModel: Unit
   ): GlobalEvent => Outcome[Unit] =
@@ -94,7 +92,7 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
     )
 
   def present(
-      context: FrameContext[SandboxStartupData],
+      context: SceneContext[SandboxStartupData],
       model: ConfettiModel,
       viewModel: Unit
   ): Outcome[SceneUpdateFragment] =

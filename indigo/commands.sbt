@@ -2,13 +2,15 @@ lazy val releaseProjects: List[String] =
   List(
     "indigo",
     "indigoJsonCirce",
-    "indigoExtras"
+    "indigoExtras",
+    "tyrianIndigoBridge"
   )
 
 lazy val coreProjects: List[String] =
   releaseProjects ++ List(
     "sandbox",
     "perf",
+    "shader",
   )
 
 val allProjects = List("indigoProject") // the aggregate
@@ -38,17 +40,6 @@ def applyCrossToAllReleaseable(command: String): String =
   List(
     applyCrossCommand(releaseProjects, command)
   ).mkString
-
-// Rebuild ScalaDocs and open in Firefox
-addCommandAlias(
-  "readdocs",
-  applyCommand(coreProjects, "doc") +
-    List(
-      "openshareddocs",
-      "openindigodocs",
-      "openindigoextsdocs"
-    ).mkString(";", ";", "")
-)
 
 addCommandAlias(
   "cleanAll",
@@ -187,6 +178,51 @@ addCommandAlias(
 )
 
 addCommandAlias(
+  "shaderBuild",
+  List(
+    "buildAllNoClean",
+    "shader/fastOptJS",
+    "shader/indigoBuild"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "shaderRun",
+  List(
+    "buildAllNoClean",
+    "shader/fastOptJS",
+    "shader/indigoRun"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "shaderRunFull",
+  List(
+    "buildAllNoClean",
+    "shader/fullOptJS",
+    "shader/indigoRunFull"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "physicsRun",
+  List(
+    "buildAllNoClean",
+    "physics/fastOptJS",
+    "physics/indigoRun"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
+  "physicsRunFull",
+  List(
+    "buildAllNoClean",
+    "physics/fullOptJS",
+    "physics/indigoRunFull"
+  ).mkString(";", ";", "")
+)
+
+addCommandAlias(
   "indigoPublishAllSigned",
   applyToAllReleaseable("publishSigned")
 )
@@ -210,7 +246,7 @@ addCommandAlias(
 )
 addCommandAlias(
   "crossLocalPublishIndigo",
-  applyCrossCommand(allProjects, "publishLocal")
+  applyCrossCommand(releaseProjects, "publishLocal")
 )
 addCommandAlias(
   "crossLocalPublishNoClean",

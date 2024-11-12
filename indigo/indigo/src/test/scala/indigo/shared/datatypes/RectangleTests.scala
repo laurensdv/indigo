@@ -35,7 +35,7 @@ class RectangleTests extends munit.FunSuite {
   }
 
   test("should be able to construct a rectangle from a cloud of points") {
-    //left 0, right 6, top 7, bottom 13
+    // left 0, right 6, top 7, bottom 13
     val points: Batch[Point] =
       Batch(
         Point(4, 11),
@@ -91,6 +91,24 @@ class RectangleTests extends munit.FunSuite {
     assertEquals(a.expand(10), Rectangle(-20, 0, 40, -40))
   }
 
+  test("expand a rectangle by a fixed amount") {
+    val a = Rectangle(10, 10, 20, 20)
+
+    assertEquals(a.expand(10), Rectangle(0, 0, 40, 40))
+  }
+
+  test("expand a rectangle by a fixed amount (negative)") {
+    val a = Rectangle(10, 10, 40, 40)
+
+    assertEquals(a.expand(-5), Rectangle(15, 15, 30, 30))
+  }
+
+  test("expand a rectangle by a fixed amount (Size)") {
+    val a = Rectangle(10, 10, 20, 20)
+
+    assertEquals(a.expand(Size(20, 10)), Rectangle(-10, 0, 60, 40))
+  }
+
   test("contract by a fixed amount") {
     val actual =
       Rectangle(10, 20, 90, 80).contract(10)
@@ -107,6 +125,16 @@ class RectangleTests extends munit.FunSuite {
 
     val expected =
       Rectangle(0, -30, 70, -60)
+
+    assertEquals(actual, expected)
+  }
+
+  test("contract by a fixed amount (Size)") {
+    val actual =
+      Rectangle(10, 20, 90, 80).contract(Size(20, 10))
+
+    val expected =
+      Rectangle(30, 30, 50, 60)
 
     assertEquals(actual, expected)
   }
@@ -184,6 +212,22 @@ class RectangleTests extends munit.FunSuite {
     assert(Rectangle.overlapping(a, b))
   }
 
+  test("overlaps circle (encompasses)") {
+    assert(Rectangle(0, 0, 160, 160).overlaps(Circle(Point(100, 100), 5)))
+    assert(Circle(Point(100, 100), 5).overlaps(Rectangle(0, 0, 160, 160)))
+
+    assert(Rectangle(100, 100, 5, 5).overlaps(Circle(Point(90, 90), 20)))
+    assert(Circle(Point(90, 90), 20).overlaps(Rectangle(100, 100, 5, 5)))
+  }
+
+  test("encompasses circle") {
+    assert(Rectangle(0, 0, 160, 160).encompasses(Circle(Point(100, 100), 5)))
+    assert(!Circle(Point(100, 100), 5).encompasses(Rectangle(100, 100, 5, 5)))
+
+    assert(!Rectangle(100, 100, 5, 5).encompasses(Circle(Point(90, 90), 20)))
+    assert(Circle(Point(100, 100), 20).encompasses(Rectangle(100, 100, 5, 5)))
+  }
+
   test("Expand should be able to expand in size by a given amount") {
     val a = Rectangle(10, 10, 20, 20)
     val b = Rectangle(0, 10, 100, 5)
@@ -208,5 +252,17 @@ class RectangleTests extends munit.FunSuite {
     assert(a.right == 10)
     assert(a.top == -20)
     assert(a.bottom == 20)
+  }
+
+  test("resize") {
+    assertEquals(Rectangle(10, 10, 10, 10).resize(Size(20, 20)), Rectangle(10, 10, 20, 20))
+    assertEquals(Rectangle(10, 10, 10, 10).resize(20, 20), Rectangle(10, 10, 20, 20))
+    assertEquals(Rectangle(10, 10, 10, 10).resize(20), Rectangle(10, 10, 20, 20))
+  }
+
+  test("resizeBy") {
+    assertEquals(Rectangle(10, 10, 10, 10).resizeBy(Size(20, 20)), Rectangle(10, 10, 30, 30))
+    assertEquals(Rectangle(10, 10, 10, 10).resizeBy(20, 20), Rectangle(10, 10, 30, 30))
+    assertEquals(Rectangle(10, 10, 10, 10).resizeBy(20), Rectangle(10, 10, 30, 30))
   }
 }
