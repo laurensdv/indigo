@@ -42,11 +42,11 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
   ): GlobalEvent => Outcome[ConfettiModel] =
 
     case FrameTick =>
-      val pos = Signal.Orbit(context.startUpData.viewportCenter * 2, 100).at(context.running * 0.5).toPoint
+      val pos = Signal.Orbit(context.startUpData.viewportCenter * 2, 100).at(context.frame.time.running * 0.5).toPoint
       Outcome(
         model
           .spawn(
-            context.dice,
+            context.services.random,
             pos.x,
             pos.y,
             spawnCount
@@ -108,16 +108,16 @@ object ConfettiScene extends Scene[SandboxStartupData, SandboxGameModel, Sandbox
     )
 
 final case class ConfettiModel(color: Int, particles: js.Array[js.Array[Particle]]):
-  def spawn(dice: Dice, x: Int, y: Int, count: Int): ConfettiModel =
+  def spawn(random: Context.Services.Random, x: Int, y: Int, count: Int): ConfettiModel =
     this.copy(
       particles = js.Array((0 until count).toJSArray.map { _ =>
         Particle(
           x,
           y,
-          dice.rollFloat * 2.0f - 1.0f,
-          dice.rollFloat * 2.0f,
+          random.nextFloat * 2.0f - 1.0f,
+          random.nextFloat * 2.0f,
           color,
-          ((dice.rollFloat * 0.5f) + 0.5f) * 0.5f
+          ((random.nextFloat * 0.5f) + 0.5f) * 0.5f
         )
       }) ++ particles
     )

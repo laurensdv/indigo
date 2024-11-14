@@ -12,7 +12,7 @@ import indigo.shared.events.SubSystemEvent
 import indigo.shared.scenegraph.SceneNode
 import indigo.shared.scenegraph._
 import indigo.shared.subsystems.SubSystem
-import indigo.shared.subsystems.SubSystemFrameContext
+import indigo.shared.subsystems.SubSystemContext
 import indigo.shared.subsystems.SubSystemId
 import indigo.shared.temporal.Signal
 import indigo.shared.temporal.SignalReader
@@ -57,20 +57,20 @@ final case class Automata[Model](
   private given CanEqual[Option[Int], Option[Int]] = CanEqual.derived
 
   def update(
-      frameContext: SubSystemFrameContext[ReferenceData],
+      context: SubSystemContext[ReferenceData],
       state: AutomataState
   ): AutomataEvent => Outcome[AutomataState] =
     case Spawn(key, position, lifeSpan, payload) if key == poolKey =>
       val spawned =
         SpawnedAutomaton(
-          automaton.node.giveNode(state.totalSpawned, frameContext.dice),
+          automaton.node.giveNode(state.totalSpawned, context.frame.dice),
           automaton.modifier,
           automaton.onCull,
           new AutomatonSeedValues(
             position,
-            frameContext.gameTime.running,
+            context.frame.time.running,
             lifeSpan.getOrElse(automaton.lifespan),
-            frameContext.dice.roll,
+            context.frame.dice.roll,
             payload
           )
         )
@@ -108,12 +108,12 @@ final case class Automata[Model](
 
     case Update(key) if key == poolKey =>
       val cullEvents = state.pool
-        .filterNot(_.isAlive(frameContext.gameTime.running))
+        .filterNot(_.isAlive(context.frame.time.running))
         .flatMap(sa => sa.onCull(sa.seedValues))
 
       Outcome(
         state.copy(
-          pool = state.pool.filter(_.isAlive(frameContext.gameTime.running))
+          pool = state.pool.filter(_.isAlive(context.frame.time.running))
         ),
         Batch(cullEvents)
       )
@@ -121,8 +121,8 @@ final case class Automata[Model](
     case _ =>
       Outcome(state)
 
-  def present(frameContext: SubSystemFrameContext[ReferenceData], state: AutomataState): Outcome[SceneUpdateFragment] =
-    val updated = Automata.renderNoLayer(state.pool, frameContext.gameTime)
+  def present(context: SubSystemContext[ReferenceData], state: AutomataState): Outcome[SceneUpdateFragment] =
+    val updated = Automata.renderNoLayer(state.pool, context.frame.time)
 
     Outcome(
       SceneUpdateFragment(

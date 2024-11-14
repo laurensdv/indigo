@@ -1,7 +1,7 @@
 package indigo.scenes
 
 import indigo.shared.BoundaryLocator
-import indigo.shared.FrameContext
+import indigo.shared.Context
 import indigo.shared.datatypes.Rectangle
 import indigo.shared.dice.Dice
 import indigo.shared.events.InputState
@@ -12,41 +12,33 @@ import indigo.shared.scenegraph.SceneNode
 import indigo.shared.time.GameTime
 import indigo.shared.time.Seconds
 
-/** SceneContext is a Scene specific equivalent of `FrameContext`, and exposes all of the fields and methods or a normal
-  * `FrameContext` object. It adds information about the scene currently running.
+/** SceneContext is a Scene specific equivalent of `Context`, and exposes all of the fields and methods of a normal
+  * `Context` object. It adds information about the scene currently running.
   *
   * @param sceneName
   *   The name of the current scene.
   * @param sceneStartTime
   *   The time that the current scene was entered.
-  * @param frameContext
+  * @param context
   *   The normal frame context object that all other fields delegate to.
   */
 final class SceneContext[StartUpData](
     val sceneName: SceneName,
     val sceneStartTime: Seconds,
-    val frameContext: FrameContext[StartUpData]
+    val context: Context[StartUpData]
 ):
-  export frameContext.gameTime
-  export frameContext.dice
-  export frameContext.inputState
-  export frameContext.boundaryLocator
-  export frameContext.startUpData
-  export frameContext.gameTime.running
-  export frameContext.gameTime.delta
-  export frameContext.inputState.mouse
-  export frameContext.inputState.keyboard
-  export frameContext.inputState.gamepad
-  export frameContext.inputState.pointers
-  export frameContext.findBounds
-  export frameContext.bounds
-  export frameContext.captureScreen
+  export context.*
 
   /** The running time of the current scene calculated as the game's total running time minus time the scene was
     * entered.
     */
   lazy val sceneRunning: Seconds =
-    frameContext.gameTime.running - sceneStartTime
+    context.frame.time.running - sceneStartTime
 
-  def toFrameContext: FrameContext[StartUpData] =
-    frameContext
+  def toFrameContext: Context[StartUpData] =
+    context
+
+object SceneContext:
+
+  def fromFrameContext[A](sceneName: SceneName, sceneStartTime: Seconds, ctx: Context[A]): SceneContext[A] =
+    new SceneContext(sceneName, sceneStartTime, ctx)

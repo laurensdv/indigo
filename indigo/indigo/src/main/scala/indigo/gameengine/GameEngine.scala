@@ -178,12 +178,11 @@ final class GameEngine[StartUpData, GameModel, ViewModel](
 
       audioPlayer.addAudioAssets(accumulatedAssetCollection.sounds)
 
-      val randomSeed = (if (firstRun) 0 else gameLoopInstance.runningTimeReference) + gameLoopInstance.initialSeed
+      val dice = if firstRun then Dice.default else Dice.fromSeed(gameLoopInstance.runningTimeReference.toLong)
 
-      if (firstRun)
-        platform = new Platform(parentElement, gameConfig, globalEventStream, dynamicText)
+      if firstRun then platform = new Platform(parentElement, gameConfig, globalEventStream, dynamicText)
 
-      initialise(accumulatedAssetCollection)(Dice.fromSeed(randomSeed.toLong)) match {
+      initialise(accumulatedAssetCollection)(dice) match {
         case oe @ Outcome.Error(error, _) =>
           IndigoLogger.error(
             if (firstRun) "Error during first initialisation - Halting."

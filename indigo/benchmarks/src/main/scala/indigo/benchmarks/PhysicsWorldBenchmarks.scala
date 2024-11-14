@@ -1,9 +1,8 @@
 package indigo.benchmarks
 
 import indigo.*
-import indigo.syntax.*
 import indigo.physics.*
-
+import indigo.syntax.*
 import japgolly.scalajs.benchmark._
 import japgolly.scalajs.benchmark.gui._
 
@@ -51,7 +50,7 @@ object PhysicsWorldBenchmarks:
 
 object TestWorlds:
 
-  val dice: Dice = Dice.fromSeed(0)
+  val dice: Dice = Dice.default
 
   val basicWorld: World[MyTag] =
     val circles =
