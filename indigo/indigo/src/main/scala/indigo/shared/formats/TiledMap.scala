@@ -208,7 +208,7 @@ object TiledMap {
                 Option(tile.map {
                 case tiledTerrainCorner: TiledTerrainCorner if tiledTerrainCorner.animation.nonEmpty =>
                     (tiledTerrainCorner.id, tiledTerrainCorner.animation)
-                case tiledTerrainCorner: TiledTerrainCorner => (tiledTerrainCorner.id, None)
+                case tiledTerrainCorner: TiledTerrainCorner=> (tiledTerrainCorner.id, None)
                 })
             })
         }).flatten.toMap
