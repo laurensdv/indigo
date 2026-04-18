@@ -41,7 +41,7 @@ object IndigoRun {
     println(s"Starting '${indigoOptions.metadata.title}'")
 
     sys.props("os.name").toLowerCase match {
-      case x if x contains "windows" =>
+      case x if x.contains("windows") =>
         indigoOptions.electron.electronInstall match {
           case ElectronInstall.Global =>
             IndigoProc.Windows.npmStart(outputDir)
@@ -105,7 +105,11 @@ object IndigoRun {
     List(
       FileToWrite(
         "main.js",
-        ElectronTemplates.mainFileTemplate(indigoOptions.metadata.width, indigoOptions.metadata.height)
+        ElectronTemplates.mainFileTemplate(
+          windowWidth = indigoOptions.metadata.width,
+          windowHeight = indigoOptions.metadata.height,
+          openDevTools = indigoOptions.electron.openDevTools
+        )
       ),
       FileToWrite("preload.js", ElectronTemplates.preloadFileTemplate),
       FileToWrite("package.json", ElectronTemplates.packageFileTemplate(indigoOptions.electron))

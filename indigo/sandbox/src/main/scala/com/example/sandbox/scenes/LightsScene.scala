@@ -4,8 +4,8 @@ import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
+import indigo.*
+import indigo.scenes.*
 
 object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
@@ -41,7 +41,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
     _ => Outcome(viewModel)
 
   val graphic: Graphic[Material.Bitmap] =
-    Graphic(Rectangle(0, 0, 40, 40), 1, LightingAssets.junctionBoxMaterialOn)
+    Graphic(Rectangle(0, 0, 40, 40), LightingAssets.junctionBoxMaterialOn)
       .withCrop(0, 0, 275, 200)
       .modifyMaterial(_.withFillType(FillType.Tile))
 
@@ -73,6 +73,9 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
       model: SandboxGameModel,
       viewModel: SandboxViewModel
   ): Outcome[SceneUpdateFragment] =
+    val centerPoint: Point =
+      Point(550, 400) / 2 / 2
+
     Outcome(
       SceneUpdateFragment(graphic, graphic2, shape)
         .withMagnification(2)
@@ -99,7 +102,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
             .withIntensity(1)
             .moveTo(
               Signal
-                .Orbit(context.startUpData.viewportCenter, 80, Radians(0))
+                .Orbit(centerPoint, 80, Radians(0))
                 .affectTime(0.1)
                 .at(context.frame.time.running)
                 .toPoint
@@ -111,7 +114,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
             .withIntensity(1)
             .moveTo(
               Signal
-                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.toDouble / 3))
+                .Orbit(centerPoint, 80, Radians(Radians.TAU.toDouble / 3))
                 .affectTime(0.1)
                 .at(context.frame.time.running)
                 .toPoint
@@ -123,7 +126,7 @@ object LightsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxVi
             .withIntensity(1)
             .moveTo(
               Signal
-                .Orbit(context.startUpData.viewportCenter, 80, Radians(Radians.TAU.toDouble / 3 * 2))
+                .Orbit(centerPoint, 80, Radians(Radians.TAU.toDouble / 3 * 2))
                 .affectTime(0.1)
                 .at(context.frame.time.running)
                 .toPoint

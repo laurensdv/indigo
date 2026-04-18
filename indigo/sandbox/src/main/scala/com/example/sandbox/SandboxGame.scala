@@ -1,44 +1,13 @@
 package com.example.sandbox
 
-import com.example.sandbox.scenes.Archetype
-import com.example.sandbox.scenes.BoundingCircleScene
-import com.example.sandbox.scenes.BoundsScene
-import com.example.sandbox.scenes.BoxesScene
-import com.example.sandbox.scenes.CameraScene
-import com.example.sandbox.scenes.CameraWithCloneTilesScene
-import com.example.sandbox.scenes.CaptureScreenScene
-import com.example.sandbox.scenes.CaptureScreenScene.CaptureScreenSceneViewModel
-import com.example.sandbox.scenes.ClipScene
-import com.example.sandbox.scenes.ConfettiScene
-import com.example.sandbox.scenes.CratesScene
-import com.example.sandbox.scenes.LegacyEffectsScene
-import com.example.sandbox.scenes.LightsScene
-import com.example.sandbox.scenes.LineReflectionScene
-import com.example.sandbox.scenes.ManyEventHandlers
-import com.example.sandbox.scenes.MutantsScene
-import com.example.sandbox.scenes.OriginalScene
-import com.example.sandbox.scenes.PathFindingScene
-import com.example.sandbox.scenes.PointersScene
-import com.example.sandbox.scenes.RefractionScene
-import com.example.sandbox.scenes.Shaders
-import com.example.sandbox.scenes.ShapesScene
-import com.example.sandbox.scenes.TextBoxScene
-import com.example.sandbox.scenes.TextScene
-import com.example.sandbox.scenes.TextureTileScene
-import com.example.sandbox.scenes.TimelineScene
-import com.example.sandbox.scenes.UVShaders
-import com.example.sandbox.scenes.UiScene
-import com.example.sandbox.scenes.UiSceneViewModel
-import com.example.sandbox.scenes.UltravioletScene
+import com.example.sandbox.scenes.*
 import example.TestFont
 import indigo.*
 import indigo.json.Json
-import indigo.scenes._
-import indigo.syntax.*
+import indigo.scenes.*
 import indigoextras.effectmaterials.LegacyEffects
 import indigoextras.effectmaterials.Refraction
 import indigoextras.subsystems.FPSCounter
-import indigoextras.ui.*
 
 import scala.scalajs.js.annotation.*
 
@@ -52,20 +21,18 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   val viewportHeight: Int     = gameHeight * magnificationLevel // 256
 
   def initialScene(bootData: SandboxBootData): Option[SceneName] =
-    Some(ConfettiScene.name)
+    Some(WindowsScene.name)
 
-  def scenes(bootData: SandboxBootData): NonEmptyList[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
-    NonEmptyList(
+  def scenes(bootData: SandboxBootData): NonEmptyBatch[Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]] =
+    NonEmptyBatch(
       OriginalScene,
       ShapesScene,
       LightsScene,
       RefractionScene,
       LegacyEffectsScene,
-      TextBoxScene,
       BoundsScene,
       CameraScene,
       TextureTileScene,
-      UiScene,
       ConfettiScene,
       MutantsScene,
       CratesScene,
@@ -80,7 +47,20 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
       LineReflectionScene,
       CameraWithCloneTilesScene,
       PathFindingScene,
-      CaptureScreenScene
+      CaptureScreenScene,
+      NineSliceScene,
+      SfxScene,
+      ComponentUIScene,
+      ComponentUIScene2,
+      WindowsScene,
+      MeshScene,
+      WaypointScene,
+      ActorPoolScene,
+      ActorPoolPhysicsScene,
+      PerformerScene,
+      PerformerPhysicsScene,
+      ViewportResizeScene,
+      MultiPointScene
     )
 
   val eventFilters: EventFilters = EventFilters.Permissive
@@ -112,9 +92,13 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
         TestFont.fontInfo
       ).withSubSystems(
         FPSCounter[SandboxGameModel](
-          Point(5, 165),
-          BindingKey("fps counter")
+          Fonts.fontKey,
+          SandboxAssets.smallFontName
         )
+          .withLayerKey(Constants.LayerKeys.fps)
+          .placeAt { (context, bounds) =>
+            Point(0, context.frame.viewport.height - bounds.height)
+          }
       ).withShaders(
         Shaders.circle,
         Shaders.external,
@@ -125,6 +109,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
         UVShaders.voronoi,
         UVShaders.redBlend
       ).addShaders(Refraction.shaders)
+        .addShaders(indigoextras.ui.shaders.all)
     )
   }
 
@@ -149,7 +134,6 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
             Dude(
               aseprite,
               spriteAndAnimations.sprite
-                .withDepth(Depth(3))
                 .withRef(16, 16)      // Initial offset, so when talk about his position it's the center of the sprite
                 .moveTo(screenCenter) // Also place him in the middle of the screen initially
                 .withMaterial(SandboxAssets.dudeMaterial),
@@ -174,25 +158,14 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   def initialModel(startupData: SandboxStartupData): Outcome[SandboxGameModel] =
     Outcome(SandboxModel.initialModel(startupData))
 
-  def initialViewModel(startupData: SandboxStartupData, model: SandboxGameModel): Outcome[SandboxViewModel] = {
-    val assets =
-      InputFieldAssets(
-        Text("placeholder", 0, 0, 0, Fonts.fontKey, SandboxAssets.fontMaterial).alignLeft,
-        Graphic(0, 0, 16, 16, 2, Material.ImageEffects(SandboxAssets.smallFontName).withTint(RGB(0, 0, 1)))
-          .withCrop(188, 78, 14, 23)
-      )
-
+  def initialViewModel(startupData: SandboxStartupData, model: SandboxGameModel): Outcome[SandboxViewModel] =
     Outcome(
       SandboxViewModel(
         Point.zero,
-        InputField("single", assets).withKey(BindingKey("single")).makeSingleLine,
-        InputField("multi\nline", assets).withKey(BindingKey("multi")).makeMultiLine.moveTo(5, 5),
         true,
-        UiSceneViewModel.initial,
-        CaptureScreenSceneViewModel(None, None, Point.zero)
+        CaptureScreenScene.ViewModel(None, None, Point.zero)
       )
     )
-  }
 
   def updateModel(
       context: Context[SandboxStartupData],
@@ -227,11 +200,7 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
             viewModel.offset
         }
 
-      // more stuff
-      for {
-        single <- viewModel.single.update(context)
-        multi  <- viewModel.multi.update(context)
-      } yield viewModel.copy(updateOffset, single, multi)
+      Outcome(viewModel.copy(offset = updateOffset))
 
     case FullScreenEntered =>
       println("Entered full screen mode")
@@ -268,10 +237,13 @@ object SandboxGame extends IndigoGame[SandboxBootData, SandboxStartupData, Sandb
   ): Outcome[SceneUpdateFragment] =
     Outcome(
       SceneUpdateFragment(
-        "fps counter".bindingKey ->
+        Constants.LayerKeys.background -> Layer.Stack.empty,
+        Constants.LayerKeys.game       -> Layer.Stack.empty,
+        Constants.LayerKeys.windows    -> Layer.Stack.empty,
+        Constants.LayerKeys.fps ->
           Layer.empty
-            .withDepth(200.depth)
             .withCamera(Camera.default)
+            .withMagnification(1)
       )
     )
 
@@ -284,11 +256,8 @@ final case class SandboxBootData(message: String, gameViewport: GameViewport)
 final case class SandboxStartupData(dude: Dude, viewportCenter: Point, gameViewport: GameViewport)
 final case class SandboxViewModel(
     offset: Point,
-    single: InputField,
-    multi: InputField,
     useLightingLayer: Boolean,
-    uiScene: UiSceneViewModel,
-    captureScreenScene: CaptureScreenSceneViewModel
+    captureScreenScene: CaptureScreenScene.ViewModel
 )
 
 final case class Log(message: String) extends GlobalEvent

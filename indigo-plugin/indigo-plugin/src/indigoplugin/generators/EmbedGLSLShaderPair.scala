@@ -1,6 +1,11 @@
 package indigoplugin.generators
 
+import indigoplugin.utils.Utils
+import indigoplugin.IndigoGenerators
+
 object EmbedGLSLShaderPair {
+
+  private val workspaceDir = Utils.findWorkspace
 
   def generate(
       moduleName: String,
@@ -8,7 +13,7 @@ object EmbedGLSLShaderPair {
       vertex: os.Path,
       fragment: os.Path,
       runValidator: Boolean
-  ): os.Path => Seq[os.Path] = outDir => {
+  ): IndigoGenerators.SourceParams => Seq[os.Path] = params => {
 
     val shaderFiles: Seq[os.Path] =
       Seq(vertex, fragment)
@@ -20,16 +25,16 @@ object EmbedGLSLShaderPair {
       else ()
     }
 
-    val wd = outDir / Generators.OutputDirName
+    val wd = params.destination / Generators.OutputDirName
 
     os.makeDir.all(wd)
 
     if (runValidator) {
-      val glslValidatorExitCode = os.proc("glslangValidator", "-v").call(os.pwd).exitCode
+      val glslValidatorExitCode = os.proc("glslangValidator", "-v").call(workspaceDir).exitCode
 
       if (glslValidatorExitCode == 0)
         shaderFiles.foreach { f =>
-          val exitCode = os.proc("glslangValidator", f.toString).call(os.pwd).exitCode
+          val exitCode = os.proc("glslangValidator", f.toString).call(workspaceDir).exitCode
 
           if (exitCode != 0) throw new Exception("GLSL Validation Error in: " + f.toString)
         }

@@ -1,33 +1,348 @@
 package com.example.sandbox
 
+import com.example.sandbox.scenes.ActorPhysicsSceneModel
+import com.example.sandbox.scenes.ActorSceneModel
+import com.example.sandbox.scenes.ChangeValue
+import com.example.sandbox.scenes.ComponentUIScene2
 import com.example.sandbox.scenes.ConfettiModel
+import com.example.sandbox.scenes.InputStateModel
 import com.example.sandbox.scenes.PathFindingModel
+import com.example.sandbox.scenes.PerformerPhysicsSceneModel
+import com.example.sandbox.scenes.PerformerSceneModel
 import com.example.sandbox.scenes.PointersModel
+import com.example.sandbox.scenes.SfxComponents
+import example.TestFont
 import indigo.*
-import indigoextras.ui.InputFieldChange
+import indigo.syntax.*
+import indigoextras.mesh.*
+import indigoextras.ui.*
+
+final case class SandboxGameModel(
+    dude: DudeModel,
+    saveLoadPhase: SaveLoadPhases,
+    data: Option[String],
+    confetti: ConfettiModel,
+    pointers: PointersModel,
+    inputStates: InputStateModel,
+    pathfinding: PathFindingModel,
+    rotation: Radians,
+    num: Int,
+    sfxComponents: ComponentGroup[Unit],
+    components: ComponentGroup[Int],
+    scrollPane: ScrollPane[ComponentList[Int], Int],
+    button: Button[Int],
+    meshData: MeshData,
+    actorScene: ActorSceneModel,
+    actorPhysicsScene: ActorPhysicsSceneModel,
+    performerSceneModel: PerformerSceneModel,
+    performerPhysicsSceneModel: PerformerPhysicsSceneModel
+)
 
 object SandboxModel {
 
-  private given CanEqual[Option[String], Option[String]] = CanEqual.derived
+  def randomPoint(dice: Dice, offset: Point): Point =
+    Point(dice.rollFromZero(100), dice.rollFromZero(100)).moveBy(offset)
 
   def initialModel(startupData: SandboxStartupData): SandboxGameModel =
+    val dice          = Dice.fromSeed(1)
+    val offset        = Point(75, 75)
+    val points        = List.fill(10)(randomPoint(dice, offset)).toBatch
+    val superTriangle = Triangle.encompassing(points.map(_.toVertex), 10)
+    val mesh          = Mesh.fromVertices(points.map(_.toVertex), superTriangle)
+
     SandboxGameModel(
       DudeModel(startupData.dude, DudeIdle),
       SaveLoadPhases.NotStarted,
       None,
       ConfettiModel.empty,
       PointersModel.empty,
+      InputStateModel.empty,
       PathFindingModel.empty,
-      Radians.zero
+      Radians.zero,
+      0,
+      SfxComponents.components,
+      components,
+      ComponentUIScene2.CustomComponents.pane,
+      customButton,
+      MeshData(
+        points,
+        superTriangle,
+        mesh
+      ),
+      ActorSceneModel.initial,
+      ActorPhysicsSceneModel.initial,
+      PerformerSceneModel.initial,
+      PerformerPhysicsSceneModel.initial
     )
+
+  val customButton: Button[Int] =
+    Button[Int](Bounds(32, 32)) { (ctx, btn) =>
+      Outcome(
+        Layer(
+          Shape
+            .Box(
+              btn.bounds.unsafeToRectangle,
+              Fill.Color(RGBA.Magenta.mix(RGBA.Black)),
+              Stroke(1, RGBA.Magenta)
+            )
+            .moveTo(ctx.parent.coords.unsafeToPoint)
+        )
+      )
+    }
+      .presentDown { (ctx, btn) =>
+        Outcome(
+          Layer(
+            Shape
+              .Box(
+                btn.bounds.unsafeToRectangle,
+                Fill.Color(RGBA.Cyan.mix(RGBA.Black)),
+                Stroke(1, RGBA.Cyan)
+              )
+              .moveTo(ctx.parent.coords.unsafeToPoint)
+          )
+        )
+      }
+      .presentOver((ctx, btn) =>
+        Outcome(
+          Layer(
+            Shape
+              .Box(
+                btn.bounds.unsafeToRectangle,
+                Fill.Color(RGBA.Yellow.mix(RGBA.Black)),
+                Stroke(1, RGBA.Yellow)
+              )
+              .moveTo(ctx.parent.coords.unsafeToPoint)
+          )
+        )
+      )
+      .onClick(Log("Button clicked"))
+      .onPress(Log("Button pressed"))
+      .onRelease(Log("Button released"))
+
+  private val text =
+    Text("", TestFont.fontKey, SandboxAssets.testFontMaterial)
+  private val textRed =
+    Text("", TestFont.fontKey, SandboxAssets.testFontMaterial.withTint(RGBA.Red))
+
+  def components: ComponentGroup[Int] =
+    ComponentGroup(BoundsMode.fixed(200, 300))
+      .withLayout(ComponentLayout.Horizontal(Padding(4), Overflow.Wrap))
+      .add(
+        ComponentList[Int, Label[Int]](Dimensions(200, 64)) { _ =>
+          (1 to 3).toBatch.map { i =>
+            ComponentId("lbl" + i) -> Label[Int](
+              "Custom rendered label " + i,
+              (ctx, label) => Bounds(ctx.services.bounds.get(textRed.withText(label)))
+            ) { case (ctx, label) =>
+              Outcome(
+                Layer(
+                  textRed
+                    .withText(label.text(ctx))
+                    .moveTo(ctx.parent.coords.unsafeToPoint)
+                )
+              )
+            }
+          }
+        }
+      )
+      .add(
+        Label[Int](
+          "Another label",
+          (ctx, label) => Bounds(ctx.services.bounds.get(text.withText(label)))
+        ) { case (ctx, label) =>
+          Outcome(
+            Layer(
+              text
+                .withText(label.text(ctx))
+                .moveTo(ctx.parent.coords.unsafeToPoint)
+            )
+          )
+        }
+      )
+      .add(
+        Switch[Int](BoundsType.fixed[Int](40, 40))(
+          (context, switch) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    switch.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Green.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Green)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            ),
+          (context, switch) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    switch.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Red.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Red)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            )
+        )
+          .onSwitch((ctx, _) => Batch(Log("Switched to: " + ctx.reference)))
+          .switchOn
+      )
+      .add(
+        Button[Int](Bounds(32, 32)) { (context, button) =>
+          Outcome(
+            Layer(
+              Shape
+                .Box(
+                  button.bounds.unsafeToRectangle,
+                  Fill.Color(RGBA.Magenta.mix(RGBA.Black)),
+                  Stroke(1, RGBA.Magenta)
+                )
+                .moveTo(context.parent.coords.unsafeToPoint)
+            )
+          )
+        }
+          .presentDown { (context, button) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    button.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Cyan.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Cyan)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            )
+          }
+          .presentOver((context, button) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    button.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Yellow.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Yellow)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            )
+          )
+          .onClick(Log("Button clicked"))
+          .onPress(Log("Button pressed"))
+          .onRelease(Log("Button released"))
+      )
+      .add(
+        ComponentList[Int, ComponentGroup[Int]](Dimensions(200, 64)) { _ =>
+          (1 to 3).toBatch.map { i =>
+            ComponentId("radio-" + i) ->
+              ComponentGroup(BoundsMode.fixed(200, 30))
+                .withLayout(ComponentLayout.Horizontal(Padding.right(10)))
+                .add(
+                  Switch[Int](BoundsType.fixed[Int](20, 20))(
+                    (context, switch) =>
+                      Outcome(
+                        Layer(
+                          Shape
+                            .Circle(
+                              switch.bounds.unsafeToRectangle.toIncircle,
+                              Fill.Color(RGBA.Green.mix(RGBA.Black)),
+                              Stroke(1, RGBA.Green)
+                            )
+                            .moveTo(context.parent.coords.unsafeToPoint + Point(10))
+                        )
+                      ),
+                    (context, switch) =>
+                      Outcome(
+                        Layer(
+                          Shape
+                            .Circle(
+                              switch.bounds.unsafeToRectangle.toIncircle,
+                              Fill.Color(RGBA.Red.mix(RGBA.Black)),
+                              Stroke(1, RGBA.Red)
+                            )
+                            .moveTo(context.parent.coords.unsafeToPoint + Point(10))
+                        )
+                      )
+                  )
+                    .onSwitch { (_, _) =>
+                      Batch(
+                        Log("Selected: " + i),
+                        ChangeValue(i)
+                      )
+                    }
+                    .withAutoToggle { (ctx, _) =>
+                      if ctx.reference == i then Option(SwitchState.On) else Option(SwitchState.Off)
+                    }
+                )
+                .add(
+                  Label[Int](
+                    "Radio " + i,
+                    (ctx, label) => Bounds(ctx.services.bounds.get(textRed.withText(label)))
+                  ) { case (ctx, label) =>
+                    Outcome(
+                      Layer(
+                        textRed
+                          .withText(label.text(ctx))
+                          .moveTo(ctx.parent.bounds.coords.unsafeToPoint)
+                      )
+                    )
+                  }
+                )
+          }
+        }
+      )
+      .add(
+        Button[Int](Bounds(16, 16)) { (context, button) =>
+          Outcome(
+            Layer(
+              Shape
+                .Box(
+                  button.bounds.unsafeToRectangle,
+                  Fill.Color(RGBA.Magenta.mix(RGBA.Black)),
+                  Stroke(1, RGBA.Magenta)
+                )
+                .moveTo(context.parent.coords.unsafeToPoint)
+            )
+          )
+        }
+          .presentDown { (context, button) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    button.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Cyan.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Cyan)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            )
+          }
+          .presentOver((context, button) =>
+            Outcome(
+              Layer(
+                Shape
+                  .Box(
+                    button.bounds.unsafeToRectangle,
+                    Fill.Color(RGBA.Yellow.mix(RGBA.Black)),
+                    Stroke(1, RGBA.Yellow)
+                  )
+                  .moveTo(context.parent.coords.unsafeToPoint)
+              )
+            )
+          )
+          .onClick(Log("Button clicked!"))
+          .onPress(Log("Button pressed!"))
+          .onRelease(Log("Button released!"))
+          .makeDraggable
+          .onDrag(Log("Dragging!"))
+      )
 
   def updateModel(state: SandboxGameModel): GlobalEvent => Outcome[SandboxGameModel] = {
     case rd @ RendererDetails(_, _, _) =>
       println(rd)
-      Outcome(state)
-
-    case InputFieldChange(key, value) =>
-      println(s"Input field '${key.toString()}' changed: " + value)
       Outcome(state)
 
     case FrameTick =>
@@ -134,14 +449,10 @@ object SandboxModel {
 
 }
 
-final case class SandboxGameModel(
-    dude: DudeModel,
-    saveLoadPhase: SaveLoadPhases,
-    data: Option[String],
-    confetti: ConfettiModel,
-    pointers: PointersModel,
-    pathfinding: PathFindingModel,
-    rotation: Radians
+final case class MeshData(
+    points: Batch[Point],
+    superTriangle: Triangle,
+    mesh: Mesh
 )
 
 final case class DudeModel(dude: Dude, walkDirection: DudeDirection) {

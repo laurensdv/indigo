@@ -1,12 +1,13 @@
 package com.example.sandbox.scenes
 
-import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
-import com.example.sandbox.SandboxView
 import com.example.sandbox.SandboxViewModel
 import indigo.*
 import indigo.scenes.*
+import ultraviolet.syntax.*
+
+import scala.annotation.nowarn
 
 object UltravioletScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
@@ -50,8 +51,8 @@ object UltravioletScene extends Scene[SandboxStartupData, SandboxGameModel, Sand
       SceneUpdateFragment.empty
         .addLayer(
           Layer(
-            BlankEntity(10, 10, 150, 150, Depth.zero, ShaderData(UVShaders.voronoiId)),
-            BlankEntity(140, 50, 32, 32, Depth.zero, ShaderData(UVShaders.circleId))
+            BlankEntity(10, 10, 150, 150, ShaderData(UVShaders.voronoiId)),
+            BlankEntity(140, 50, 32, 32, ShaderData(UVShaders.circleId))
           )
         )
         .withBlendMaterial(MakeRedBlend)
@@ -60,19 +61,15 @@ object UltravioletScene extends Scene[SandboxStartupData, SandboxGameModel, Sand
 }
 
 case object MakeRedBlend extends BlendMaterial derives CanEqual {
-  lazy val toShaderData: BlendShaderData =
-    BlendShaderData(
-      UVShaders.redBlendId,
-      Batch.empty
-    )
+  lazy val toShaderData: ShaderData =
+    ShaderData(UVShaders.redBlendId)
 }
 
 object UVShaders:
 
-  import ultraviolet.syntax.*
-
   // Blend
 
+  @nowarn("msg=unused")
   inline def makeRedder: Shader[BlendFragmentEnv, Unit] =
     Shader[BlendFragmentEnv] { env =>
       def fragment(color: vec4): vec4 =
@@ -91,6 +88,7 @@ object UVShaders:
 
   // Circle - Entity
 
+  @nowarn("msg=unused")
   inline def orbitVertex: Shader[VertexEnv, Unit] =
     Shader[VertexEnv] { env =>
 
@@ -99,6 +97,7 @@ object UVShaders:
 
     }
 
+  @nowarn("msg=unused")
   inline def modifyCircleColor: Shader[FragmentEnv, Unit] =
     Shader[FragmentEnv] { env =>
 
@@ -116,16 +115,19 @@ object UVShaders:
 
     }
 
+  @nowarn("msg=unused")
   inline def prepare: Shader[FragmentEnv, Unit] =
     Shader[FragmentEnv] { _ =>
       def prepare: Unit = ()
     }
 
+  @nowarn("msg=unused")
   inline def light: Shader[FragmentEnv, Unit] =
     Shader[FragmentEnv] { _ =>
       def light: Unit = ()
     }
 
+  @nowarn("msg=unused")
   inline def composite: Shader[FragmentEnv, Unit] =
     Shader[FragmentEnv] { _ =>
       def composite: Unit = ()
@@ -145,6 +147,7 @@ object UVShaders:
 
   val voronoiId = ShaderId("uv voronoi")
 
+  @nowarn("msg=unused")
   @SuppressWarnings(Array("scalafix:DisableSyntax.var"))
   inline def modifyColor: Shader[FragmentEnv, Unit] =
     Shader[FragmentEnv] { env =>

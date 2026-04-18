@@ -4,9 +4,8 @@ import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
-import indigoextras.effectmaterials.Refraction
+import indigo.*
+import indigo.scenes.*
 
 object TextureTileScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel] {
 
@@ -44,13 +43,13 @@ object TextureTileScene extends Scene[SandboxStartupData, SandboxGameModel, Sand
   def fit(originalSize: Vector2, screenSize: Vector2): Vector2 =
     Vector2(Math.max(screenSize.x / originalSize.x, screenSize.y / originalSize.y))
 
+  def boxSize(t: Seconds): Int = Signal.SmoothPulse.map(d => (d * 64) + 64).map(_.toInt).at(t)
+
   def present(
       context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
       viewModel: SandboxViewModel
-  ): Outcome[SceneUpdateFragment] = {
-    val viewCenter: Point = context.startUpData.viewportCenter
-
+  ): Outcome[SceneUpdateFragment] =
     Outcome(
       SceneUpdateFragment.empty
         .addLayers(
@@ -66,6 +65,5 @@ object TextureTileScene extends Scene[SandboxStartupData, SandboxGameModel, Sand
           )
         )
     )
-  }
 
 }

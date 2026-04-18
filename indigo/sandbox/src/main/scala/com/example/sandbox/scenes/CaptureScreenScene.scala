@@ -5,7 +5,6 @@ import com.example.sandbox.DudeIdle
 import com.example.sandbox.DudeLeft
 import com.example.sandbox.DudeRight
 import com.example.sandbox.DudeUp
-import com.example.sandbox.Fonts
 import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGame
 import com.example.sandbox.SandboxGameModel
@@ -15,21 +14,16 @@ import indigo.*
 import indigo.platform.renderer.ScreenCaptureConfig
 import indigo.scenes.*
 import indigo.shared.assets.AssetTypePrimitive
-import indigo.shared.datatypes.RGB.Green
-import indigo.shared.datatypes.RGB.Indigo
 import indigo.shared.scenegraph.Shape
 import indigo.shared.scenegraph.Shape.Box
-import indigo.syntax.*
-import org.scalajs.dom.document
-import org.w3c.dom.css.Rect
 
 object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
   type SceneModel     = SandboxGameModel
-  type SceneViewModel = CaptureScreenSceneViewModel
+  type SceneViewModel = ViewModel
 
-  val uiKey        = BindingKey("ui")
-  val defaultKey   = BindingKey("default")
+  val uiKey        = LayerKey("ui")
+  val defaultKey   = LayerKey("default")
   val dudeCloneId  = CloneId("Dude")
   val clippingRect = Rectangle(25, 25, 150, 100)
 
@@ -39,7 +33,7 @@ object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
   def modelLens: Lens[SandboxGameModel, SandboxGameModel] =
     Lens.keepOriginal
 
-  def viewModelLens: Lens[SandboxViewModel, CaptureScreenSceneViewModel] =
+  def viewModelLens: Lens[SandboxViewModel, ViewModel] =
     Lens(
       _.captureScreenScene,
       (m, vm) => m.copy(captureScreenScene = vm)
@@ -59,9 +53,9 @@ object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
   def updateViewModel(
       context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
-      viewModel: CaptureScreenSceneViewModel
-  ): GlobalEvent => Outcome[CaptureScreenSceneViewModel] = {
-    case MouseEvent.Click(x, y) if x >= 250 && x <= 266 && y >= 165 && y <= 181 =>
+      viewModel: ViewModel
+  ): GlobalEvent => Outcome[ViewModel] = {
+    case PointerEvent.Click(x, y) if x >= 250 && x <= 266 && y >= 165 && y <= 181 =>
       val screenshots: Set[AssetType] =
         // Capture 2 screenshots, 1 of the full screen and the other of the clipping rectangle
         // These are reduced by 0.125 so that it sits a quarter size of the real screen without further scaling
@@ -102,7 +96,7 @@ object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
   def present(
       context: SceneContext[SandboxStartupData],
       model: SandboxGameModel,
-      viewModel: CaptureScreenSceneViewModel
+      viewModel: ViewModel
   ): Outcome[SceneUpdateFragment] =
     val screenshotScale = 0.3
     val viewPort        = context.startUpData.gameViewport.size / SandboxGame.magnificationLevel
@@ -150,7 +144,7 @@ object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
       )
     )
 
-  def gameLayer(currentState: SandboxGameModel, viewModel: CaptureScreenSceneViewModel): Batch[SceneNode] =
+  def gameLayer(currentState: SandboxGameModel, viewModel: ViewModel): Batch[SceneNode] =
     Batch(
       currentState.dude.walkDirection match {
         case d @ DudeLeft =>
@@ -192,7 +186,7 @@ object CaptureScreenScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
       CloneBatch(dudeCloneId, CloneBatchData(16, 64, Radians.zero, -1.0, 1.0))
     )
 
-  final case class CaptureScreenSceneViewModel(
+  final case class ViewModel(
       screenshot1: Option[AssetName],
       screenshot2: Option[AssetName],
       offset: Point

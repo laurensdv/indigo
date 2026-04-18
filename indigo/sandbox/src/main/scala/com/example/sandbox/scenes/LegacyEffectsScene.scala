@@ -4,8 +4,8 @@ import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGameModel
 import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
-import indigo._
-import indigo.scenes._
+import indigo.*
+import indigo.scenes.*
 import indigoextras.effectmaterials.Border
 import indigoextras.effectmaterials.Glow
 import indigoextras.effectmaterials.LegacyEffects
@@ -45,7 +45,7 @@ object LegacyEffectsScene extends Scene[SandboxStartupData, SandboxGameModel, Sa
     _ => Outcome(viewModel)
 
   val graphic: Graphic[LegacyEffects] =
-    Graphic(Rectangle(0, 0, 40, 40), 1, SandboxAssets.junctionBoxEffectsMaterial)
+    Graphic(Rectangle(0, 0, 40, 40), SandboxAssets.junctionBoxEffectsMaterial)
       .withRef(20, 20)
 
   def present(

@@ -3,22 +3,25 @@ package indigoplugin.generators
 import indigoplugin.IndigoAssets
 import scala.annotation.tailrec
 import scala.io.AnsiColor._
+import indigoplugin.IndigoGenerators
 
 object AssetListing {
 
   def generate(
       moduleName: String,
-      fullyQualifiedPackage: String,
-      indigoAssets: IndigoAssets
-  ): os.Path => Seq[os.Path] = outDir => {
+      fullyQualifiedPackage: String
+  ): IndigoGenerators.SourceParams => Seq[os.Path] = params => {
 
-    val toSafeName: (String, String) => String =
-      indigoAssets.rename.getOrElse(toDefaultSafeName)
+    val toSafeName: (String, String) => String = {
+      val r = (name: String, ext: String) => params.options.assets.rename.lift((name, ext)).getOrElse(name)
+
+      toDefaultSafeName(r)
+    }
 
     val fileContents: String =
-      renderContent(indigoAssets.listAssetFiles, toSafeName)
+      renderContent(IndigoAssets.listAssetFiles(params.options.assets, params.assetsDirectory), toSafeName)
 
-    val wd = outDir / Generators.OutputDirName
+    val wd = params.destination / Generators.OutputDirName
 
     os.makeDir.all(wd)
 
@@ -41,8 +44,10 @@ object AssetListing {
     Seq(file)
   }
 
-  def renderContent(paths: List[os.RelPath], toSafeName: (String, String) => String): String =
-    (convertPathsToTree _ andThen renderTree(0, toSafeName))(paths)
+  def renderContent(paths: List[os.RelPath], toSafeName: (String, String) => String): String = {
+    val pathTree = convertPathsToTree(paths)
+    renderTree(0, toSafeName)(pathTree)
+  }
 
   def convertPathsToTree(paths: List[os.RelPath]): PathTree =
     PathTree
@@ -94,9 +99,9 @@ object AssetListing {
       val msg =
         s"""
         |${BOLD}${RED}Generated asset name collision${if (errors.length == 1) "" else "s"} in asset folder '${if (
-          folderName.isEmpty
-        ) "."
-        else folderName}'${RESET}
+            folderName.isEmpty
+          ) "."
+          else folderName}'${RESET}
         |${YELLOW}You have one or more conflicting asset names. Please change these names, or move them to separate sub-folders within your assets directory.
         |The following assets would have the same names in your generated asset listings code:${RESET}
         |
@@ -159,21 +164,6 @@ object AssetListing {
 
             (vals, loadable, named)
 
-          case PathTree.File(name, ext, path) if FontFileExtensions.contains(ext) =>
-            val safeName = toSafeName(name, ext)
-
-            val vals =
-              s"""${indentSpacesNext}val ${safeName}: AssetName               = AssetName("${name}_${ext}")
-              |${indentSpacesNext}val ${safeName}FontFamily: FontFamily    = FontFamily(${safeName}.toString())"""
-
-            val loadable =
-              s"""${indentSpacesNext}    AssetType.Font(${safeName}, AssetPath(baseUrl + "${path}"))"""
-
-            val named =
-              s"""${indentSpacesNext}    $safeName"""
-
-            (vals, loadable, named)
-
           case PathTree.File(name, ext, path) =>
             val safeName = toSafeName(name, ext)
 
@@ -189,7 +179,7 @@ object AssetListing {
             (vals, loadable, named)
         }
 
-    val assetSeq: String = {
+    val assetSeq: String =
       if (files.isEmpty) ""
       else
         s"""${renderedFiles.map(_._1).mkString("\n")}
@@ -206,7 +196,6 @@ object AssetListing {
         |${indentSpacesNext}  )
         |
         |""".stripMargin
-    }
 
     val contents =
       s"""${children.map(renderTree(indent + 1, toSafeName)).mkString}""".stripMargin + assetSeq
@@ -217,12 +206,13 @@ object AssetListing {
       |${contents}"""
   }
 
-  def toDefaultSafeName: (String, String) => String = { (name: String, _: String) =>
-    name.replaceAll("[^a-zA-Z0-9]", "-").split("-").toList.filterNot(_.isEmpty) match {
-      case h :: t if h.take(1).matches("[0-9]") => ("_" :: h :: t.map(_.capitalize)).mkString
-      case h :: t                               => (h :: t.map(_.capitalize)).mkString
-      case l                                    => l.map(_.capitalize).mkString
-    }
+  def toDefaultSafeName(rename: (String, String) => String): (String, String) => String = {
+    (name: String, ext: String) =>
+      rename(name, ext).replaceAll("[^a-zA-Z0-9]", "-").split("-").toList.filterNot(_.isEmpty) match {
+        case h :: t if h.take(1).matches("[0-9]") => ("_" :: h :: t.map(_.capitalize)).mkString
+        case h :: t                               => (h :: t.map(_.capitalize)).mkString
+        case l                                    => l.map(_.capitalize).mkString
+      }
   }
 
   val AudioFileExtensions: Set[String] =
@@ -260,11 +250,4 @@ object AssetListing {
       "tiff"
     )
 
-  val FontFileExtensions: Set[String] =
-    Set(
-      "eot",
-      "ttf",
-      "woff",
-      "woff2"
-    )
 }

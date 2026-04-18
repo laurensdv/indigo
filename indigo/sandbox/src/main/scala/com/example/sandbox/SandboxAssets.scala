@@ -1,10 +1,13 @@
 package com.example.sandbox
 
-import indigo._
+import indigo.*
 import indigoextras.effectmaterials.LegacyEffects
 import indigoextras.effectmaterials.RefractionEntity
 
 object SandboxAssets {
+
+  val jumpSound: AssetName     = AssetName("jump")
+  val jumpSoundPath: AssetPath = AssetPath("assets/jump.mp3")
 
   val testFont: AssetName                     = AssetName("test font")
   val testFontMaterial: Material.ImageEffects = Material.ImageEffects(testFont)
@@ -17,6 +20,11 @@ object SandboxAssets {
   val light: AssetName         = AssetName("light")
   val dots: AssetName          = AssetName("dots")
   val cameraIcon: AssetName    = AssetName("camera_icon")
+
+  // NineSlice assets
+  val nineSlice: AssetName = AssetName("nineslice")
+  val platform: AssetName  = AssetName("platform")
+  val window: AssetName    = AssetName("window")
 
   val fontMaterial: Material.ImageEffects  = Material.ImageEffects(smallFontName)
   val lightMaterial: Material.ImageEffects = Material.ImageEffects(light)
@@ -31,10 +39,10 @@ object SandboxAssets {
 
   val colouredDots: Graphic[Material.Bitmap] = Graphic(32, 32, Material.Bitmap(dots))
 
-  val redDot: Graphic[Material.Bitmap]    = Graphic(Rectangle(0, 0, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
-  val greenDot: Graphic[Material.Bitmap]  = Graphic(Rectangle(16, 0, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
-  val blueDot: Graphic[Material.Bitmap]   = Graphic(Rectangle(0, 16, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
-  val yellowDot: Graphic[Material.Bitmap] = Graphic(Rectangle(16, 16, 16, 16), 1, Material.Bitmap(dots)).withRef(8, 8)
+  val redDot: Graphic[Material.Bitmap]    = Graphic(Rectangle(0, 0, 16, 16), Material.Bitmap(dots)).withRef(8, 8)
+  val greenDot: Graphic[Material.Bitmap]  = Graphic(Rectangle(16, 0, 16, 16), Material.Bitmap(dots)).withRef(8, 8)
+  val blueDot: Graphic[Material.Bitmap]   = Graphic(Rectangle(0, 16, 16, 16), Material.Bitmap(dots)).withRef(8, 8)
+  val yellowDot: Graphic[Material.Bitmap] = Graphic(Rectangle(16, 16, 16, 16), Material.Bitmap(dots)).withRef(8, 8)
 
   val junctionBoxAlbedo: AssetName    = AssetName("junctionbox_albedo")
   val junctionBoxEmission: AssetName  = AssetName("junctionbox_emission")
@@ -71,12 +79,9 @@ object SandboxAssets {
       .Bitmap(cratesDiffuseName)
       .withLighting(LightingModel.Lit.flat.withNormal(cratesNormalName, 1.0))
 
-  val pixelFont: AssetName = AssetName("Pixelated")
-
   def assets: Set[AssetType] =
     Set(
       AssetType.Image(testFont, AssetPath("assets/generated/TestFont.png")),
-      AssetType.Font(pixelFont, AssetPath(s"assets/fonts/${pixelFont.toString}.woff2")),
       AssetType.Image(smallFontName, AssetPath("assets/boxy_font.png")),
       AssetType.Image(light, AssetPath("assets/light_texture.png")),
       AssetType.Text(AssetName(dudeName.toString + "-json"), AssetPath("assets/" + dudeName + ".json")),
@@ -96,7 +101,11 @@ object SandboxAssets {
       AssetType.Image(trafficLightsName, AssetPath("assets/" + trafficLightsName + ".png")),
       AssetType.Image(cratesDiffuseName, AssetPath("assets/" + cratesDiffuseName + ".png")),
       AssetType.Image(cratesNormalName, AssetPath("assets/" + cratesNormalName + ".png")),
-      AssetType.Image(cameraIcon, AssetPath("assets/camera_icon.png"))
+      AssetType.Image(cameraIcon, AssetPath("assets/camera_icon.png")),
+      AssetType.Image(nineSlice, AssetPath("assets/nineslice.png")),
+      AssetType.Image(platform, AssetPath("assets/platform.png")),
+      AssetType.Image(window, AssetPath("assets/window.png")),
+      AssetType.Audio(jumpSound, jumpSoundPath)
     )
 
 }
@@ -106,7 +115,7 @@ object Fonts {
   val fontKey: FontKey = FontKey("Sandbox font")
 
   val fontInfo: FontInfo =
-    FontInfo(fontKey, 320, 230, FontChar(" ", 145, 52, 23, 23)).isCaseInSensitive
+    FontInfo(fontKey, FontChar(" ", 145, 52, 23, 23)).isCaseInSensitive
       .addChar(FontChar("A", 3, 78, 23, 23))
       .addChar(FontChar("B", 26, 78, 23, 23))
       .addChar(FontChar("C", 50, 78, 23, 23))

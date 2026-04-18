@@ -1,6 +1,7 @@
 package indigoplugin.generators
 
 import indigoplugin.DataType
+import indigoplugin.IndigoGenerators
 
 object EmbedData {
 
@@ -23,7 +24,7 @@ object EmbedData {
       delimiter: String,
       rowFilter: String => Boolean,
       embedMode: Mode
-  ): os.Path => Seq[os.Path] = outDir => {
+  ): IndigoGenerators.SourceParams => Seq[os.Path] = params => {
 
     val lines =
       if (!os.exists(filePath)) throw new Exception("Path to data file not found: " + filePath.toString())
@@ -37,7 +38,7 @@ object EmbedData {
     val dataFrame =
       DataFrame.fromRows(rows)
 
-    val wd = outDir / Generators.OutputDirName
+    val wd = params.destination / Generators.OutputDirName
 
     os.makeDir.all(wd)
 
@@ -171,14 +172,14 @@ final case class DataFrame(data: Array[Array[DataType]], columnCount: Int) {
     )
   }
 
-  def toSafeName: String => String = { name: String =>
+  def toSafeName: String => String = { (name: String) =>
     name.replaceAll("[^a-zA-Z0-9]", "-").split("-").toList.filterNot(_.isEmpty) match {
       case h :: t if h.take(1).matches("[0-9]") => ("_" :: h :: t.map(_.capitalize)).mkString
       case l                                    => l.map(_.capitalize).mkString
     }
   }
 
-  def toSafeNameCamel: String => String = { name: String =>
+  def toSafeNameCamel: String => String = { (name: String) =>
     name.replaceAll("[^a-zA-Z0-9]", "-").split("-").toList.filterNot(_.isEmpty) match {
       case h :: t if h.take(1).matches("[0-9]") => ("_" :: h :: t.map(_.capitalize)).mkString
       case h :: t                               => (h.toLowerCase :: t.map(_.capitalize)).mkString
@@ -202,8 +203,8 @@ final case class DataFrame(data: Array[Array[DataType]], columnCount: Int) {
       rows
         .map { r =>
           s"""  case ${toSafeName(r.head.asString)} extends $moduleName(${r.tail
-            .map(_.asString)
-            .mkString(", ")})"""
+              .map(_.asString)
+              .mkString(", ")})"""
         }
         .mkString("\n")
 

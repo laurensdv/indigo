@@ -1,6 +1,5 @@
 package com.example.sandbox.scenes
 
-import com.example.sandbox.Log
 import com.example.sandbox.SandboxAssets
 import com.example.sandbox.SandboxGame
 import com.example.sandbox.SandboxGameModel
@@ -8,10 +7,7 @@ import com.example.sandbox.SandboxStartupData
 import com.example.sandbox.SandboxViewModel
 import indigo.*
 import indigo.scenes.*
-import indigo.syntax.shaders.*
-import indigo.syntax.uniform
-import indigo.syntax.uniformBlockName
-import indigoextras.ui.HitArea
+import indigo.syntax.*
 
 object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxViewModel]:
 
@@ -51,40 +47,40 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
   val cloneBlank = CloneBlank(cloneId, Archetype())
 
   // A pretty mutant data set
-  val data: Array[Batch[UniformBlock]] =
-    (0 until 100).toArray.map { i =>
+  val data: Array[Batch[MutantData]] =
+    0.until(100).toArray.map { i =>
       val d  = Dice.fromSeed(i)
       val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
       val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
       val a  = 0.1d + (0.8d * d.rollDouble)
-      Archetype.makeUniformBlock(pt, sc, a)
+
+      Batch(MutantData(pt, sc, a))
     }
 
   // A large mutant data set (60 fps on my machine)
-  val dataMax: Array[Batch[UniformBlock]] =
-    (0 until 3500).toArray.map { i =>
+  val dataMax: Array[Batch[MutantData]] =
+    0.until(3500).toArray.map { i =>
       val d  = Dice.fromSeed(i)
       val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
       val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
       val a  = 0.1d + (0.8d * d.rollDouble)
-      Archetype.makeUniformBlock(pt, sc, a)
+
+      Batch(MutantData(pt, sc, a))
     }
 
   // Equivalent to dataMax using standard primitives - 1/7 the volume! (60 fps on my machine)
   val gfx: Batch[Graphic[Material.ImageEffects]] =
-    Batch.fromList(
-      (0 until 300).toList.map { i =>
-        val d  = Dice.fromSeed(i)
-        val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
-        val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
-        val a  = 0.1d + (0.8d * d.rollDouble)
-        SandboxAssets.blueDot
-          .moveTo(pt)
-          .withRef(Point.zero)
-          .scaleBy(sc)
-          .modifyMaterial(m => Material.ImageEffects(m.diffuse).withAlpha(a))
-      }
-    )
+    0.until(300).toBatch.map { i =>
+      val d  = Dice.fromSeed(i)
+      val pt = Point(d.rollFromZero(SandboxGame.gameWidth), d.rollFromZero(SandboxGame.gameHeight))
+      val sc = Vector2(0.3d + (d.rollDouble * 3.0d))
+      val a  = 0.1d + (0.8d * d.rollDouble)
+      SandboxAssets.blueDot
+        .moveTo(pt)
+        .withRef(Point.zero)
+        .scaleBy(sc)
+        .modifyMaterial(m => Material.ImageEffects(m.diffuse).withAlpha(a))
+    }
 
   def present(
       context: SceneContext[SandboxStartupData],
@@ -100,19 +96,17 @@ object MutantsScene extends Scene[SandboxStartupData, SandboxGameModel, SandboxV
     )
 
 final case class Archetype() extends EntityNode[Archetype] with Cloneable:
-  val position: Point                       = Point.zero
-  val rotation: Radians                     = Radians.zero
-  val scale: Vector2                        = Vector2.one
-  val depth: Depth                          = Depth.zero
-  val flip: Flip                            = Flip.default
-  val ref: Point                            = Point.zero
-  val size: Size                            = Size(16)
-  def withDepth(newDepth: Depth): Archetype = this
+  val position: Point   = Point.zero
+  val rotation: Radians = Radians.zero
+  val scale: Vector2    = Vector2.one
+  val flip: Flip        = Flip.default
+  val ref: Point        = Point.zero
+  val size: Size        = Size(16)
 
   lazy val toShaderData: ShaderData =
     ShaderData(Archetype.shaderId)
       .withChannel0(SandboxAssets.dots)
-      .withUniformBlocks(Archetype.makeUniformBlock(position, scale, 1.0d))
+      .addUniformData(MutantData(position, scale, 1.0d))
 
   val eventHandlerEnabled: Boolean                                    = false
   def eventHandler: ((Archetype, GlobalEvent)) => Option[GlobalEvent] = Function.const(None)
@@ -137,12 +131,8 @@ object Archetype:
       AssetType.Text(fragAsset, AssetPath("assets/mutant.frag"))
     )
 
-  def makeUniformBlock(position: Point, scale: Vector2, alpha: Double): Batch[UniformBlock] =
-    Batch(
-      UniformBlock(
-        "MutantData".uniformBlockName,
-        position.asVec2,
-        scale.asVec2,
-        alpha.asFloat
-      )
-    )
+final case class MutantData(
+    position: Point,
+    scale: Vector2,
+    alpha: Double
+) derives ToUniformBlock
