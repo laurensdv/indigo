@@ -3,9 +3,11 @@ package indigo.shared.formats
 import indigo.shared.assets.AssetName
 import indigo.shared.collections.Batch
 import indigo.shared.collections.NonEmptyBatch
+import indigo.shared.datatypes.BindingKey
 import indigo.shared.datatypes.Point
 import indigo.shared.scenegraph.Graphic
 import indigo.shared.scenegraph.Group
+import indigo.shared.scenegraph.Sprite
 
 @SuppressWarnings(Array("scalafix:DisableSyntax.throw"))
 class TiledMapTests extends munit.FunSuite {
@@ -91,6 +93,54 @@ class TiledMapTests extends munit.FunSuite {
     }
   }
 
+  test("animated tile BindingKey must be stable across multiple toGroup calls") {
+    val assetName = AssetName("tileset.png")
+    val group1    = TiledSamples.animatedTiledMap.toGroup(assetName).get
+    val group2    = TiledSamples.animatedTiledMap.toGroup(assetName).get
+
+    def collectKeys(g: Group): Batch[BindingKey] =
+      g.children.head match {
+        case layer: Group => layer.children.collect { case s: Sprite[_] => s.bindingKey }
+        case _            => throw new Exception("expected layer Group")
+      }
+
+    val keys1 = collectKeys(group1)
+    val keys2 = collectKeys(group2)
+
+    assert(keys1.nonEmpty, "expected at least one animated sprite")
+    assertEquals(keys1, keys2)
+  }
+
+  test("animated tile BindingKey must differ when assetName differs") {
+    val group1 = TiledSamples.animatedTiledMap.toGroup(AssetName("map-a.png")).get
+    val group2 = TiledSamples.animatedTiledMap.toGroup(AssetName("map-b.png")).get
+
+    def firstSpriteKey(g: Group): BindingKey =
+      g.children.head match {
+        case layer: Group =>
+          layer.children.collectFirst { case s: Sprite[_] => s.bindingKey }
+            .getOrElse(throw new Exception("no sprite found"))
+        case _ => throw new Exception("expected layer Group")
+      }
+
+    assertNotEquals(firstSpriteKey(group1), firstSpriteKey(group2))
+  }
+
+  test("tile with animation entry set to None must produce a Graphic, not a Sprite") {
+    val group = TiledSamples.animatedTiledMap.toGroup(AssetName("tileset.png")).get
+
+    group.children.head match {
+      case layer: Group =>
+        val sprites  = layer.children.collect { case s: Sprite[_]  => s }
+        val graphics = layer.children.collect { case g: Graphic[_] => g }
+        // tile localId=0 is animated → Sprite; tile localId=1 has animation=None → Graphic
+        assert(sprites.nonEmpty,  "expected a Sprite for the animated tile")
+        assert(graphics.nonEmpty, "expected a Graphic for the tile with animation=None")
+      case _ =>
+        throw new Exception("expected layer Group")
+    }
+  }
+
 }
 
 sealed trait TileTypes derives CanEqual
@@ -160,6 +210,49 @@ object TiledSamples {
         TiledGridCell(2, 3, 1),
         TiledGridCell(3, 3, 0)
       ).map(_.tile)
+    )
+
+  // tile localId=0 is animated (2-frame); tile localId=1 has an entry with animation=None
+  val animatedTiledMap: TiledMap =
+    TiledMap(
+      4, 4, false,
+      List(
+        TiledLayer(
+          "Tile Layer 1",
+          List(
+            1, 2, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 0
+          ),
+          0, 0, 4, 4, 1, "tilelayer", true
+        )
+      ),
+      1, "orthogonal", "right-down", "1.3.2",
+      32, 32,
+      List(
+        TileSet(
+          Some(4),
+          1,
+          Some("tileset.png"),
+          Some(128),
+          Some(128),
+          Some(0),
+          Some("Test Tileset"),
+          Some(0),
+          None,
+          Some(16),
+          Some(32),
+          Some(List(
+            TiledTerrainCorner(0, Some(List(TiledFrame(100, 0), TiledFrame(100, 1)))),
+            TiledTerrainCorner(1, None)
+          )),
+          Some(32),
+          None
+        )
+      ),
+      "map",
+      None, None, None, None
     )
 
   val tiledMap: TiledMap =

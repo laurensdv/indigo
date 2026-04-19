@@ -46,6 +46,16 @@ final case class TiledMap(
     ], // For staggered and hexagonal maps, determines whether the "even" or "odd" indexes along the staggered axis are shifted.
     backgroundcolor: Option[String] // #AARRGGBB
 ) derives CanEqual {
+
+  private[formats] lazy val tileAnimations: Map[Int, Option[List[TiledFrame]]] =
+    tilesets.flatMap { tileset =>
+      tileset.tiles.flatMap { tile =>
+        Option(tile.map {
+          case ttc if ttc.animation.nonEmpty => (ttc.id, ttc.animation)
+          case ttc                           => (ttc.id, None)
+        })
+      }
+    }.flatten.toMap
   def toGrid[A](mapper: Int => A): Option[TiledGridMap[A]] = {
 
     def toGridLayer(tiledLayer: TiledLayer): TiledGridLayer[A] =
@@ -193,63 +203,42 @@ object TiledMap {
 
   private def toGroup(tiledMap: TiledMap, assetName: AssetName): Option[Group] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
-        val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
-        val firstgid: Int =  tiledMap.tilesets.map({tileset => tileset.firstgid}).head //TODO: WHAT IF MULTIPLE TILESETS? OR default to 1 ??
-        val animations: Map[Int, Option[List[TiledFrame]]] = tiledMap.tilesets.flatMap({
-        tileset =>
-            tileset.tiles.flatMap(tile => {
-                Option(tile.map {
-                case tiledTerrainCorner: TiledTerrainCorner if tiledTerrainCorner.animation.nonEmpty =>
-                    (tiledTerrainCorner.id, tiledTerrainCorner.animation)
-                case tiledTerrainCorner: TiledTerrainCorner=> (tiledTerrainCorner.id, None)
-                })
-            })
-        }).flatten.toMap
+      val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
+      val firstgid: Int  = tiledMap.tilesets.map(_.firstgid).head
+      val animations     = tiledMap.tileAnimations
 
-        val layers: Batch[Group] = Batch.fromList(tiledMap.layers.filter(_.`type` == "tilelayer")).map { layer =>
+      def buildNode(i: Int): SceneNode =
+        val localId = i - firstgid
+        if animations.contains(localId) && animations(localId).nonEmpty then
+          Sprite(BindingKey(s"${assetName.toString}_$localId"), 0, 0, AnimationKey(localId.toString), Material.Bitmap(assetName))
+        else
+          Graphic(Rectangle(Point.zero, tileSize), Material.Bitmap(assetName))
+            .withCrop(Rectangle(fromIndex(localId, tileSheetColumnCount) * tileSize.toPoint, tileSize))
 
-            val tilesInUse: Map[Int, SceneNode] =
-                layer.data.toSet.foldLeft(Map.empty[Int, SceneNode]) { (tiles, i) =>
-                    tiles ++ Map(
-                    i ->
-                        {
-                        if(animations.contains(i - firstgid)) {
-                          if(animations(i - firstgid).nonEmpty) {
-                            val key = AnimationKey((i - firstgid).toString)
-                            Sprite(BindingKey((i - firstgid).toString + System.currentTimeMillis().hashCode().toString), 0, 0, key, Material.Bitmap(assetName))
-                          } else {
-                            Graphic(Rectangle(Point.zero, tileSize), Material.Bitmap(assetName))
-                              .withCrop(
-                                Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                              )
-                          }
-                        } else {
-                          Graphic(Rectangle(Point.zero, tileSize), Material.Bitmap(assetName))
-                            .withCrop(
-                              Rectangle(fromIndex(i - firstgid, tileSheetColumnCount) * tileSize.toPoint, tileSize)
-                            )
-                        }
-                    })
-                }
+      val layers: Batch[Group] = Batch.fromList(tiledMap.layers.filter(_.`type` == "tilelayer")).map { layer =>
 
-            Group(
-                Batch.fromList(layer.data).zipWithIndex.flatMap {
-                    case (tileIndex, positionIndex) =>
-                    if (tileIndex == 0) Batch.empty
-                    else
-                        tilesInUse
-                        .get(tileIndex)
-                        .map {
-                            case g:Sprite[_] => Batch(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
-                            case g:Graphic[_] => Batch(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
-                            case g:SceneNode => Batch(g)
-                        }
-                        .getOrElse(Batch.empty)
-                    }
-                )
+        val tilesInUse: Map[Int, SceneNode] =
+          Map.from(
+            layer.data.iterator.filter(_ != 0).toSet.iterator.map(i => i -> buildNode(i))
+          )
+
+        Group(
+          Batch.fromIterator(
+            layer.data.iterator.zipWithIndex.flatMap {
+              case (tileIndex, positionIndex) =>
+                if tileIndex == 0 then Iterator.empty
+                else
+                  tilesInUse.get(tileIndex) match
+                    case Some(g: Sprite[_])  => Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
+                    case Some(g: Graphic[_]) => Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
+                    case Some(g: SceneNode)  => Iterator.single(g)
+                    case None                => Iterator.empty
             }
-            
-        Group(layers)
+          )
+        )
+      }
+
+      Group(layers)
     }
 }
 
