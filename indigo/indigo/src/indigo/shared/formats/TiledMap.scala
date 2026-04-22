@@ -25,7 +25,7 @@ http://doc.mapeditor.org/reference/tmx-map-format/
 
 This is not a full implementation. No doubt I'll be adding and tweaking as I go based on requirements.
  */
- 
+
 final case class TiledMap(
     width: Int,
     height: Int,
@@ -48,14 +48,17 @@ final case class TiledMap(
 ) derives CanEqual {
 
   private[formats] lazy val tileAnimations: Map[Int, Option[List[TiledFrame]]] =
-    tilesets.flatMap { tileset =>
-      tileset.tiles.flatMap { tile =>
-        Option(tile.map {
-          case ttc if ttc.animation.nonEmpty => (ttc.id, ttc.animation)
-          case ttc                           => (ttc.id, None)
-        })
+    tilesets
+      .flatMap { tileset =>
+        tileset.tiles.flatMap { tile =>
+          Option(tile.map {
+            case ttc if ttc.animation.nonEmpty => (ttc.id, ttc.animation)
+            case ttc                           => (ttc.id, None)
+          })
+        }
       }
-    }.flatten.toMap
+      .flatten
+      .toMap
   def toGrid[A](mapper: Int => A): Option[TiledGridMap[A]] = {
 
     def toGridLayer(tiledLayer: TiledLayer): TiledGridLayer[A] =
@@ -95,35 +98,37 @@ final case class TiledMap(
     TiledMap.parseAnimations(this)
 
   def parseObjects(): List[TiledMapObject] =
-    TiledMap.parseObjects(this) 
+    TiledMap.parseObjects(this)
 
   def toGroup(assetName: AssetName): Option[Group] =
     TiledMap.toGroup(this, assetName)
 }
 
 final case class TiledLayer(
-                             name: String,
-                             data: List[Int],
-                             x: Int,
-                             y: Int,
-                             width: Int,
-                             height: Int,
-                             opacity: Double,
-                             `type`: String, // tilelayer, objectgroup, or imagelayer
-                             visible: Boolean,
-                             objects: Option[List[TiledMapObject]],
-                           ) derives CanEqual
+    name: String,
+    data: List[Int],
+    x: Int,
+    y: Int,
+    width: Int,
+    height: Int,
+    opacity: Double,
+    `type`: String, // tilelayer, objectgroup, or imagelayer
+    visible: Boolean,
+    objects: Option[List[TiledMapObject]]
+) derives CanEqual
 
 object TiledLayer {
-  def apply(name: String,
-             data: List[Int],
-             x: Int,
-             y: Int,
-             width:Int,
-             height: Int,
-             opacity: Double,
-             `type`: String, // tilelayer, objectgroup, or imagelayer
-             visible: Boolean): TiledLayer =
+  def apply(
+      name: String,
+      data: List[Int],
+      x: Int,
+      y: Int,
+      width: Int,
+      height: Int,
+      opacity: Double,
+      `type`: String, // tilelayer, objectgroup, or imagelayer
+      visible: Boolean
+  ): TiledLayer =
     new TiledLayer(name, data, x, y, width, height, opacity, `type`, visible, Some(List[TiledMapObject]()))
 }
 
@@ -141,29 +146,28 @@ final case class TiledMapObject(
     polygon: Option[List[TiledMapObjectPolygonPoint]]
 )
 
-
 final case class TileSet(
-                          columns: Option[Int],
-                          firstgid: Int,
-                          image: Option[String],
-                          imageheight: Option[Int],
-                          imagewidth: Option[Int],
-                          margin: Option[Int],
-                          name: Option[String],
-                          spacing: Option[Int],
-                          terrains: Option[List[TiledTerrain]],
-                          tilecount: Option[Int],
-                          tileheight: Option[Int],
-                          tiles: Option[List[TiledTerrainCorner]],
-                          tilewidth: Option[Int],
-                          source: Option[String]
-                        ) derives CanEqual
+    columns: Option[Int],
+    firstgid: Int,
+    image: Option[String],
+    imageheight: Option[Int],
+    imagewidth: Option[Int],
+    margin: Option[Int],
+    name: Option[String],
+    spacing: Option[Int],
+    terrains: Option[List[TiledTerrain]],
+    tilecount: Option[Int],
+    tileheight: Option[Int],
+    tiles: Option[List[TiledTerrainCorner]],
+    tilewidth: Option[Int],
+    source: Option[String]
+) derives CanEqual
 
 final case class TiledFrame(duration: Int, tileid: Int) derives CanEqual
 
 final case class TiledTerrainCorner(id: Int, animation: Option[List[TiledFrame]]) derives CanEqual
 
-final case class TiledTerrain(name: String, tile: Int) derives CanEqual 
+final case class TiledTerrain(name: String, tile: Int) derives CanEqual
 
 object TiledMap {
 
@@ -181,22 +185,26 @@ object TiledMap {
   private def parseAnimations(tiledMap: TiledMap): Option[Seq[Iterable[Animation]]] =
     tiledMap.tilesets.headOption.flatMap(_.columns).map { tileSheetColumnCount =>
       val tileSize: Size = Size(tiledMap.tilewidth, tiledMap.tileheight)
-      tiledMap.tilesets.flatMap {
-        tileset =>
-          tileset.tiles.map(tile => {
-            tile.flatMap {
-              tl => tl.animation.map { a =>
-                val framesSeq: Seq[Frame] = a.map { f =>
-                  Frame(Rectangle(fromIndex(f.tileid, tileSheetColumnCount) * tileSize.toPoint, tileSize), Millis(f.duration.toLong))
-                }
-                Animation(
-                  AnimationKey(tl.id.toString),
-                  frameOne = framesSeq.headOption.getOrElse(Frame(Rectangle(fromIndex(0, tileSheetColumnCount) * tileSize.toPoint, tileSize), Millis(0))),
-                  frames = framesSeq.drop(1)*
+      tiledMap.tilesets.flatMap { tileset =>
+        tileset.tiles.map(tile =>
+          tile.flatMap { tl =>
+            tl.animation.map { a =>
+              val framesSeq: Seq[Frame] = a.map { f =>
+                Frame(
+                  Rectangle(fromIndex(f.tileid, tileSheetColumnCount) * tileSize.toPoint, tileSize),
+                  Millis(f.duration.toLong)
                 )
               }
+              Animation(
+                AnimationKey(tl.id.toString),
+                frameOne = framesSeq.headOption.getOrElse(
+                  Frame(Rectangle(fromIndex(0, tileSheetColumnCount) * tileSize.toPoint, tileSize), Millis(0))
+                ),
+                frames = framesSeq.drop(1)*
+              )
             }
-          })
+          }
+        )
 
       }
     }
@@ -210,7 +218,13 @@ object TiledMap {
       def buildNode(i: Int): SceneNode =
         val localId = i - firstgid
         if animations.contains(localId) && animations(localId).nonEmpty then
-          Sprite(BindingKey(s"${assetName.toString}_$localId"), 0, 0, AnimationKey(localId.toString), Material.Bitmap(assetName))
+          Sprite(
+            BindingKey(s"${assetName.toString}_$localId"),
+            0,
+            0,
+            AnimationKey(localId.toString),
+            Material.Bitmap(assetName)
+          )
         else
           Graphic(Rectangle(Point.zero, tileSize), Material.Bitmap(assetName))
             .withCrop(Rectangle(fromIndex(localId, tileSheetColumnCount) * tileSize.toPoint, tileSize))
@@ -224,15 +238,16 @@ object TiledMap {
 
         Group(
           Batch.fromIterator(
-            layer.data.iterator.zipWithIndex.flatMap {
-              case (tileIndex, positionIndex) =>
-                if tileIndex == 0 then Iterator.empty
-                else
-                  tilesInUse.get(tileIndex) match
-                    case Some(g: Sprite[_])  => Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
-                    case Some(g: Graphic[_]) => Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
-                    case Some(g: SceneNode)  => Iterator.single(g)
-                    case None                => Iterator.empty
+            layer.data.iterator.zipWithIndex.flatMap { case (tileIndex, positionIndex) =>
+              if tileIndex == 0 then Iterator.empty
+              else
+                tilesInUse.get(tileIndex) match
+                  case Some(g: Sprite[_]) =>
+                    Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint).play())
+                  case Some(g: Graphic[_]) =>
+                    Iterator.single(g.moveTo(fromIndex(positionIndex, tiledMap.width) * tileSize.toPoint))
+                  case Some(g: SceneNode) => Iterator.single(g)
+                  case None               => Iterator.empty
             }
           )
         )

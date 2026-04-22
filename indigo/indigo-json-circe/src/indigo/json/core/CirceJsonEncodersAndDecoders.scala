@@ -100,7 +100,7 @@ object CirceJsonEncodersAndDecoders {
       final def apply(c: HCursor): Decoder.Result[TiledFrame] =
         for {
           duration <- c.downField("duration").as[Int]
-          tileid <- c.downField("tileid").as[Int]
+          tileid   <- c.downField("tileid").as[Int]
         } yield TiledFrame(duration, tileid)
     }
 
@@ -108,10 +108,10 @@ object CirceJsonEncodersAndDecoders {
     new Decoder[TiledTerrainCorner] {
       final def apply(c: HCursor): Decoder.Result[TiledTerrainCorner] =
         for {
-          id <- c.downField("id").as[Int]
+          id        <- c.downField("id").as[Int]
           animation <- c.downField("animation").as[Option[List[TiledFrame]]]
         } yield TiledTerrainCorner(id, animation)
-  }
+    }
 
   implicit val decodeTileSet: Decoder[TileSet] =
     new Decoder[TileSet] {
@@ -153,8 +153,8 @@ object CirceJsonEncodersAndDecoders {
     new Decoder[TiledMapObjectPolygonPoint] {
       final def apply(c: HCursor): Decoder.Result[TiledMapObjectPolygonPoint] =
         for {
-          x       <- c.downField("x").as[Double]
-          y       <- c.downField("y").as[Double]
+          x <- c.downField("x").as[Double]
+          y <- c.downField("y").as[Double]
         } yield TiledMapObjectPolygonPoint(
           x,
           y
@@ -165,15 +165,15 @@ object CirceJsonEncodersAndDecoders {
     new Decoder[TiledMapObject] {
       final def apply(c: HCursor): Decoder.Result[TiledMapObject] =
         for {
-          height    <- c.downField("height").as[Double]
-          id        <- c.downField("id").as[Int]
-          rotation  <- c.downField("rotation").as[Double]
-          typ     <- c.downField("type").as[Option[String]]
-          visible <- c.downField("visible").as[Boolean]
-          width   <- c.downField("width").as[Double]
-          x       <- c.downField("x").as[Double]
-          y       <- c.downField("y").as[Double]
-          polygon <- c.downField("polygon").as[Option[List[TiledMapObjectPolygonPoint]]]
+          height   <- c.downField("height").as[Double]
+          id       <- c.downField("id").as[Int]
+          rotation <- c.downField("rotation").as[Double]
+          typ      <- c.downField("type").as[Option[String]]
+          visible  <- c.downField("visible").as[Boolean]
+          width    <- c.downField("width").as[Double]
+          x        <- c.downField("x").as[Double]
+          y        <- c.downField("y").as[Double]
+          polygon  <- c.downField("polygon").as[Option[List[TiledMapObjectPolygonPoint]]]
         } yield TiledMapObject(
           id,
           rotation,
